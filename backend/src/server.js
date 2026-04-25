@@ -3,6 +3,7 @@ import app from './app.js';
 import connectDB from './config/db.js';
 import { connectRedis } from './config/redis.js';
 import { connectCloudinary } from './config/cloudinary.js';
+import { getRazorpay } from './config/razorpay.js';
 
 const PORT = process.env.PORT || 5000;
 
@@ -12,6 +13,11 @@ const startServer = async () => {
     await connectDB();
     connectRedis();
     connectCloudinary();
+
+    // Razorpay init
+    if (process.env.RAZORPAY_ENABLED === 'true') {
+      getRazorpay();
+    }
 
     // Start server
     app.listen(PORT, () => {
