@@ -4,6 +4,7 @@ import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { getRazorpay } from '../config/razorpay.js';
+import { getStripe } from '../config/stripe.js';
 import { getPagination, getPaginationMeta } from '../utils/pagination.js';
 import { sendEmail } from '../utils/email.js';
 
@@ -471,4 +472,147 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   });
 
   res.json(new ApiResponse(200, { order: updated }, 'Order status updated'));
+});
+
+// =====================
+// @route  POST /api/orders/payments/stripe/create-session
+// @access Private
+// =====================
+export const createStripeSession = asyncHandler(async (req, res) => {
+  const { orderId } = req.body;
+
+  const order = await Order.findOne({ _id: orderId, userId: req.user._id });
+  if (!order) throw new ApiError(404, 'Order not found');
+
+  if (order.paymentStatus === 'paid') {
+    throw new ApiError(400, 'Order already paid');
+  }
+
+  const stripe = getStripe();
+
+  const lineItems = order.items.map((item) => ({
+    price_data: {
+      currency: 'inr',
+      product_data: {
+        name: item.name,
+        images: item.image ? [item.image] : [],
+      },
+      unit_amount: item.price * 100,
+    },
+    quantity: item.quantity,
+  }));
+
+  if (order.pricing.shippingCharge > 0) {
+    lineItems.push({
+      price_data: {
+        currency: 'inr',
+        product_data: { name: 'Shipping Charge' },
+        unit_amount: order.pricing.shippingCharge * 100,
+      },
+      quantity: 1,
+    });
+  }
+
+  const session = await stripe.checkout.sessions.create({
+    payment_method_types: ['card'],
+    line_items: lineItems,
+    mode: 'payment',
+    success_url: `${process.env.FRONTEND_URL}/order-success?orderId=${order._id}`,
+    cancel_url: `${process.env.FRONTEND_URL}/checkout?cancelled=true`,
+    metadata: {
+      orderId: order._id.toString(),
+      orderNumber: order.orderNumber,
+      userId: req.user._id.toString(),
+    },
+  });
+
+  await Transaction.create({
+    order: order._id,
+    user: req.user._id,
+    amount: order.pricing.total,
+    currency: 'INR',
+    gateway: 'stripe',
+    gatewayOrderId: session.id,
+    status: 'initiated',
+  });
+
+  res.json(new ApiResponse(200, {
+    sessionId: session.id,
+    sessionUrl: session.url,
+  }, 'Stripe session created'));
+});
+
+// =====================
+// @route  POST /api/orders/payments/stripe/webhook
+// @access Public
+// =====================
+export const stripeWebhook = asyncHandler(async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const stripe = getStripe();
+
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      sig,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (err) {
+    console.error('Webhook signature failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  switch (event.type) {
+    case 'checkout.session.completed': {
+      const session = event.data.object;
+      const orderId = session.metadata.orderId;
+
+      await Order.findByIdAndUpdate(orderId, {
+        paymentStatus: 'paid',
+        orderStatus: 'confirmed',
+        $push: {
+          statusHistory: {
+            status: 'confirmed',
+            message: 'Payment received via Stripe',
+          },
+        },
+      });
+
+      await Transaction.findOneAndUpdate(
+        { gatewayOrderId: session.id },
+        {
+          gatewayPaymentId: session.payment_intent,
+          status: 'success',
+        }
+      );
+
+      console.log(`✅ Stripe payment confirmed: ${orderId}`);
+      break;
+    }
+
+    case 'checkout.session.expired': {
+      const session = event.data.object;
+      const orderId = session.metadata.orderId;
+
+      await Order.findByIdAndUpdate(orderId, {
+        paymentStatus: 'failed',
+        orderStatus: 'cancelled',
+        $push: {
+          statusHistory: {
+            status: 'cancelled',
+            message: 'Stripe session expired',
+          },
+        },
+      });
+
+      console.log(`❌ Stripe session expired: ${orderId}`);
+      break;
+    }
+
+    default:
+      console.log(`Unhandled Stripe event: ${event.type}`);
+  }
+
+  res.json({ received: true });
 });

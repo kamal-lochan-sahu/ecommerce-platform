@@ -4,22 +4,23 @@ import connectDB from './config/db.js';
 import { connectRedis } from './config/redis.js';
 import { connectCloudinary } from './config/cloudinary.js';
 import { getRazorpay } from './config/razorpay.js';
+import { getStripe } from './config/stripe.js';
 
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
-    // Connect all services
     await connectDB();
     connectRedis();
     connectCloudinary();
 
-    // Razorpay init
     if (process.env.RAZORPAY_ENABLED === 'true') {
       getRazorpay();
     }
+    if (process.env.STRIPE_ENABLED === 'true') {
+      getStripe();
+    }
 
-    // Start server
     app.listen(PORT, () => {
       console.log(`\n🚀 Server running on http://localhost:${PORT}`);
       console.log(`📦 Client: ${process.env.CLIENT_NAME}`);
