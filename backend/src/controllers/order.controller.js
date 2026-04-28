@@ -215,6 +215,17 @@ export const createOrder = asyncHandler(async (req, res) => {
     );
   }
 
+ // Stripe — order banao, session alag se banega
+  if (paymentMethod === 'stripe') {
+    return res.status(201).json(
+      new ApiResponse(201, {
+        order,
+        nextStep: 'create-stripe-session',
+        createSessionUrl: `/api/orders/payments/stripe/create-session`,
+      }, 'Order created — proceed to Stripe payment')
+    );
+  }
+
   // Online payment — Razorpay order banao
   if (paymentMethod === 'razorpay') {
     const razorpay = getRazorpay();

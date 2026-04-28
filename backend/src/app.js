@@ -28,6 +28,10 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
+// ===== Stripe Webhook — JSON se PEHLE (raw body chahiye) =====
+import { stripeWebhook } from './controllers/order.controller.js';
+app.post('/api/orders/payments/stripe/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
+
 // ===== Body Parsers =====
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -70,6 +74,10 @@ import cartRoutes from './routes/cart.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
 import orderRoutes from './routes/order.routes.js';
 
+import reviewRoutes from './routes/review.routes.js';
+import couponRoutes from './routes/coupon.routes.js';
+app.use('/api', reviewRoutes);
+app.use('/api', couponRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/wishlist', wishlistRoutes);
