@@ -73,9 +73,15 @@ import productRoutes from './routes/product.routes.js';
 import cartRoutes from './routes/cart.routes.js';
 import wishlistRoutes from './routes/wishlist.routes.js';
 import orderRoutes from './routes/order.routes.js';
-
+import adminRoutes from "./routes/admin.routes.js";
 import reviewRoutes from './routes/review.routes.js';
 import couponRoutes from './routes/coupon.routes.js';
+import bannerRoutes from "./routes/banner.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
+
+app.use("/api/banners", bannerRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/admin", adminRoutes);
 app.use('/api', reviewRoutes);
 app.use('/api', couponRoutes);
 app.use('/api/orders', orderRoutes);
