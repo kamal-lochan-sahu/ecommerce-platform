@@ -5,6 +5,7 @@ import { connectRedis } from './config/redis.js';
 import { connectCloudinary } from './config/cloudinary.js';
 import { getRazorpay } from './config/razorpay.js';
 import { getStripe } from './config/stripe.js';
+import { startCronJobs } from './jobs/index.js';
 
 const PORT = process.env.PORT || 5000;
 
@@ -26,6 +27,7 @@ const startServer = async () => {
       console.log(`📦 Client: ${process.env.CLIENT_NAME}`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
       console.log(`\n🔗 Health check: http://localhost:${PORT}/health\n`);
+  startCronJobs();
     });
 
   } catch (error) {
