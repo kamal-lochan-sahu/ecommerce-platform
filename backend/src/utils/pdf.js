@@ -15,6 +15,7 @@ const generateInvoicePDF = (order, user) => {
       const grayColor = "#6b7280";
       const lightGray = "#f3f4f6";
 
+      const pricing = order.pricing || {};
       const shortId = order._id.toString().slice(-8).toUpperCase();
       const pageWidth = doc.page.width - 100; // margins ke baad
 
@@ -189,11 +190,11 @@ const generateInvoicePDF = (order, user) => {
             width: 60,
             align: "center",
           })
-          .text(`₹${price.toLocaleString("en-IN")}`, 410, rowY + 12, {
+          .text(`Rs.${price.toLocaleString("en-IN")}`, 410, rowY + 12, {
             width: 80,
             align: "right",
           })
-          .text(`₹${total.toLocaleString("en-IN")}`, 490, rowY + 12, {
+          .text(`Rs.${total.toLocaleString("en-IN")}`, 490, rowY + 12, {
             width: 60,
             align: "right",
           });
@@ -231,15 +232,15 @@ const generateInvoicePDF = (order, user) => {
       let tY = totalSectionY;
       addTotalRow(
         "Subtotal:",
-        `₹${(order.subtotal || order.totalAmount)?.toLocaleString("en-IN")}`,
+        `Rs.${(pricing.subtotal || pricing.total)?.toLocaleString("en-IN")}`,
         tY
       );
 
-      if (order.discount > 0) {
+      if (pricing.couponDiscount > 0 || pricing.discount > 0) {
         tY += 20;
         addTotalRow(
           `Discount${order.couponCode ? ` (${order.couponCode})` : ""}:`,
-          `-₹${order.discount?.toLocaleString("en-IN")}`,
+          `-Rs.${(pricing.couponDiscount || pricing.discount || 0).toLocaleString("en-IN")}`,
           tY,
           false,
           "#16a34a"
@@ -249,12 +250,12 @@ const generateInvoicePDF = (order, user) => {
       tY += 20;
       addTotalRow(
         "Delivery:",
-        order.deliveryCharge === 0
+        pricing.shippingCharge === 0
           ? "FREE"
-          : `₹${order.deliveryCharge?.toLocaleString("en-IN")}`,
+          : `Rs.${(pricing.shippingCharge || 0).toLocaleString("en-IN")}`,
         tY,
         false,
-        order.deliveryCharge === 0 ? "#16a34a" : darkColor
+        pricing.shippingCharge === 0 ? "#16a34a" : darkColor
       );
 
       // Total Box
@@ -266,7 +267,7 @@ const generateInvoicePDF = (order, user) => {
         .font("Helvetica-Bold")
         .text("TOTAL:", totalX, tY + 10)
         .text(
-          `₹${order.totalAmount?.toLocaleString("en-IN")}`,
+          `Rs.${(pricing.total || 0).toLocaleString("en-IN")}`,
           totalX,
           tY + 10,
           { width: totalWidth, align: "right" }
@@ -286,7 +287,7 @@ const generateInvoicePDF = (order, user) => {
         .fillColor(grayColor)
         .fontSize(9)
         .font("Helvetica")
-        .text("Thank you for shopping with us! 🎉", 50, footerY, {
+        .text("Thank you for shopping with us!", 50, footerY, {
           align: "center",
           width: pageWidth,
         })
