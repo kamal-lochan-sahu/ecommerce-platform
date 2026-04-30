@@ -627,3 +627,34 @@ export const stripeWebhook = asyncHandler(async (req, res) => {
 
   res.json({ received: true });
 });
+
+
+// ─── GET INVOICE PDF ──────────────────────────────────────────
+export const getInvoicePDF = asyncHandler(async (req, res) => {
+  const order = await Order.findById(req.params.id)
+    .populate("items.product", "name price images")
+    .populate("user", "name email phone");
+
+  if (!order) throw new ApiError(404, "Order not found");
+
+  // Sirf apna order dekh sakta hai (admin sab dekh sakta hai)
+  if (
+    order.user._id.toString() !== req.user._id.toString() &&
+    req.user.role !== "admin"
+  ) {
+    throw new ApiError(403, "Not authorized");
+  }
+
+  const generateInvoicePDF = (await import("../utils/pdf.js")).default;
+  const pdfBuffer = await generateInvoicePDF(order, order.user);
+
+  const shortId = order._id.toString().slice(-8).toUpperCase();
+
+  res.set({
+    "Content-Type": "application/pdf",
+    "Content-Disposition": `attachment; filename="invoice-${shortId}.pdf"`,
+    "Content-Length": pdfBuffer.length,
+  });
+
+  res.send(pdfBuffer);
+});

@@ -9,6 +9,7 @@ import {
   stripeWebhook,
   getAllOrders,
   updateOrderStatus,
+  getInvoicePDF,
 } from '../controllers/order.controller.js';
 import { protect, adminOnly } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
@@ -37,6 +38,9 @@ router.put('/:id/cancel', cancelOrder);
 // Payment routes
 router.post('/payments/razorpay/verify', verifyRazorpayPayment);
 router.post('/payments/stripe/create-session', createStripeSession);
+
+// Invoice route
+router.get('/:id/invoice', getInvoicePDF);
 
 // Admin routes
 router.get('/admin/all', adminOnly, getAllOrders);
