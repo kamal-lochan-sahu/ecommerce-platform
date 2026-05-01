@@ -8,6 +8,7 @@ import useUiStore from "./store/uiStore";
 import Navbar from "./components/common/Navbar";
 import Footer from "./components/common/Footer";
 import { ScrollToTopOnRoute, ScrollToTopButton } from "./components/common/ScrollToTop";
+import CartDrawer from "./components/cart/CartDrawer";
 
 const Home           = lazy(() => import("./pages/customer/Home"));
 const ProductListing = lazy(() => import("./pages/customer/ProductListing"));
@@ -112,6 +113,7 @@ function AppLayout() {
         </Suspense>
       </main>
       {!isAdmin && !isAuth && <Footer />}
+      <CartDrawer />
       <ScrollToTopButton />
       <ScrollToTopOnRoute />
     </div>
