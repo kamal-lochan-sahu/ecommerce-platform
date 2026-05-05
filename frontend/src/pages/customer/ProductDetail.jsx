@@ -92,13 +92,27 @@ export default function ProductDetail() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["product", slug],
-    queryFn:  () => productService.getBySlug(slug).then(r => r.data.product),
+    queryFn:  async () => {
+      const res = await productService.getBySlug(slug);
+      return res.data?.data?.product || res.data?.product || null;
+    },
     retry: false,
   });
 
   const product    = data || MOCK_PRODUCT;
   const inWishlist = isInWishlist(product._id);
+
+  // Handle empty images
+  const productImages = product.images?.length > 0
+    ? product.images
+    : [`https://placehold.co/600x600/eef2ff/6366f1?text=${encodeURIComponent(product.name?.slice(0,10) || "Product")}`];
   const isOOS      = product.stock === 0;
+
+  // Handle real backend ratings object
+  const ratingValue = typeof product.ratings === "object"
+    ? product.ratings?.average || 0 : product.ratings || 0;
+  const ratingCount = typeof product.ratings === "object"
+    ? product.ratings?.count || 0 : product.totalReviews || 0;
 
   const discountPct = product.discount || (product.comparePrice > product.price
     ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100) : 0);
@@ -106,7 +120,6 @@ export default function ProductDetail() {
   const savings = product.comparePrice - product.price;
 
   const handleAddToCart = () => {
-    if (!isAuthenticated) { toast.error("Pehle login karo!"); navigate("/login"); return; }
     if (isOOS) return;
     addItem({ ...product, quantity: qty, variant: selectedColor || selectedSize });
     openCart();
@@ -114,7 +127,6 @@ export default function ProductDetail() {
   };
 
   const handleBuyNow = () => {
-    if (!isAuthenticated) { toast.error("Pehle login karo!"); navigate("/login"); return; }
     handleAddToCart();
     navigate("/checkout");
   };
@@ -148,7 +160,7 @@ export default function ProductDetail() {
     <div className="page-container">
       <Breadcrumb items={[
         { label: "Products",          href: "/products" },
-        { label: product.category,    href: `/products?category=${product.category}` },
+        { label: product.category?.name || product.category, href: `/products?category=${product.category?.slug || product.category}` },
         { label: product.name },
       ]} />
 
@@ -156,7 +168,7 @@ export default function ProductDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-16">
 
         {/* Left — Images */}
-        <ProductImages images={product.images} name={product.name} />
+        <ProductImages images={productImages} name={product.name} />
 
         {/* Right — Product Info */}
         <div className="space-y-5">
@@ -174,8 +186,8 @@ export default function ProductDetail() {
 
           {/* Rating */}
           <div className="flex items-center gap-3">
-            <Rating value={Math.round(product.ratings)} count={product.totalReviews} size={16} />
-            <span className="text-sm text-gray-600 font-medium">{product.ratings} / 5</span>
+            <Rating value={Math.round(ratingValue)} count={ratingCount} size={16} />
+            <span className="text-sm text-gray-600 font-medium">{ratingValue} / 5</span>
             <span className="text-gray-200">|</span>
             <span className="text-sm text-gray-500">{product.stock} in stock</span>
           </div>

@@ -35,11 +35,11 @@ export default function Register() {
     try {
       const { confirmPassword, ...payload } = data;
       const res = await authService.register(payload);
-      if (res.data.requiresOTP) {
+      if (res.data.data.requiresOTP) {
         toast.success("OTP bheja gaya! Check karo.");
         navigate("/verify-otp", { state: { email: data.email, type: "register" } });
       } else {
-        login(res.data.user, res.data.accessToken);
+        login(res.data.data.user, res.data.data.accessToken);
         toast.success("Account create ho gaya! 🎉");
         navigate("/");
       }

@@ -70,7 +70,7 @@ export default function ProductListing() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["products", queryParams],
-    queryFn:  () => productService.getAll(queryParams).then(r => r.data),
+    queryFn:  () => productService.getAll(queryParams).then(r => r.data?.data ?? r.data),
     retry: false,
     placeholderData: { products: MOCK, total: 20, totalPages: 2 },
   });

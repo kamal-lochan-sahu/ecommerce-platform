@@ -62,12 +62,12 @@ export default function VerifyOTP() {
     try {
       const res = await authService.verifyOTP({ email, otp: code, type });
       if (type === "register") {
-        login(res.data.user, res.data.accessToken);
+        login(res.data.data.user, res.data.data.accessToken);
         toast.success("Email verify ho gaya! Welcome 🎉");
         navigate("/");
       } else {
         toast.success("OTP verified! Ab password reset karo.");
-        navigate("/reset-password", { state: { email, token: res.data.resetToken } });
+        navigate("/reset-password", { state: { email, token: res.data.data.resetToken } });
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "OTP galat hai.");

@@ -18,6 +18,7 @@ const Checkout       = lazy(() => import("./pages/customer/Checkout"));
 const OrderSuccess   = lazy(() => import("./pages/customer/OrderSuccess"));
 const OrderHistory   = lazy(() => import("./pages/customer/OrderHistory"));
 const OrderDetail    = lazy(() => import("./pages/customer/OrderDetail"));
+const OrderTracking  = lazy(() => import("./pages/customer/OrderTracking"));
 const Profile        = lazy(() => import("./pages/customer/Profile"));
 const Addresses      = lazy(() => import("./pages/customer/Addresses"));
 const Wishlist       = lazy(() => import("./pages/customer/Wishlist"));
@@ -87,10 +88,11 @@ function AppLayout() {
             <Route path="/reset-password"      element={<ResetPassword />} />
             <Route path="/verify-otp"          element={<VerifyOTP />} />
             <Route path="/cart"          element={<ProtectedRoute><Cart /></ProtectedRoute>} />
-            <Route path="/checkout"      element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
-            <Route path="/order-success" element={<ProtectedRoute><OrderSuccess /></ProtectedRoute>} />
-            <Route path="/orders"        element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
+            <Route path="/checkout"      element={<Checkout />} />
+            <Route path="/order-success" element={<OrderSuccess />} />
+            <Route path="/orders"        element={<OrderHistory />} />
             <Route path="/orders/:id"    element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
+            <Route path="/orders/:id/tracking" element={<ProtectedRoute><OrderTracking /></ProtectedRoute>} />
             <Route path="/profile"       element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/addresses"     element={<ProtectedRoute><Addresses /></ProtectedRoute>} />
             <Route path="/wishlist"      element={<ProtectedRoute><Wishlist /></ProtectedRoute>} />

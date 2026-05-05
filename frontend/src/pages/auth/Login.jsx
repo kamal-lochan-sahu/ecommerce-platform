@@ -30,8 +30,8 @@ export default function Login() {
   const onSubmit = async (data) => {
     try {
       const res = await authService.login(data);
-      login(res.data.user, res.data.accessToken);
-      toast.success(`Welcome back, ${res.data.user.name.split(" ")[0]}! 👋`);
+      login(res.data.data.user, res.data.data.accessToken);
+      toast.success(`Welcome back, ${res.data.data.user.name.split(" ")[0]}! 👋`);
       navigate(from, { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || "Login failed. Try again.");

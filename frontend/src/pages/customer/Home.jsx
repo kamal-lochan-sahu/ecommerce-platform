@@ -82,21 +82,21 @@ export default function Home() {
   // Fetch featured products
   const { data: featured, isLoading: featuredLoading } = useQuery({
     queryKey: ["featured-products"],
-    queryFn:  () => productService.getFeatured().then(r => r.data.products),
+    queryFn:  () => productService.getFeatured().then(r => r.data?.data?.products ?? null),
     retry: false,
   });
 
   // Fetch new arrivals
   const { data: newArrivals, isLoading: newLoading } = useQuery({
     queryKey: ["new-arrivals"],
-    queryFn:  () => productService.getNewArrivals().then(r => r.data.products),
+    queryFn:  () => productService.getAll({ sort: 'newest', limit: 4 }).then(r => r.data?.data?.products ?? null),
     retry: false,
   });
 
   // Fetch deals
   const { data: deals, isLoading: dealsLoading } = useQuery({
     queryKey: ["deals"],
-    queryFn:  () => productService.getDeals().then(r => r.data.products),
+    queryFn:  () => productService.getAll({ limit: 4 }).then(r => r.data?.data?.products ?? null),
     retry: false,
   });
 
