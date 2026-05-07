@@ -1,5 +1,5 @@
 import { Menu, Bell, Search } from 'lucide-react'
-import { useAuthStore } from '../../store/authStore'
+import useAuthStore from '../../store/authStore'
 
 export default function AdminHeader({ title, onMenuClick }) {
   const { user } = useAuthStore()

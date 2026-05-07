@@ -15,10 +15,10 @@ export default function Dashboard() {
   })
 
   const stats = data?.stats || {}
-  const revenueChart = data?.revenueChart || []
-  const ordersByStatus = data?.ordersByStatus || []
-  const recentOrders = data?.recentOrders || []
-  const lowStock = data?.lowStockProducts || []
+  const revenueChart = Array.isArray(data?.revenueChart) ? data.revenueChart : []
+  const ordersByStatus = Array.isArray(data?.ordersByStatus) ? data.ordersByStatus : []
+  const recentOrders = Array.isArray(data?.recentOrders) ? data.recentOrders : []
+  const lowStock = Array.isArray(data?.lowStockProducts) ? data.lowStockProducts : []
 
   return (
     <AdminLayout title="Dashboard">

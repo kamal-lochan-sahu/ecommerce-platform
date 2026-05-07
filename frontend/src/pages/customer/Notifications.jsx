@@ -18,7 +18,7 @@ export default function Notifications() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['notifications'],
-    queryFn: () => notificationService.getAll().then(r => r.data?.notifications || r.data || []),
+    queryFn: () => notificationService.getAll().then(r => r.data?.data?.notifications || r.data?.notifications || []),
   })
 
   const readMutation = useMutation({

@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Package, Grid3X3, ShoppingBag, Users,
   Star, Tag, Image, BarChart2, Settings, LogOut, X, Store
 } from 'lucide-react'
-import { useAuthStore } from '../../store/authStore'
+import useAuthStore from '../../store/authStore'
 import authService from '../../services/auth.service'
 import toast from 'react-hot-toast'
 

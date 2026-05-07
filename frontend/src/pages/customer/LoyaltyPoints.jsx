@@ -13,7 +13,7 @@ const HOW_TO = [
 export default function LoyaltyPoints() {
   const { data, isLoading } = useQuery({
     queryKey: ['loyalty'],
-    queryFn: () => loyaltyService.get().then(r => r.data),
+    queryFn: () => loyaltyService.get().then(r => r.data?.data || r.data),
   })
   const { data: histData, isLoading: histLoading } = useQuery({
     queryKey: ['loyalty-history'],

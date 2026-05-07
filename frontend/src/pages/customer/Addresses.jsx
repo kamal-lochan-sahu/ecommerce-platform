@@ -17,7 +17,7 @@ export default function Addresses() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['addresses'],
-    queryFn: () => addressService.getAll().then(r => r.data?.addresses || r.data || []),
+    queryFn: () => addressService.getAll().then(r => r.data?.data?.addresses || r.data?.addresses || []),
   })
 
   const addMutation = useMutation({

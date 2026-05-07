@@ -3,7 +3,7 @@ import { Heart, ShoppingCart, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import wishlistService from '../../services/wishlist.service'
-import { useCartStore } from '../../store/cartStore'
+import useCartStore from '../../store/cartStore'
 import Skeleton from '../../components/ui/Skeleton'
 
 export default function Wishlist() {
@@ -12,7 +12,7 @@ export default function Wishlist() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['wishlist'],
-    queryFn: () => wishlistService.getAll().then(r => r.data?.items || r.data || []),
+    queryFn: () => wishlistService.getAll().then(r => r.data?.data?.items || r.data?.data || r.data?.items || []),
   })
 
   const removeMutation = useMutation({
