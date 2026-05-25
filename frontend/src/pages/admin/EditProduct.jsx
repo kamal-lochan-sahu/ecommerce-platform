@@ -16,7 +16,7 @@ export default function EditProduct() {
 
   const { data: product, isLoading } = useQuery({
     queryKey: ['product-admin', id],
-    queryFn: () => api.get(`/products/${id}`).then(r => r.data?.product || r.data),
+    queryFn: () => api.get(`/products/id/${id}`).then(r => r.data?.data?.product),
     onSuccess: (p) => {
       setForm({ name:p.name||'', description:p.description||'', price:p.price||'', salePrice:p.salePrice||'', stock:p.stock||'', brand:p.brand||'', tags:p.tags?.join(',')||'' })
       setSpecs(p.specifications?.length ? p.specifications : [{key:'',value:''}])
@@ -29,7 +29,7 @@ export default function EditProduct() {
     onError: (e) => toast.error(e?.response?.data?.message||'Failed'),
   })
 
-  const { data: catData } = useQuery({ queryKey:['categories'], queryFn: ()=>api.get('/categories').then(r=>r.data?.categories||[]) })
+  const { data: catData } = useQuery({ queryKey:['categories'], queryFn: ()=>api.get('/categories').then(r=>r.data?.data?.categories||[]) })
 
   const handleSubmit = (e) => {
     e.preventDefault()

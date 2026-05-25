@@ -13,7 +13,7 @@ export default function Products() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-products', page],
-    queryFn: () => api.get('/admin/products', { params:{page,limit:20} }).then(r => r.data),
+    queryFn: () => api.get('/products', { params:{page,limit:20,sortBy:'newest'} }).then(r => r.data?.data),
   })
 
   const deleteMutation = useMutation({
@@ -22,7 +22,7 @@ export default function Products() {
     onError: () => toast.error('Delete failed'),
   })
   const toggleMutation = useMutation({
-    mutationFn: ({id,active}) => api.patch(`/products/${id}`, { isActive: active }),
+    mutationFn: ({id,active}) => api.put(`/products/${id}`, { isActive: active }),
     onSuccess: () => qc.invalidateQueries({queryKey:['admin-products']}),
   })
 
@@ -48,7 +48,7 @@ export default function Products() {
     <AdminLayout title="Products">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <p className="text-sm text-gray-500">{data?.totalProducts||0} total products</p>
+          <p className="text-sm text-gray-500">{data?.pagination?.total || 0} total products</p>
         </div>
         <Link to="/admin/products/add" className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors">
           <Plus size={16}/> Add Product

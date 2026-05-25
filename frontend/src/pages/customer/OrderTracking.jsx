@@ -59,7 +59,7 @@ export default function OrderTracking() {
     )
   }
 
-  const currentStep = getStepIndex(order.status)
+  const currentStep = getStepIndex(order.orderStatus)
   const tracking = order.trackingInfo
   const progressPct = (currentStep / (STEPS.length - 1)) * 100
 
@@ -121,7 +121,7 @@ export default function OrderTracking() {
                 const done    = idx <= currentStep
                 const current = idx === currentStep
                 const { Icon } = step
-                const event = order.statusHistory?.find((h) => h.status === step.key)
+                const event = order.orderStatusHistory?.find((h) => h.status === step.key)
 
                 return (
                   <div key={step.key} className="flex items-start gap-4">
@@ -190,7 +190,7 @@ export default function OrderTracking() {
               )}
               {tracking.trackingUrl && (
                 
-                  href={tracking.trackingUrl}
+                  href={`${tracking?.trackingUrl || "#"}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 w-full mt-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-100 transition-colors"

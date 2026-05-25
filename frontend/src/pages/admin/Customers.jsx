@@ -13,11 +13,11 @@ export default function Customers() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-customers'],
-    queryFn: () => api.get('/admin/users').then(r => r.data?.users || r.data || []),
+    queryFn: () => api.get('/admin/customers').then(r => r.data?.data?.customers || []),
   })
 
   const toggleMutation = useMutation({
-    mutationFn: ({id,active}) => api.patch(`/admin/users/${id}`, { isActive: active }),
+    mutationFn: ({id,active}) => api.put(`/admin/customers/${id}/status`, { isActive: active }),
     onSuccess: () => { qc.invalidateQueries({queryKey:['admin-customers']}); toast.success('Updated!') },
   })
 

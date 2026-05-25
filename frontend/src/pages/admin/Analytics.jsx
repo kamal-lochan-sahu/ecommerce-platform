@@ -9,7 +9,7 @@ import Skeleton from '../../components/ui/Skeleton'
 export default function Analytics() {
   const { data, isLoading } = useQuery({
     queryKey: ['admin-analytics'],
-    queryFn: () => api.get('/admin/analytics').then(r => r.data?.data || r.data),
+    queryFn: () => api.get('/admin/analytics/sales').then(r => r.data?.data || r.data),
   })
 
   const stats = data?.stats || {}

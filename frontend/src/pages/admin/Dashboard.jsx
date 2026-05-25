@@ -15,7 +15,7 @@ export default function Dashboard() {
   })
 
   const stats = data?.stats || {}
-  const revenueChart = Array.isArray(data?.revenueChart) ? data.revenueChart : []
+  const revenueByMonth = Array.isArray(data?.revenueByMonth) ? data?.revenueByMonth : []
   const ordersByStatus = Array.isArray(data?.ordersByStatus) ? data.ordersByStatus : []
   const recentOrders = Array.isArray(data?.recentOrders) ? data.recentOrders : []
   const lowStock = Array.isArray(data?.lowStockProducts) ? data.lowStockProducts : []
@@ -40,7 +40,7 @@ export default function Dashboard() {
           <h3 className="font-semibold text-gray-900 mb-4">Revenue Overview</h3>
           {isLoading ? <Skeleton className="h-56"/> : (
             <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={revenueChart}>
+              <LineChart data={revenueByMonth}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0"/>
                 <XAxis dataKey="month" tick={{fontSize:11}} stroke="#9ca3af"/>
                 <YAxis tick={{fontSize:11}} stroke="#9ca3af" tickFormatter={v=>`₹${(v/1000).toFixed(0)}k`}/>

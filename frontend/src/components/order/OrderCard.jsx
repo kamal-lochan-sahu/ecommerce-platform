@@ -1,7 +1,7 @@
 import { Package, ChevronRight, Clock, Truck, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 
 const STATUS_CONFIG = {
-  pending:          { label: 'Pending',          bg: 'bg-yellow-100', text: 'text-yellow-700', Icon: Clock },
+  placed:          { label: 'Pending',          bg: 'bg-yellow-100', text: 'text-yellow-700', Icon: Clock },
   processing:       { label: 'Processing',       bg: 'bg-blue-100',   text: 'text-blue-700',   Icon: Package },
   shipped:          { label: 'Shipped',          bg: 'bg-indigo-100', text: 'text-indigo-700', Icon: Truck },
   out_for_delivery: { label: 'Out for Delivery', bg: 'bg-purple-100', text: 'text-purple-700', Icon: Truck },
@@ -11,7 +11,7 @@ const STATUS_CONFIG = {
 }
 
 export default function OrderCard({ order }) {
-  const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
+  const cfg = STATUS_CONFIG[order.orderStatus] || STATUS_CONFIG.placed
   const { Icon } = cfg
 
   const firstImage = order.items?.[0]?.product?.images?.[0] || '/placeholder.jpg'
@@ -62,7 +62,7 @@ export default function OrderCard({ order }) {
         <div>
           <p className="text-xs text-gray-400">Total Amount</p>
           <p className="font-bold text-gray-900 mt-0.5">
-            ₹{order.totalAmount?.toLocaleString('en-IN')}
+            ₹{order.pricing?.total?.toLocaleString('en-IN')}
           </p>
         </div>
         <div className="text-right">

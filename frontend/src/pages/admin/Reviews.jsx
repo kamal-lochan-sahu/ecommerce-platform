@@ -12,11 +12,11 @@ export default function Reviews() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-reviews', filter],
-    queryFn: () => api.get('/admin/reviews', { params:{ status:filter } }).then(r => r.data?.reviews || r.data || []),
+    queryFn: () => api.get('/admin/reviews', { params:{ status:filter } }).then(r => r.data?.data?.reviews || []),
   })
 
   const actionMutation = useMutation({
-    mutationFn: ({id,action}) => api.put(`/reviews/${id}/${action}`),
+    mutationFn: ({id,action}) => api.put(`/admin/reviews/${id}/${action}`),
     onSuccess: () => { qc.invalidateQueries({queryKey:['admin-reviews']}); toast.success('Done!') },
     onError: () => toast.error('Failed'),
   })

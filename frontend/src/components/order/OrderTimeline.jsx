@@ -1,10 +1,10 @@
 import { Clock, Package, Truck, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 
 const STEPS = [
-  { key: 'pending',          label: 'Order Placed',      Icon: Clock },
+  { key: 'placed',          label: 'Order Placed',      Icon: Clock },
   { key: 'processing',       label: 'Processing',        Icon: Package },
   { key: 'shipped',          label: 'Shipped',           Icon: Truck },
-  { key: 'out_for_delivery', label: 'Out for Delivery',  Icon: Truck },
+  { key: 'shipped', label: 'Out for Delivery',  Icon: Truck },
   { key: 'delivered',        label: 'Delivered',         Icon: CheckCircle },
 ]
 

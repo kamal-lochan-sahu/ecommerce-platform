@@ -76,8 +76,8 @@ export default function ProductListing() {
   });
 
   const products   = data?.products   || MOCK;
-  const total      = data?.total      || 20;
-  const totalPages = data?.totalPages || 2;
+  const total      = data?.pagination?.total      || 20;
+  const totalPages = data?.pagination?.totalPages || 2;
 
   const handleFilterChange = useCallback((newFilters) => {
     setFilters(newFilters);

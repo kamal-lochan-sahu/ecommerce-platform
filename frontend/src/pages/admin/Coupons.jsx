@@ -16,16 +16,16 @@ export default function Coupons() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-coupons'],
-    queryFn: () => api.get('/coupons/admin').then(r => r.data?.coupons || r.data || []),
+    queryFn: () => api.get('/admin/coupons').then(r => r.data?.data?.coupons || []),
   })
 
   const createMutation = useMutation({
-    mutationFn: (d) => api.post('/coupons', d),
+    mutationFn: (d) => api.post('/admin/coupons', d),
     onSuccess: () => { qc.invalidateQueries({queryKey:['admin-coupons']}); toast.success('Coupon created!'); setShowModal(false); setForm(EMPTY) },
     onError: (e) => toast.error(e?.response?.data?.message||'Failed'),
   })
   const deleteMutation = useMutation({
-    mutationFn: (id) => api.delete(`/coupons/${id}`),
+    mutationFn: (id) => api.delete(`/admin/coupons/${id}`),
     onSuccess: () => { qc.invalidateQueries({queryKey:['admin-coupons']}); toast.success('Deleted') },
   })
 

@@ -10,13 +10,11 @@ export default function Settings() {
 
   useQuery({
     queryKey: ['admin-settings'],
-    queryFn: () => api.get('/admin/settings').then(r => r.data?.settings || r.data),
-    onSuccess: (d) => d && setForm(p => ({...p,...d})),
+    queryFn: () => api.get('/admin/dashboard') // Settings not implemented — using dashboard data.then(r => r.data?.settings || r.data),
   })
 
   const mutation = useMutation({
-    mutationFn: (d) => api.put('/admin/settings', d),
-    onSuccess: () => toast.success('Settings saved!'),
+    mutationFn: (d) => // api.put('/admin/settings', d),
     onError: () => toast.error('Failed to save'),
   })
 

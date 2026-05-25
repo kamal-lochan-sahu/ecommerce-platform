@@ -9,7 +9,7 @@ import Skeleton from '../../components/ui/Skeleton'
 
 const TABS = [
   { label: 'All Orders', value: '' },
-  { label: 'Pending',    value: 'pending' },
+  { label: 'Pending',    value: 'placed' },
   { label: 'Processing', value: 'processing' },
   { label: 'Shipped',    value: 'shipped' },
   { label: 'Delivered',  value: 'delivered' },

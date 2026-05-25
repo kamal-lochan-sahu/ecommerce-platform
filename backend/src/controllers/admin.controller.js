@@ -425,14 +425,18 @@ export const getAllReviews = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 20;
   const skip = (page - 1) * limit;
-  const status = req.query.status || "pending";
+  const statusParam = req.query.status || "pending";
 
-  const filter = { status };
+  // Map status param to isApproved field
+  const filter = {};
+  if (statusParam === "approved") filter.isApproved = true;
+  else if (statusParam === "pending") filter.isApproved = { $ne: true };
+  else if (statusParam === "rejected") filter.isApproved = false;
 
   const [reviews, total] = await Promise.all([
     Review.find(filter)
-      .populate("userId", "name email avatar")
-      .populate("productId", "name images sku")
+      .populate("user", "name email avatar")
+      .populate("product", "name images sku")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit),
@@ -443,7 +447,7 @@ export const getAllReviews = asyncHandler(async (req, res) => {
     new ApiResponse(200, {
       reviews,
       pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
-    }, `${status} reviews fetched`)
+    }, `${statusParam} reviews fetched`)
   );
 });
 
@@ -452,14 +456,14 @@ export const getAllReviews = asyncHandler(async (req, res) => {
 export const approveReview = asyncHandler(async (req, res) => {
   const review = await Review.findByIdAndUpdate(
     req.params.id,
-    { status: "approved" },
+    { isApproved: true },
     { new: true }
   );
 
   if (!review) throw new ApiError(404, "Review not found");
 
   // Recalculate product average rating
-  await recalcProductRating(review.productId);
+  await recalcProductRating(review.product);
 
   return res.status(200).json(new ApiResponse(200, review, "Review approved"));
 });
@@ -471,7 +475,7 @@ export const rejectReview = asyncHandler(async (req, res) => {
 
   const review = await Review.findByIdAndUpdate(
     req.params.id,
-    { status: "rejected", rejectionReason: reason || "" },
+    { isApproved: false, rejectionReason: reason || "" },
     { new: true }
   );
 
@@ -518,7 +522,7 @@ export const getLowStockProducts = asyncHandler(async (req, res) => {
 
 async function recalcProductRating(productId) {
   const result = await Review.aggregate([
-    { $match: { productId, status: "approved" } },
+    { $match: { product: productId, isApproved: true } },
     {
       $group: {
         _id: null,
@@ -530,8 +534,8 @@ async function recalcProductRating(productId) {
 
   if (result.length > 0) {
     await Product.findByIdAndUpdate(productId, {
-      averageRating: parseFloat(result[0].avgRating.toFixed(1)),
-      totalReviews: result[0].totalReviews,
+      "ratings.average": parseFloat(result[0].avgRating.toFixed(1)),
+      "ratings.count": result[0].totalReviews,
     });
   }
 }

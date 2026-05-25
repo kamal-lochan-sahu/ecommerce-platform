@@ -15,7 +15,7 @@ export default function Banners() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-banners'],
-    queryFn: () => api.get('/banners').then(r => r.data?.banners || r.data || []),
+    queryFn: () => api.get('/banners').then(r => r.data?.data || []),
   })
 
   const createMutation = useMutation({
@@ -28,7 +28,7 @@ export default function Banners() {
     onSuccess: () => { qc.invalidateQueries({queryKey:['admin-banners']}); toast.success('Deleted') },
   })
   const toggleMutation = useMutation({
-    mutationFn: ({id,active}) => api.patch(`/banners/${id}`, { isActive: active }),
+    mutationFn: ({id,active}) => api.put(`/banners/${id}`, { isActive: active }),
     onSuccess: () => qc.invalidateQueries({queryKey:['admin-banners']}),
   })
 

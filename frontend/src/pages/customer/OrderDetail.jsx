@@ -32,7 +32,7 @@ export default function OrderDetail() {
   })
 
   const cancelMutation = useMutation({
-    mutationFn: () => orderService.cancelOrder(id),
+    mutationFn: () => orderService.cancel(id),
     onSuccess: () => {
       toast.success('Order cancelled successfully')
       queryClient.invalidateQueries({ queryKey: ['order', id] })
@@ -47,7 +47,7 @@ export default function OrderDetail() {
 
   const handleDownloadInvoice = async () => {
     try {
-      const blob = await orderService.downloadInvoice(id)
+      const blob = await orderService.getInvoice(id)
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -87,10 +87,10 @@ export default function OrderDetail() {
     )
   }
 
-  const cfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending
+  const cfg = STATUS_CONFIG[order.orderStatus] || STATUS_CONFIG.pending
   const { Icon: StatusIcon } = cfg
-  const canCancel = ['pending', 'processing'].includes(order.status)
-  const canTrack  = ['shipped', 'out_for_delivery'].includes(order.status)
+  const canCancel = ['placed', 'processing'].includes(order.orderStatus)
+  const canTrack  = ['shipped', 'out_for_delivery'].includes(order.orderStatus)
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -148,7 +148,7 @@ export default function OrderDetail() {
             </div>
           </div>
 
-          <OrderTimeline status={order.status} statusHistory={order.statusHistory} />
+          <OrderTimeline status={order.orderStatus} statusHistory={order.orderStatusHistory} />
         </div>
 
         {/* Items */}
@@ -194,36 +194,36 @@ export default function OrderDetail() {
           <div className="space-y-3 text-sm">
             <div className="flex justify-between text-gray-600">
               <span>Subtotal</span>
-              <span>₹{order.subtotal?.toLocaleString('en-IN')}</span>
+              <span>₹{order.pricing?.subtotal?.toLocaleString('en-IN')}</span>
             </div>
-            {order.discount > 0 && (
+            {order.pricing?.discount > 0 && (
               <div className="flex justify-between text-green-600">
                 <span>Discount</span>
-                <span>- ₹{order.discount?.toLocaleString('en-IN')}</span>
+                <span>- ₹{order.pricing?.discount?.toLocaleString('en-IN')}</span>
               </div>
             )}
-            {order.couponDiscount > 0 && (
+            {order.pricing?.couponDiscount > 0 && (
               <div className="flex justify-between text-green-600">
                 <span>Coupon ({order.couponCode})</span>
-                <span>- ₹{order.couponDiscount?.toLocaleString('en-IN')}</span>
+                <span>- ₹{order.pricing?.couponDiscount?.toLocaleString('en-IN')}</span>
               </div>
             )}
             <div className="flex justify-between text-gray-600">
               <span>Delivery Fee</span>
               <span>
-                {order.deliveryFee === 0
+                {order.pricing?.shippingCharge === 0
                   ? <span className="text-green-600 font-medium">FREE</span>
-                  : `₹${order.deliveryFee}`}
+                  : `₹${order.pricing?.shippingCharge}`}
               </span>
             </div>
             <div className="flex justify-between text-gray-600">
               <span>Tax (GST)</span>
-              <span>₹{order.tax?.toLocaleString('en-IN')}</span>
+              <span>₹{order.pricing?.tax?.toLocaleString('en-IN')}</span>
             </div>
             <div className="border-t border-gray-100 pt-3 flex justify-between font-bold text-gray-900 text-base">
               <span>Total Paid</span>
               <span className="text-indigo-600">
-                ₹{order.totalAmount?.toLocaleString('en-IN')}
+                ₹{order.pricing?.total?.toLocaleString('en-IN')}
               </span>
             </div>
             <div className="flex justify-between text-xs text-gray-400 pt-1">

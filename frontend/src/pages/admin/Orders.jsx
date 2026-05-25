@@ -7,7 +7,7 @@ import AdminLayout from '../../components/admin/AdminLayout'
 import DataTable from '../../components/admin/DataTable'
 import Modal from '../../components/ui/Modal'
 
-const STATUSES = ['pending','processing','shipped','out_for_delivery','delivered','cancelled']
+const STATUSES = ['placed','processing','shipped','shipped','delivered','cancelled']
 const STATUS_COLORS = { pending:'bg-yellow-100 text-yellow-700', processing:'bg-blue-100 text-blue-700', shipped:'bg-indigo-100 text-indigo-700', out_for_delivery:'bg-purple-100 text-purple-700', delivered:'bg-green-100 text-green-700', cancelled:'bg-red-100 text-red-700' }
 
 export default function Orders() {
@@ -18,11 +18,11 @@ export default function Orders() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-orders', statusFilter],
-    queryFn: () => api.get('/admin/orders', { params:{ status:statusFilter, limit:100 } }).then(r => r.data?.orders || r.data || []),
+    queryFn: () => api.get('/orders/admin/all', { params:{ status:statusFilter, limit:100 } }).then(r => r.data?.data?.orders || []),
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({id,status}) => api.put(`/orders/${id}/status`, { status }),
+    mutationFn: ({id,status}) => api.put(`/orders/admin/${id}/status`, { status }),
     onSuccess: () => { qc.invalidateQueries({queryKey:['admin-orders']}); toast.success('Status updated!'); setSelected(null) },
     onError: (e) => toast.error(e?.response?.data?.message||'Failed'),
   })
@@ -48,7 +48,7 @@ export default function Orders() {
       </div>
       <DataTable columns={columns} data={data||[]} isLoading={isLoading} emptyText="No orders found"
         actions={(row)=>(
-          <button onClick={()=>{ setSelected(row); setNewStatus(row.status) }}
+          <button onClick={()=>{ setSelected(row); setNewStatus(row.orderStatus) }}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600">
             <Eye size={15}/>
           </button>

@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 import api from '../../services/api'
 import AdminLayout from '../../components/admin/AdminLayout'
 
-const EMPTY = { name:'', description:'', price:'', salePrice:'', stock:'', category:'', brand:'', sku:'', tags:'' }
+const EMPTY = { name:'', description:'', comparePrice:'', price:'', stock:'', category:'', brand:'', sku:'', tags:'' }
 
 export default function AddProduct() {
   const navigate = useNavigate()
@@ -16,7 +16,7 @@ export default function AddProduct() {
 
   const { data: catData } = useQuery({
     queryKey:['categories'],
-    queryFn: ()=>api.get('/categories').then(r=>r.data?.categories||r.data||[]),
+    queryFn: ()=>api.get('/categories').then(r=>r.data?.data?.categories || []),
   })
 
   const mutation = useMutation({
@@ -31,7 +31,12 @@ export default function AddProduct() {
     Object.entries(form).forEach(([k,v])=>{ if(v) fd.append(k,v) })
     images.forEach(img=>fd.append('images',img))
     const filteredSpecs = specs.filter(s=>s.key&&s.value)
-    if(filteredSpecs.length) fd.append('specifications', JSON.stringify(filteredSpecs))
+    filteredSpecs.forEach((s,i) => { fd.append(`specifications[${i}][key]`, s.key); fd.append(`specifications[${i}][value]`, s.value) })
+    // tags: string → array
+    if(form.tags) {
+      const tagsArr = form.tags.split(',').map(t=>t.trim()).filter(Boolean)
+      fd.append('tags', JSON.stringify(tagsArr))
+    }
     mutation.mutate(fd)
   }
 
@@ -74,7 +79,7 @@ export default function AddProduct() {
           <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
             <h3 className="font-semibold text-gray-900">Pricing & Inventory</h3>
             <div className="grid grid-cols-3 gap-4">
-              {[['price','MRP *','number'],['salePrice','Sale Price','number'],['stock','Stock *','number']].map(([k,l,t])=>(
+              {[['comparePrice','MRP (Original Price)','number'],['price','Selling Price *','number'],['stock','Stock *','number']].map(([k,l,t])=>(
                 <div key={k}>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">{l}</label>
                   <input type={t} value={form[k]} onChange={f(k)} required={l.includes('*')} min="0"
