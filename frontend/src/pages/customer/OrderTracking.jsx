@@ -189,7 +189,7 @@ export default function OrderTracking() {
                 </div>
               )}
               {tracking.trackingUrl && (
-                
+                <a
                   href={`${tracking?.trackingUrl || "#"}`}
                   target="_blank"
                   rel="noopener noreferrer"
