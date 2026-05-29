@@ -9,6 +9,7 @@ import Navbar from "./components/common/Navbar";
 import Footer from "./components/common/Footer";
 import { ScrollToTopOnRoute, ScrollToTopButton } from "./components/common/ScrollToTop";
 import CartDrawer from "./components/cart/CartDrawer";
+import PWAInstallPrompt from './components/common/PWAInstallPrompt'
 
 const Home           = lazy(() => import("./pages/customer/Home"));
 const ProductListing = lazy(() => import("./pages/customer/ProductListing"));
@@ -137,7 +138,8 @@ export default function App() {
           duration: 3000,
           style: { borderRadius: "12px", fontFamily: "Inter, sans-serif", fontSize: "14px" },
         }} />
-      </BrowserRouter>
+        <PWAInstallPrompt />
+    </BrowserRouter>
     </QueryClientProvider>
   );
 }
