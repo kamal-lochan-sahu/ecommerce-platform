@@ -31,7 +31,7 @@ const Input = forwardRef(({
             "focus:outline-none focus:ring-2 focus:border-transparent",
             "placeholder-gray-400 bg-white",
             error
-              ? "border-danger focus:ring-red-400 text-red-900"
+              ? "border-red-500 ring-1 ring-red-500 focus:ring-red-500 text-red-900"
               : "border-gray-300 focus:ring-primary-500 text-gray-900",
             prefix ? "pl-10" : "pl-4",
             suffix ? "pr-10" : "pr-4",

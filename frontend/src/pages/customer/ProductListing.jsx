@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   SlidersHorizontal, LayoutGrid, List,
-  ChevronDown, X, Search
+  ChevronDown, X
 } from "lucide-react";
 import { clsx } from "clsx";
 import productService from "../../services/product.service";
@@ -12,6 +12,7 @@ import ProductGrid from "../../components/product/ProductGrid";
 import Breadcrumb from "../../components/common/Breadcrumb";
 import Drawer from "../../components/ui/Drawer";
 import Badge from "../../components/ui/Badge";
+import EmptyState from "../../components/ui/EmptyState";
 
 const SORT_OPTIONS = [
   { value: "newest",    label: "Newest First"    },
@@ -252,14 +253,25 @@ export default function ProductListing() {
 
         {/* Product Grid */}
         <main className="flex-1 min-w-0">
-          <ProductGrid
-            products={products}
-            isLoading={isLoading}
-            viewMode={viewMode}
-            page={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
+          {!isLoading && products.length === 0 ? (
+            <div className="py-20">
+              <EmptyState
+                title="No products found"
+                description="Try adjusting your filters or search terms to find what you're looking for."
+                buttonText="Clear all filters"
+                onButtonClick={handleReset}
+              />
+            </div>
+          ) : (
+            <ProductGrid
+              products={products}
+              isLoading={isLoading}
+              viewMode={viewMode}
+              page={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          )}
         </main>
       </div>
 

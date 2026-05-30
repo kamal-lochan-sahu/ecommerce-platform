@@ -130,11 +130,13 @@ export default function App() {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
+  const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AppLayout />
-        <Toaster position="top-right" toastOptions={{
+        <Toaster position={isMobile ? "top-center" : "top-right"} toastOptions={{
           duration: 3000,
           style: { borderRadius: "12px", fontFamily: "Inter, sans-serif", fontSize: "14px" },
         }} />

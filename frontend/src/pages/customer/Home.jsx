@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronRight, Zap, Star, TrendingUp, Truck, ShieldCheck, RefreshCw, Headphones } from "lucide-react";
+import { ChevronRight, Zap, Truck, ShieldCheck, RefreshCw, Headphones } from "lucide-react";
+import { clsx } from "clsx";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Autoplay, Pagination, Navigation } from "swiper/modules";
 import "swiper/css";
@@ -155,12 +156,17 @@ export default function Home() {
         </Swiper>
       </section>
 
-      {/* ── TRUST BADGES ── */}
       <section className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-gray-100">
-            {TRUST_BADGES.map(({ icon: Icon, title, sub }) => (
-              <div key={title} className="flex items-center gap-3 py-4 px-4 sm:px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            {TRUST_BADGES.map(({ icon: Icon, title, sub }, i) => (
+              <div key={title} className={clsx(
+                "flex items-center gap-3 py-6 px-4 sm:px-6",
+                i !== 0 && "lg:border-l border-gray-100",
+                i % 2 !== 0 && "sm:border-l lg:border-l-0 border-gray-100",
+                i >= 2 && "border-t lg:border-t-0 border-gray-100",
+                i === 1 && "border-t sm:border-t-0 border-gray-100"
+              )}>
                 <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center flex-shrink-0">
                   <Icon size={20} className="text-primary" />
                 </div>
