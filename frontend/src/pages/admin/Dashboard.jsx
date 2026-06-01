@@ -14,9 +14,11 @@ export default function Dashboard() {
     queryFn: () => api.get('/admin/dashboard').then(r => r.data?.data || r.data),
   })
 
-  const stats = data?.stats || {}
+  const stats = data || {}
   const revenueByMonth = Array.isArray(data?.revenueByMonth) ? data?.revenueByMonth : []
-  const ordersByStatus = Array.isArray(data?.ordersByStatus) ? data.ordersByStatus : []
+  const ordersByStatus = data?.ordersByStatus
+    ? Object.entries(data.ordersByStatus).map(([status, count]) => ({ status, count }))
+    : []
   const recentOrders = Array.isArray(data?.recentOrders) ? data.recentOrders : []
   const lowStock = Array.isArray(data?.lowStockProducts) ? data.lowStockProducts : []
 
