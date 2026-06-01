@@ -2,7 +2,7 @@ import Button from "./Button";
 
 export default function EmptyState({
   icon: Icon,
-  title = "Kuch nahi mila",
+  title = "No results found",
   description = "",
   actionLabel = "",
   onAction = null,

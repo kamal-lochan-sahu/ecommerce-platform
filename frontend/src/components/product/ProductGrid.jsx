@@ -28,9 +28,9 @@ export default function ProductGrid({
   if (!products.length) {
     return (
       <EmptyState
-        title="Koi product nahi mila"
-        description="Filters change karo ya search modify karo"
-        actionLabel="Filters Reset Karo"
+        title="No products found"
+        description="Try changing filters or modifying your search"
+        actionLabel="Reset Filters"
       />
     );
   }
@@ -64,7 +64,7 @@ function ListProductCard({ product }) {
     <div className="card-hover flex gap-4 p-3">
       <div className="w-28 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-gray-50">
         <img
-          src={images?.[0] || "https://placehold.co/200x200?text=No+Image"}
+          src={images?.[0] || "https://placehold.co/400x400?text=Product"}
           alt={name}
           className="w-full h-full object-cover"
         />

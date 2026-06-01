@@ -14,7 +14,7 @@ export default function OrderCard({ order }) {
   const cfg = STATUS_CONFIG[order.orderStatus] || STATUS_CONFIG.placed
   const { Icon } = cfg
 
-  const firstImage = order.items?.[0]?.product?.images?.[0] || '/placeholder.jpg'
+  const firstImage = order.items?.[0]?.product?.images?.[0] || 'https://placehold.co/400x400?text=Product'
   const itemCount  = order.items?.length || 0
   const extraCount = itemCount - 1
 

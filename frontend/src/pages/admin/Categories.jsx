@@ -23,6 +23,7 @@ export default function Categories() {
     mutationFn: (d) => editing ? api.put(`/categories/${editing}`, d) : api.post('/categories', d),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-categories'] })
+      qc.invalidateQueries({ queryKey: ['categories'] })
       toast.success(editing ? 'Updated!' : 'Created!')
       closeModal()
     },
@@ -31,7 +32,11 @@ export default function Categories() {
 
   const deleteMutation = useMutation({
     mutationFn: (id) => api.delete(`/categories/${id}`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-categories'] }); toast.success('Deleted') },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-categories'] })
+      qc.invalidateQueries({ queryKey: ['categories'] })
+      toast.success('Deleted')
+    },
     onError: () => toast.error('Cannot delete — products exist in this category'),
   })
 

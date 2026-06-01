@@ -29,7 +29,7 @@ export default function Products() {
   const products = data?.products || []
 
   const columns = [
-    { key:'images', label:'Image', render:(v)=><img src={v?.[0]||'/placeholder.jpg'} alt="" className="w-10 h-10 rounded-xl object-cover"/> },
+    { key:'images', label:'Image', render:(v)=><img src={v?.[0]||'https://placehold.co/400x400?text=Product'} alt="" className="w-10 h-10 rounded-xl object-cover"/> },
     { key:'name', label:'Product', render:(v)=><span className="font-medium text-gray-900 max-w-xs truncate block">{v}</span> },
     { key:'category', label:'Category', render:(v)=><span className="text-gray-500 text-xs">{v?.name||'—'}</span> },
     { key:'price', label:'Price', render:(v,row)=>(

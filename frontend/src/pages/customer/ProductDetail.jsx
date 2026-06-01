@@ -30,15 +30,15 @@ const MOCK_PRODUCT = {
   price: 4999, comparePrice: 9999,
   discount: 50,
   images: [
-    "https://placehold.co/600x600/eef2ff/6366f1?text=Headphones+1",
-    "https://placehold.co/600x600/fef3c7/f59e0b?text=Headphones+2",
-    "https://placehold.co/600x600/ecfdf5/10b981?text=Headphones+3",
-    "https://placehold.co/600x600/fce7f3/ec4899?text=Headphones+4",
+    "https://placehold.co/400x400?text=Product",
+    "https://placehold.co/400x400?text=Product",
+    "https://placehold.co/400x400?text=Product",
+    "https://placehold.co/400x400?text=Product",
   ],
   ratings: 4.5, totalReviews: 1284, stock: 15,
   description: `Premium wireless headphones with industry-leading noise cancellation. 
 30-hour battery life, Hi-Res Audio, and multipoint connection technology. 
-Touch sensor controls, speak-to-chat, wearing detection sab features hain.
+Touch sensor controls, speak-to-chat, wearing detection and many more features.
 Foldable design for easy portability.`,
   specifications: [
     { key: "Driver Size",       value: "40mm" },
@@ -71,7 +71,7 @@ const MOCK_RELATED = Array(4).fill(null).map((_, i) => ({
   brand: ["Sony","Bose","JBL","Apple"][i],
   price: Math.floor(Math.random()*5000)+2000,
   comparePrice: Math.floor(Math.random()*8000)+5000,
-  images: [`https://placehold.co/300x300/f3f4f6/6366f1?text=Related+${i+1}`],
+  images: [`https://placehold.co/400x400?text=Product`],
   ratings: (3.5+Math.random()*1.5).toFixed(1),
   totalReviews: Math.floor(Math.random()*500)+50,
   stock: 10, discount: [10,20,30,15][i],
@@ -105,7 +105,7 @@ export default function ProductDetail() {
   // Handle empty images
   const productImages = product.images?.length > 0
     ? product.images
-    : [`https://placehold.co/600x600/eef2ff/6366f1?text=${encodeURIComponent(product.name?.slice(0,10) || "Product")}`];
+    : [`https://placehold.co/400x400?text=Product`];
   const isOOS      = product.stock === 0;
 
   // Handle real backend ratings object
@@ -123,7 +123,7 @@ export default function ProductDetail() {
     if (isOOS) return;
     addItem({ ...product, quantity: qty, variant: selectedColor || selectedSize });
     openCart();
-    toast.success("Cart mein add ho gaya! 🛒");
+    toast.success("Added to cart! 🛒");
   };
 
   const handleBuyNow = () => {
@@ -132,9 +132,9 @@ export default function ProductDetail() {
   };
 
   const handleWishlist = () => {
-    if (!isAuthenticated) { toast.error("Pehle login karo!"); return; }
+    if (!isAuthenticated) { toast.error("Please login first!"); return; }
     toggleItem(product);
-    toast.success(inWishlist ? "Wishlist se remove hua" : "Wishlist mein add hua ❤️");
+    toast.success(inWishlist ? "Removed from wishlist" : "Added to wishlist ❤️");
   };
 
   const handleShare = () => {
@@ -261,7 +261,7 @@ export default function ProductDetail() {
             </div>
             {product.stock <= 5 && product.stock > 0 && (
               <span className="text-xs text-orange-500 font-medium">
-                ⚠️ Sirf {product.stock} bacha!
+                ⚠️ Only {product.stock} left!
               </span>
             )}
           </div>

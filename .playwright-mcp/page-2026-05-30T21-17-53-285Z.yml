@@ -1,0 +1,140 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e6]:
+      - link "Luxora" [ref=e7] [cursor=pointer]:
+        - /url: /
+        - img [ref=e8]
+        - generic [ref=e12]: Luxora
+      - generic [ref=e15]:
+        - generic [ref=e16]:
+          - img
+          - textbox "Search products..." [ref=e17]
+        - button "Search" [ref=e18] [cursor=pointer]
+      - generic [ref=e19]:
+        - button "Toggle theme" [ref=e20] [cursor=pointer]:
+          - img [ref=e21]
+        - link [ref=e23] [cursor=pointer]:
+          - /url: /wishlist
+          - img [ref=e24]
+        - button "1" [ref=e26] [cursor=pointer]:
+          - img [ref=e27]
+          - generic [ref=e31]: "1"
+        - button "K Kamal" [ref=e33] [cursor=pointer]:
+          - generic [ref=e35]: K
+          - generic [ref=e36]: Kamal
+          - img [ref=e37]
+  - main [ref=e39]
+  - contentinfo [ref=e42]:
+    - generic [ref=e43]:
+      - generic [ref=e44]:
+        - generic [ref=e45]:
+          - link "Luxora" [ref=e46] [cursor=pointer]:
+            - /url: /
+            - img [ref=e47]
+            - generic [ref=e51]: Luxora
+          - paragraph [ref=e52]: Premium quality products, delivered fast.
+          - generic [ref=e53]:
+            - link "IG" [ref=e54] [cursor=pointer]:
+              - /url: "#"
+            - link "TW" [ref=e55] [cursor=pointer]:
+              - /url: "#"
+            - link "YT" [ref=e56] [cursor=pointer]:
+              - /url: "#"
+        - generic [ref=e57]:
+          - heading "Shop" [level=4] [ref=e58]
+          - list [ref=e59]:
+            - listitem [ref=e60]:
+              - link "All Products" [ref=e61] [cursor=pointer]:
+                - /url: /products
+            - listitem [ref=e62]:
+              - link "New Arrivals" [ref=e63] [cursor=pointer]:
+                - /url: /products?sort=newest
+            - listitem [ref=e64]:
+              - link "Deals" [ref=e65] [cursor=pointer]:
+                - /url: /products?sale=true
+        - generic [ref=e66]:
+          - heading "Account" [level=4] [ref=e67]
+          - list [ref=e68]:
+            - listitem [ref=e69]:
+              - link "My Orders" [ref=e70] [cursor=pointer]:
+                - /url: /orders
+            - listitem [ref=e71]:
+              - link "Wishlist" [ref=e72] [cursor=pointer]:
+                - /url: /wishlist
+            - listitem [ref=e73]:
+              - link "Profile" [ref=e74] [cursor=pointer]:
+                - /url: /profile
+        - generic [ref=e75]:
+          - heading "Help" [level=4] [ref=e76]
+          - list [ref=e77]:
+            - listitem [ref=e78]:
+              - link "Contact Us" [ref=e79] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=e80]:
+              - link "FAQs" [ref=e81] [cursor=pointer]:
+                - /url: /
+            - listitem [ref=e82]:
+              - link "Track Order" [ref=e83] [cursor=pointer]:
+                - /url: /
+      - generic [ref=e84]:
+        - generic [ref=e85]:
+          - link "support@myshop.com" [ref=e86] [cursor=pointer]:
+            - /url: mailto:support@myshop.com
+            - img [ref=e87]
+            - text: support@myshop.com
+          - link "+91 12345 67890" [ref=e90] [cursor=pointer]:
+            - /url: tel:+911234567890
+            - img [ref=e91]
+            - text: +91 12345 67890
+        - paragraph [ref=e93]: © 2026 Luxora. All rights reserved.
+  - generic:
+    - generic:
+      - generic:
+        - heading "Cart (1)" [level=3]
+        - button:
+          - img
+      - generic:
+        - generic:
+          - generic:
+            - generic:
+              - link "Test Smartphone":
+                - /url: /products/test-smartphone
+                - generic:
+                  - img "Test Smartphone"
+              - generic:
+                - link "Test Smartphone":
+                  - /url: /products/test-smartphone
+                  - heading "Test Smartphone" [level=4]
+                - paragraph: Midnight Black
+                - paragraph: ₹699.99
+                - paragraph: ₹699.99 × 1
+              - generic:
+                - button:
+                  - img
+                - generic:
+                  - button:
+                    - img
+                  - generic: "1"
+                  - button:
+                    - img
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - img
+                  - textbox "Coupon code"
+                - button "Apply" [disabled]
+              - generic:
+                - generic:
+                  - generic: Subtotal
+                  - generic: ₹699.99
+                - generic:
+                  - generic: Delivery
+                  - generic: FREE
+                - paragraph: 🎉 Free delivery!
+                - generic:
+                  - generic: Total
+                  - generic: ₹699.99
+              - button "Proceed to Checkout":
+                - text: Proceed to Checkout
+                - img

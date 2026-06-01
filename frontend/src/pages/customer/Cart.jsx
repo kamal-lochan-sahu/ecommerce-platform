@@ -16,8 +16,8 @@ export default function Cart() {
         Shopping Cart {totalItems > 0 && <span className="text-base font-normal text-gray-500 ml-2">({totalItems} items)</span>}
       </h1>
       {items.length === 0 ? (
-        <EmptyState icon={ShoppingCart} title="Cart khali hai!" description="Kuch products add karo"
-          actionLabel="Shopping Karo" onAction={() => navigate("/products")} />
+        <EmptyState icon={ShoppingCart} title="Your cart is empty!" description="Add some products to your cart"
+          actionLabel="Start Shopping" onAction={() => navigate("/products")} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 card p-5">

@@ -11,10 +11,10 @@ import Button from "../../components/ui/Button";
 import authService from "../../services/auth.service";
 
 const schema = z.object({
-  password: z.string().min(6, "Password kam se kam 6 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string(),
 }).refine((d) => d.password === d.confirmPassword, {
-  message: "Passwords match nahi kar rahe",
+  message: "Passwords do not match",
   path: ["confirmPassword"],
 });
 
@@ -31,7 +31,7 @@ export default function ResetPassword() {
   const onSubmit = async (data) => {
     try {
       await authService.resetPassword({ email, token, password: data.password });
-      toast.success("Password reset ho gaya! Ab login karo. 🔐");
+      toast.success("Password reset successfully! Please login. 🔐");
       navigate("/login");
     } catch (err) {
       toast.error(err.response?.data?.message || "Reset failed. Try again.");
@@ -39,7 +39,7 @@ export default function ResetPassword() {
   };
 
   return (
-    <AuthLayout title="Naya Password Set Karo" subtitle="Strong password choose karo">
+    <AuthLayout title="Set New Password" subtitle="Choose a strong password">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <Input
           label="New Password"
@@ -67,9 +67,9 @@ export default function ResetPassword() {
 
         {/* Password strength hint */}
         <ul className="text-xs text-gray-500 space-y-1 bg-gray-50 rounded-xl p-3">
-          <li>✅ Kam se kam 6 characters</li>
-          <li>✅ Ek uppercase letter (A-Z)</li>
-          <li>✅ Ek number (0-9)</li>
+          <li>✅ At least 6 characters</li>
+          <li>✅ One uppercase letter (A-Z)</li>
+          <li>✅ One number (0-9)</li>
         </ul>
 
         <Button type="submit" fullWidth loading={isSubmitting} size="lg">

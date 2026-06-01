@@ -49,21 +49,21 @@ export default function ProductCard({ product }) {
   // Handle empty images array
   const imageUrl = images?.length > 0
     ? images[0]
-    : `https://placehold.co/300x300/eef2ff/6366f1?text=${encodeURIComponent(name?.slice(0,10) || "Product")}`;
+    : `https://placehold.co/400x400?text=Product`;
 
   const handleAddToCart = (e) => {
     e.preventDefault();
     if (isOutOfStock) return;
     addItem({ _id, name, slug, price, image: imageUrl, stock });
     openCart();
-    toast.success("Cart mein add ho gaya! 🛒");
+    toast.success("Added to cart! 🛒");
   };
 
   const handleWishlist = (e) => {
     e.preventDefault();
-    if (!isAuthenticated) { toast.error("Wishlist ke liye login karo!"); return; }
+    if (!isAuthenticated) { toast.error("Please login to add to wishlist!"); return; }
     toggleItem(product);
-    toast.success(inWishlist ? "Wishlist se remove hua" : "Wishlist mein add hua ❤️");
+    toast.success(inWishlist ? "Removed from wishlist" : "Added to wishlist ❤️");
   };
 
   return (

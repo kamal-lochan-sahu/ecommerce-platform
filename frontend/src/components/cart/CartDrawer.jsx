@@ -16,8 +16,8 @@ export default function CartDrawer() {
     <Drawer isOpen={isOpen} onClose={closeCart} title={`Cart (${totalItems})`} position="right" width="w-full max-w-md">
       {items.length === 0 ? (
         <div className="h-full flex items-center justify-center">
-          <EmptyState icon={ShoppingCart} title="Cart khali hai!" description="Kuch products add karo"
-            actionLabel="Products Dekho" onAction={() => { closeCart(); navigate("/products"); }} />
+          <EmptyState icon={ShoppingCart} title="Your cart is empty!" description="Add some products to your cart"
+            actionLabel="Browse Products" onAction={() => { closeCart(); navigate("/products"); }} />
         </div>
       ) : (
         <div className="flex flex-col h-full">

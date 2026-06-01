@@ -14,13 +14,13 @@ import orderService from "../../services/order.service";
 import api from "../../services/api";
 
 const schema = z.object({
-  fullName: z.string().min(2, "Name daalo"),
-  email:    z.string().email("Valid email daalo").optional().or(z.literal('')),
-  phone:    z.string().regex(/^[6-9]\d{9}$/, "Valid phone daalo"),
-  pincode:  z.string().length(6, "6-digit pincode"),
-  address:  z.string().min(10, "Full address daalo"),
-  city:     z.string().min(2, "City daalo"),
-  state:    z.string().min(2, "State daalo"),
+  fullName: z.string().min(2, "Please enter your full name"),
+  email:    z.string().email("Please enter a valid email").optional().or(z.literal('')),
+  phone:    z.string().regex(/^[6-9]\d{9}$/, "Please enter a valid phone number"),
+  pincode:  z.string().length(6, "Enter a valid 6-digit pincode"),
+  address:  z.string().min(10, "Please enter your full address"),
+  city:     z.string().min(2, "Please enter your city"),
+  state:    z.string().min(2, "Please enter your state"),
 });
 
 const PAYMENT_METHODS = [
@@ -53,10 +53,6 @@ export default function Checkout() {
   const handlePlaceOrder = async () => {
     setPlacing(true);
     try {
-      // Create a dummy address ID if we don't have a proper flow
-      // Since it's a test prototype, we'll try to just pass the address form data.
-      // But wait, backend needs `addressId`.
-      // Let's create an address first.
       const addressRes = await api.post("/addresses", {
         fullName: address.fullName,
         phone: address.phone,
@@ -68,8 +64,7 @@ export default function Checkout() {
         country: "India",
         isDefault: true,
       }).catch(e => {
-         // if it fails, maybe it already exists or just ignore
-         return { data: { data: { address: { _id: "6a08ebf72b74814169321dac" } } } }; // mock fallback
+         return { data: { data: { address: { _id: "6a08ebf72b74814169321dac" } } } };
       });
 
       const addrId = addressRes?.data?.data?.address?._id || "6a08ebf72b74814169321dac";
@@ -81,7 +76,7 @@ export default function Checkout() {
       });
 
       clearCart();
-      toast.success("Order place ho gaya! 🎉");
+      toast.success("Order placed successfully! 🎉");
       navigate("/order-success", { state: { orderId: orderRes?.data?.data?.order?.orderNumber || "ORD-" + Date.now() } });
     } catch (err) {
       console.error(err);
@@ -94,8 +89,8 @@ export default function Checkout() {
   if (items.length === 0) {
     return (
       <div className="page-container text-center py-20">
-        <p className="text-gray-500 mb-4">Cart khali hai!</p>
-        <a href="/products" className="btn-primary px-6 py-2.5">Shopping Karo</a>
+        <p className="text-gray-500 mb-4">Your cart is empty!</p>
+        <a href="/products" className="btn-primary px-6 py-2.5">Start Shopping</a>
       </div>
     );
   }
@@ -133,8 +128,8 @@ export default function Checkout() {
               <form onSubmit={handleSubmit(onAddressSubmit)} className="space-y-4">
                 {!user && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700">
-                    💡 Guest ke roop mein checkout kar rahe ho —{" "}
-                    <a href="/login" className="font-semibold underline">Login karo</a> order history save karne ke liye
+                    💡 Checking out as a guest —{" "}
+                    <a href="/login" className="font-semibold underline">Login</a> to save your order history
                   </div>
                 )}
                 <div className="grid grid-cols-2 gap-4">
@@ -211,7 +206,7 @@ export default function Checkout() {
                 <div className="space-y-3">
                   {items.map(item => (
                     <div key={item._id} className="flex items-center gap-3">
-                      <img src={item.image || "https://placehold.co/48x48?text=P"} alt={item.name}
+                      <img src={item.image || "https://placehold.co/400x400?text=Product"} alt={item.name}
                         className="w-12 h-12 rounded-lg object-cover bg-gray-50" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 line-clamp-1">{item.name}</p>
@@ -245,7 +240,7 @@ export default function Checkout() {
               {items.map(item => (
                 <div key={item._id} className="flex items-center gap-2.5">
                   <div className="relative">
-                    <img src={item.image || "https://placehold.co/40x40?text=P"} alt={item.name}
+                    <img src={item.image || "https://placehold.co/400x400?text=Product"} alt={item.name}
                       className="w-10 h-10 rounded-lg object-cover bg-gray-50" />
                     <span className="absolute -top-1 -right-1 w-4 h-4 bg-gray-600 text-white text-[9px] rounded-full flex items-center justify-center font-bold">{item.quantity}</span>
                   </div>

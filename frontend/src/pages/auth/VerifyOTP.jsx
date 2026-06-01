@@ -56,21 +56,21 @@ export default function VerifyOTP() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const code = otp.join("");
-    if (code.length < 6) return toast.error("6-digit OTP daalo!");
+    if (code.length < 6) return toast.error("Please enter the 6-digit OTP!");
 
     setLoading(true);
     try {
       const res = await authService.verifyOTP({ email, otp: code, type });
       if (type === "register") {
         login(res.data.data.user, res.data.data.accessToken);
-        toast.success("Email verify ho gaya! Welcome 🎉");
+        toast.success("Email verified successfully! Welcome 🎉");
         navigate("/");
       } else {
-        toast.success("OTP verified! Ab password reset karo.");
+        toast.success("OTP verified! Now reset your password.");
         navigate("/reset-password", { state: { email, token: res.data.data.resetToken } });
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || "OTP galat hai.");
+      toast.error(err.response?.data?.message || "Invalid OTP.");
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
     } finally {
@@ -82,7 +82,7 @@ export default function VerifyOTP() {
     setResending(true);
     try {
       await authService.resendOTP({ email, type });
-      toast.success("Naya OTP bheja gaya!");
+      toast.success("New OTP sent!");
       setTimer(60);
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
@@ -95,8 +95,8 @@ export default function VerifyOTP() {
 
   return (
     <AuthLayout
-      title="OTP Verify karo"
-      subtitle={`6-digit code bheja gaya: ${email}`}
+      title="Verify OTP"
+      subtitle={`A 6-digit code has been sent to: ${email}`}
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* OTP Inputs */}

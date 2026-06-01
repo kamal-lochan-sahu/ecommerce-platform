@@ -46,8 +46,8 @@ export default function OrderSuccess() {
         </div>
 
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Placed! 🛍️</h1>
-        <p className="text-gray-600 mb-1">Bahut accha! Tumhara order confirm ho gaya.</p>
-        <p className="text-gray-500 text-sm mb-6">Jaldi deliver hoga — track karte rehna!</p>
+        <p className="text-gray-600 mb-1">Great! Your order has been confirmed.</p>
+        <p className="text-gray-500 text-sm mb-6">It will be delivered soon — keep tracking!</p>
 
         {/* Order ID Card */}
         <div className="card p-5 mb-4 text-left">
@@ -97,14 +97,14 @@ export default function OrderSuccess() {
         {/* Guest: Order ID save karne ki reminder */}
         {!isAuthenticated && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 text-left">
-            <p className="text-sm font-semibold text-amber-800 mb-1">⚠️ Order ID save kar lo!</p>
+            <p className="text-sm font-semibold text-amber-800 mb-1">⚠️ Save your Order ID!</p>
             <p className="text-xs text-amber-700 mb-2">
-              Guest checkout kiya hai — order track karne ke liye yeh Order ID chahiye hogi.
-              Upar "Copy" button se copy kar lo ya screenshot lo.
+              You checked out as a guest — you will need this Order ID to track your order.
+              Copy it using the "Copy" button above or take a screenshot.
             </p>
             <Link to={`/track-order?id=${orderId}`}
               className="text-xs font-semibold text-amber-800 underline">
-              Order Track Karo →
+              Track Order →
             </Link>
           </div>
         )}
@@ -120,11 +120,11 @@ export default function OrderSuccess() {
             <>
               <Link to="/register"
                 className="btn-primary w-full py-3 flex items-center justify-center gap-2">
-                Account Banao — Orders Save Karo
+                Create Account — Save Orders
               </Link>
               <Link to="/login"
                 className="btn-ghost w-full py-2.5 border border-gray-200 flex items-center justify-center gap-2 text-sm">
-                Already account hai? Login karo
+                Already have an account? Login
               </Link>
             </>
           )}
@@ -135,7 +135,7 @@ export default function OrderSuccess() {
         </div>
 
         <p className="text-xs text-gray-400 mt-6">
-          Confirmation email bhej diya gaya hai 📧
+          A confirmation email has been sent to you 📧
         </p>
       </div>
     </div>

@@ -56,7 +56,7 @@ export default function PWAInstallPrompt() {
   if (!showPrompt || isInstalled) return null
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 md:left-auto md:right-4 md:w-80">
+    <div className="fixed bottom-6 left-4 right-4 z-[60] md:bottom-6 md:left-auto md:right-6 md:w-80">
       <div className="bg-white rounded-2xl shadow-2xl border border-indigo-100 p-4">
         <div className="flex items-start gap-3">
           <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">

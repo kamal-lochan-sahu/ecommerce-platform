@@ -22,7 +22,7 @@ export default function ProductImages({ images = [], name = "" }) {
 
   const allImages = images.length > 0
     ? images
-    : Array(4).fill("https://placehold.co/600x600/f3f4f6/6366f1?text=Product");
+    : Array(4).fill("https://placehold.co/400x400?text=Product");
 
   const handleThumbClick = (i) => {
     setActive(i);

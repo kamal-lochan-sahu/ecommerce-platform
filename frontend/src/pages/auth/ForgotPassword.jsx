@@ -10,7 +10,7 @@ import Button from "../../components/ui/Button";
 import authService from "../../services/auth.service";
 
 const schema = z.object({
-  email: z.string().email("Valid email daalo"),
+  email: z.string().email("Please enter a valid email"),
 });
 
 export default function ForgotPassword() {
@@ -23,17 +23,17 @@ export default function ForgotPassword() {
   const onSubmit = async (data) => {
     try {
       await authService.forgotPassword(data);
-      toast.success("OTP bheja gaya! Email check karo. 📧");
+      toast.success("OTP sent! Please check your email. 📧");
       navigate("/verify-otp", { state: { email: data.email, type: "reset" } });
     } catch (err) {
-      toast.error(err.response?.data?.message || "Email nahi mila.");
+      toast.error(err.response?.data?.message || "Email not found.");
     }
   };
 
   return (
     <AuthLayout
-      title="Password bhool gaye? 😅"
-      subtitle="Email daalo — OTP bhejte hain"
+      title="Forgot Password? 😅"
+      subtitle="Enter your email to receive an OTP"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
         <Input
@@ -50,7 +50,7 @@ export default function ForgotPassword() {
         </Button>
 
         <p className="text-center text-sm text-gray-600">
-          Yaad aa gaya?{" "}
+          Remembered it?{" "}
           <Link to="/login" className="text-primary font-semibold hover:underline">Login</Link>
         </p>
       </form>

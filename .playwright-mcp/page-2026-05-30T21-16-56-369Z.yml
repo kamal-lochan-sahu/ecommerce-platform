@@ -1,0 +1,48 @@
+- generic [ref=e3]:
+  - main [ref=e4]
+  - generic [ref=e7]:
+    - generic [ref=e8]:
+      - heading "Cart (1)" [level=3] [ref=e9]
+      - button [ref=e10] [cursor=pointer]:
+        - img [ref=e11]
+    - generic [ref=e15]:
+      - generic [ref=e17]:
+        - link "Test Smartphone" [ref=e18] [cursor=pointer]:
+          - /url: /products/test-smartphone
+          - img "Test Smartphone" [ref=e20]
+        - generic [ref=e21]:
+          - link "Test Smartphone" [ref=e22] [cursor=pointer]:
+            - /url: /products/test-smartphone
+            - heading "Test Smartphone" [level=4] [ref=e23]
+          - paragraph [ref=e24]: Midnight Black
+          - paragraph [ref=e25]: ₹699.99
+          - paragraph [ref=e26]: ₹699.99 × 1
+        - generic [ref=e27]:
+          - button [ref=e28] [cursor=pointer]:
+            - img [ref=e29]
+          - generic [ref=e32]:
+            - button [ref=e33] [cursor=pointer]:
+              - img [ref=e34]
+            - generic [ref=e35]: "1"
+            - button [ref=e36] [cursor=pointer]:
+              - img [ref=e37]
+      - generic [ref=e39]:
+        - generic [ref=e40]:
+          - generic [ref=e41]:
+            - img [ref=e42]
+            - textbox "Coupon code" [ref=e45]
+          - button "Apply" [disabled] [ref=e46]
+        - generic [ref=e47]:
+          - generic [ref=e48]:
+            - generic [ref=e49]: Subtotal
+            - generic [ref=e50]: ₹699.99
+          - generic [ref=e51]:
+            - generic [ref=e52]: Delivery
+            - generic [ref=e53]: FREE
+          - paragraph [ref=e54]: 🎉 Free delivery!
+          - generic [ref=e55]:
+            - generic [ref=e56]: Total
+            - generic [ref=e57]: ₹699.99
+        - button "Proceed to Checkout" [ref=e58] [cursor=pointer]:
+          - text: Proceed to Checkout
+          - img [ref=e59]

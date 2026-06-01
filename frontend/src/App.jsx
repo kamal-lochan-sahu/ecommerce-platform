@@ -66,7 +66,7 @@ const PageLoader = () => (
   </div>
 );
 
-// Layout wrapper — admin routes mein Navbar/Footer nahi hoga
+// Layout wrapper — admin routes will not have Navbar/Footer
 function AppLayout() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith("/admin");

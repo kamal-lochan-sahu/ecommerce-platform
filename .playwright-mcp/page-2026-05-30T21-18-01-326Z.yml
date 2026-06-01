@@ -1,0 +1,463 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e6]:
+        - link "Luxora" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - img [ref=e8]
+          - generic [ref=e12]: Luxora
+        - generic [ref=e14]:
+          - generic [ref=e15]:
+            - generic [ref=e16]:
+              - img
+              - textbox "Search products..." [active] [ref=e17]: phone
+              - button [ref=e503] [cursor=pointer]:
+                - img [ref=e504]
+            - button "Search" [ref=e18] [cursor=pointer]
+          - generic [ref=e508]:
+            - img [ref=e510]
+            - paragraph [ref=e513]: No products found for "phone"
+        - generic [ref=e19]:
+          - button "Toggle theme" [ref=e20] [cursor=pointer]:
+            - img [ref=e21]
+          - link [ref=e23] [cursor=pointer]:
+            - /url: /wishlist
+            - img [ref=e24]
+          - button "1" [ref=e26] [cursor=pointer]:
+            - img [ref=e27]
+            - generic [ref=e31]: "1"
+          - button "K Kamal" [ref=e33] [cursor=pointer]:
+            - generic [ref=e35]: K
+            - generic [ref=e36]: Kamal
+            - img [ref=e37]
+    - main [ref=e39]:
+      - generic [ref=e94]:
+        - generic [ref=e96]:
+          - generic [ref=e97]:
+            - generic [ref=e102]:
+              - generic [ref=e103]:
+                - paragraph [ref=e104]: Special Offer
+                - heading "New Season Sale" [level=1] [ref=e105]
+                - paragraph [ref=e106]: Up to 70% off on top brands
+                - link "Shop Now" [ref=e107] [cursor=pointer]:
+                  - /url: /products?sale=true
+                  - text: Shop Now
+                  - img [ref=e108]
+              - generic [ref=e110]: 🛍️
+            - generic [ref=e115]:
+              - generic [ref=e116]:
+                - paragraph [ref=e117]: Special Offer
+                - heading "Electronics Mega Sale" [level=1] [ref=e118]
+                - paragraph [ref=e119]: Latest gadgets at best prices
+                - link "Explore" [ref=e120] [cursor=pointer]:
+                  - /url: /products?category=electronics
+                  - text: Explore
+                  - img [ref=e121]
+              - generic [ref=e123]: 📱
+            - generic [ref=e128]:
+              - generic [ref=e129]:
+                - paragraph [ref=e130]: Special Offer
+                - heading "Free Delivery" [level=1] [ref=e131]
+                - paragraph [ref=e132]: On orders above ₹499
+                - link "Order Now" [ref=e133] [cursor=pointer]:
+                  - /url: /products
+                  - text: Order Now
+                  - img [ref=e134]
+              - generic [ref=e136]: 🚚
+          - generic [ref=e137] [cursor=pointer]:
+            - img
+          - generic [ref=e138] [cursor=pointer]:
+            - img
+        - generic [ref=e145]:
+          - generic [ref=e146]:
+            - img [ref=e148]
+            - generic [ref=e153]:
+              - paragraph [ref=e154]: Free Delivery
+              - paragraph [ref=e155]: Orders above ₹499
+          - generic [ref=e156]:
+            - img [ref=e158]
+            - generic [ref=e161]:
+              - paragraph [ref=e162]: Secure Payment
+              - paragraph [ref=e163]: 100% safe checkout
+          - generic [ref=e164]:
+            - img [ref=e166]
+            - generic [ref=e171]:
+              - paragraph [ref=e172]: Easy Returns
+              - paragraph [ref=e173]: 7-day return policy
+          - generic [ref=e174]:
+            - img [ref=e176]
+            - generic [ref=e178]:
+              - paragraph [ref=e179]: 24/7 Support
+              - paragraph [ref=e180]: Always here for you
+        - generic [ref=e181]:
+          - generic [ref=e182]:
+            - generic [ref=e183]:
+              - generic [ref=e184]:
+                - heading "Shop by Category" [level=2] [ref=e185]
+                - paragraph [ref=e186]: Apni favourite category choose karo
+              - link "See all" [ref=e187] [cursor=pointer]:
+                - /url: /products
+                - text: See all
+                - img [ref=e188]
+            - generic [ref=e190]:
+              - link "📱 Electronics" [ref=e191] [cursor=pointer]:
+                - /url: /products?category=electronics
+                - generic [ref=e192]: 📱
+                - generic [ref=e193]: Electronics
+              - link "👗 Fashion" [ref=e194] [cursor=pointer]:
+                - /url: /products?category=fashion
+                - generic [ref=e195]: 👗
+                - generic [ref=e196]: Fashion
+              - link "🏠 Home & Living" [ref=e197] [cursor=pointer]:
+                - /url: /products?category=home-living
+                - generic [ref=e198]: 🏠
+                - generic [ref=e199]: Home & Living
+              - link "💄 Beauty" [ref=e200] [cursor=pointer]:
+                - /url: /products?category=beauty
+                - generic [ref=e201]: 💄
+                - generic [ref=e202]: Beauty
+              - link "⚽ Sports" [ref=e203] [cursor=pointer]:
+                - /url: /products?category=sports
+                - generic [ref=e204]: ⚽
+                - generic [ref=e205]: Sports
+              - link "📚 Books" [ref=e206] [cursor=pointer]:
+                - /url: /products?category=books
+                - generic [ref=e207]: 📚
+                - generic [ref=e208]: Books
+              - link "🧸 Toys" [ref=e209] [cursor=pointer]:
+                - /url: /products?category=toys
+                - generic [ref=e210]: 🧸
+                - generic [ref=e211]: Toys
+              - link "🛒 Grocery" [ref=e212] [cursor=pointer]:
+                - /url: /products?category=grocery
+                - generic [ref=e213]: 🛒
+                - generic [ref=e214]: Grocery
+          - generic [ref=e216]:
+            - generic [ref=e217]:
+              - heading "Featured Products" [level=2] [ref=e218]
+              - paragraph [ref=e219]: Curated picks sirf tumhare liye
+            - link "See all" [ref=e220] [cursor=pointer]:
+              - /url: /products?featured=true
+              - text: See all
+              - img [ref=e221]
+          - generic [ref=e223]:
+            - generic [ref=e224]:
+              - generic [ref=e226]:
+                - paragraph [ref=e227]: Limited Time
+                - heading "Upto 50% Off" [level=3] [ref=e228]
+                - paragraph [ref=e229]: Electronics & Gadgets
+                - link "Shop Now" [ref=e230] [cursor=pointer]:
+                  - /url: /products?category=electronics
+              - generic [ref=e231]: 📱
+            - generic [ref=e232]:
+              - generic [ref=e234]:
+                - paragraph [ref=e235]: New Collection
+                - heading "Trending Fashion" [level=3] [ref=e236]
+                - paragraph [ref=e237]: Latest styles at best price
+                - link "Explore" [ref=e238] [cursor=pointer]:
+                  - /url: /products?category=fashion
+              - generic [ref=e239]: 👗
+          - generic [ref=e240]:
+            - generic [ref=e241]:
+              - generic [ref=e242]:
+                - img [ref=e244]
+                - generic [ref=e246]:
+                  - heading "Deal of the Day" [level=2] [ref=e247]
+                  - paragraph [ref=e248]: Aaj ke best offers — jaldi karo!
+              - generic [ref=e249]:
+                - generic [ref=e514]:
+                  - generic [ref=e515]: "07"
+                  - generic [ref=e516]: HRS
+                - generic [ref=e253]: ":"
+                - generic [ref=e517]:
+                  - generic [ref=e518]: "59"
+                  - generic [ref=e519]: MIN
+                - generic [ref=e257]: ":"
+                - generic [ref=e520]:
+                  - generic [ref=e521]: "52"
+                  - generic [ref=e522]: SEC
+            - link "Test Smartphone Add to Cart TechBrand Test Smartphone (1) ₹699.99" [ref=e262] [cursor=pointer]:
+              - /url: /products/test-smartphone
+              - generic [ref=e263]:
+                - generic [ref=e264]:
+                  - img "Test Smartphone" [ref=e265]
+                  - button [ref=e266]:
+                    - img [ref=e267]
+                  - button "Add to Cart" [ref=e269]:
+                    - img [ref=e270]
+                    - text: Add to Cart
+                - generic [ref=e274]:
+                  - paragraph [ref=e275]: TechBrand
+                  - heading "Test Smartphone" [level=3] [ref=e276]
+                  - generic [ref=e277]:
+                    - generic [ref=e278]:
+                      - img [ref=e279]
+                      - img [ref=e281]
+                      - img [ref=e283]
+                      - img [ref=e285]
+                      - img [ref=e287]
+                    - generic [ref=e289]: (1)
+                  - generic [ref=e291]: ₹699.99
+          - generic [ref=e292]:
+            - generic [ref=e293]:
+              - generic [ref=e294]:
+                - heading "New Arrivals" [level=2] [ref=e295]
+                - paragraph [ref=e296]: Abhi abhi aaye — fresh stock!
+              - link "See all" [ref=e297] [cursor=pointer]:
+                - /url: /products?sort=newest
+                - text: See all
+                - img [ref=e298]
+            - link "Test Smartphone Add to Cart TechBrand Test Smartphone (1) ₹699.99" [ref=e301] [cursor=pointer]:
+              - /url: /products/test-smartphone
+              - generic [ref=e302]:
+                - generic [ref=e303]:
+                  - img "Test Smartphone" [ref=e304]
+                  - button [ref=e305]:
+                    - img [ref=e306]
+                  - button "Add to Cart" [ref=e308]:
+                    - img [ref=e309]
+                    - text: Add to Cart
+                - generic [ref=e313]:
+                  - paragraph [ref=e314]: TechBrand
+                  - heading "Test Smartphone" [level=3] [ref=e315]
+                  - generic [ref=e316]:
+                    - generic [ref=e317]:
+                      - img [ref=e318]
+                      - img [ref=e320]
+                      - img [ref=e322]
+                      - img [ref=e324]
+                      - img [ref=e326]
+                    - generic [ref=e328]: (1)
+                  - generic [ref=e330]: ₹699.99
+          - generic [ref=e331]:
+            - generic [ref=e332]:
+              - generic [ref=e333]:
+                - heading "Top Rated" [level=2] [ref=e334]
+                - paragraph [ref=e335]: Customers ki favourite picks ⭐
+              - link "See all" [ref=e336] [cursor=pointer]:
+                - /url: /products?sort=rating
+                - text: See all
+                - img [ref=e337]
+            - generic [ref=e339]:
+              - link "Premium Product 1 10% OFF Out of Stock Nike Premium Product 1 ₹3,301" [ref=e340] [cursor=pointer]:
+                - /url: /products/premium-product-1
+                - generic [ref=e341]:
+                  - generic [ref=e342]:
+                    - img "Premium Product 1" [ref=e343]
+                    - generic [ref=e344]:
+                      - generic [ref=e345]: 10% OFF
+                      - generic [ref=e346]: Out of Stock
+                    - button [ref=e347]:
+                      - img [ref=e348]
+                  - generic [ref=e350]:
+                    - paragraph [ref=e351]: Nike
+                    - heading "Premium Product 1" [level=3] [ref=e352]
+                    - generic [ref=e354]:
+                      - img [ref=e355]
+                      - img [ref=e357]
+                      - img [ref=e359]
+                      - img [ref=e361]
+                      - img [ref=e363]
+                    - generic [ref=e366]: ₹3,301
+              - link "Premium Product 2 20% OFF Add to Cart Apple Premium Product 2 ₹4,482 ₹5,463" [ref=e367] [cursor=pointer]:
+                - /url: /products/premium-product-2
+                - generic [ref=e368]:
+                  - generic [ref=e369]:
+                    - img "Premium Product 2" [ref=e370]
+                    - generic [ref=e372]: 20% OFF
+                    - button [ref=e373]:
+                      - img [ref=e374]
+                    - button "Add to Cart" [ref=e376]:
+                      - img [ref=e377]
+                      - text: Add to Cart
+                  - generic [ref=e381]:
+                    - paragraph [ref=e382]: Apple
+                    - heading "Premium Product 2" [level=3] [ref=e383]
+                    - generic [ref=e385]:
+                      - img [ref=e386]
+                      - img [ref=e388]
+                      - img [ref=e390]
+                      - img [ref=e392]
+                      - img [ref=e394]
+                    - generic [ref=e396]:
+                      - generic [ref=e397]: ₹4,482
+                      - generic [ref=e398]: ₹5,463
+              - link "Premium Product 3 30% OFF Add to Cart Samsung Premium Product 3 ₹2,725 ₹5,924" [ref=e399] [cursor=pointer]:
+                - /url: /products/premium-product-3
+                - generic [ref=e400]:
+                  - generic [ref=e401]:
+                    - img "Premium Product 3" [ref=e402]
+                    - generic [ref=e404]: 30% OFF
+                    - button [ref=e405]:
+                      - img [ref=e406]
+                    - button "Add to Cart" [ref=e408]:
+                      - img [ref=e409]
+                      - text: Add to Cart
+                  - generic [ref=e413]:
+                    - paragraph [ref=e414]: Samsung
+                    - heading "Premium Product 3" [level=3] [ref=e415]
+                    - generic [ref=e417]:
+                      - img [ref=e418]
+                      - img [ref=e420]
+                      - img [ref=e422]
+                      - img [ref=e424]
+                      - img [ref=e426]
+                    - generic [ref=e428]:
+                      - generic [ref=e429]: ₹2,725
+                      - generic [ref=e430]: ₹5,924
+              - link "Premium Product 4 40% OFF Add to Cart Puma Premium Product 4 ₹1,171 ₹5,737" [ref=e431] [cursor=pointer]:
+                - /url: /products/premium-product-4
+                - generic [ref=e432]:
+                  - generic [ref=e433]:
+                    - img "Premium Product 4" [ref=e434]
+                    - generic [ref=e436]: 40% OFF
+                    - button [ref=e437]:
+                      - img [ref=e438]
+                    - button "Add to Cart" [ref=e440]:
+                      - img [ref=e441]
+                      - text: Add to Cart
+                  - generic [ref=e445]:
+                    - paragraph [ref=e446]: Puma
+                    - heading "Premium Product 4" [level=3] [ref=e447]
+                    - generic [ref=e449]:
+                      - img [ref=e450]
+                      - img [ref=e452]
+                      - img [ref=e454]
+                      - img [ref=e456]
+                      - img [ref=e458]
+                    - generic [ref=e460]:
+                      - generic [ref=e461]: ₹1,171
+                      - generic [ref=e462]: ₹5,737
+        - generic [ref=e464]:
+          - heading "Exclusive Deals pao! 🎁" [level=2] [ref=e465]
+          - paragraph [ref=e466]: Subscribe karo — best offers directly inbox mein
+          - generic [ref=e467]:
+            - textbox "your@email.com" [ref=e468]
+            - button "Subscribe" [ref=e469] [cursor=pointer]
+    - contentinfo [ref=e42]:
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - generic [ref=e45]:
+            - link "Luxora" [ref=e46] [cursor=pointer]:
+              - /url: /
+              - img [ref=e47]
+              - generic [ref=e51]: Luxora
+            - paragraph [ref=e52]: Premium quality products, delivered fast.
+            - generic [ref=e53]:
+              - link "IG" [ref=e54] [cursor=pointer]:
+                - /url: "#"
+              - link "TW" [ref=e55] [cursor=pointer]:
+                - /url: "#"
+              - link "YT" [ref=e56] [cursor=pointer]:
+                - /url: "#"
+          - generic [ref=e57]:
+            - heading "Shop" [level=4] [ref=e58]
+            - list [ref=e59]:
+              - listitem [ref=e60]:
+                - link "All Products" [ref=e61] [cursor=pointer]:
+                  - /url: /products
+              - listitem [ref=e62]:
+                - link "New Arrivals" [ref=e63] [cursor=pointer]:
+                  - /url: /products?sort=newest
+              - listitem [ref=e64]:
+                - link "Deals" [ref=e65] [cursor=pointer]:
+                  - /url: /products?sale=true
+          - generic [ref=e66]:
+            - heading "Account" [level=4] [ref=e67]
+            - list [ref=e68]:
+              - listitem [ref=e69]:
+                - link "My Orders" [ref=e70] [cursor=pointer]:
+                  - /url: /orders
+              - listitem [ref=e71]:
+                - link "Wishlist" [ref=e72] [cursor=pointer]:
+                  - /url: /wishlist
+              - listitem [ref=e73]:
+                - link "Profile" [ref=e74] [cursor=pointer]:
+                  - /url: /profile
+          - generic [ref=e75]:
+            - heading "Help" [level=4] [ref=e76]
+            - list [ref=e77]:
+              - listitem [ref=e78]:
+                - link "Contact Us" [ref=e79] [cursor=pointer]:
+                  - /url: /
+              - listitem [ref=e80]:
+                - link "FAQs" [ref=e81] [cursor=pointer]:
+                  - /url: /
+              - listitem [ref=e82]:
+                - link "Track Order" [ref=e83] [cursor=pointer]:
+                  - /url: /
+        - generic [ref=e84]:
+          - generic [ref=e85]:
+            - link "support@myshop.com" [ref=e86] [cursor=pointer]:
+              - /url: mailto:support@myshop.com
+              - img [ref=e87]
+              - text: support@myshop.com
+            - link "+91 12345 67890" [ref=e90] [cursor=pointer]:
+              - /url: tel:+911234567890
+              - img [ref=e91]
+              - text: +91 12345 67890
+          - paragraph [ref=e93]: © 2026 Luxora. All rights reserved.
+    - generic:
+      - generic:
+        - generic:
+          - heading "Cart (1)" [level=3]
+          - button:
+            - img
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - link "Test Smartphone":
+                  - /url: /products/test-smartphone
+                  - generic:
+                    - img "Test Smartphone"
+                - generic:
+                  - link "Test Smartphone":
+                    - /url: /products/test-smartphone
+                    - heading "Test Smartphone" [level=4]
+                  - paragraph: Midnight Black
+                  - paragraph: ₹699.99
+                  - paragraph: ₹699.99 × 1
+                - generic:
+                  - button:
+                    - img
+                  - generic:
+                    - button:
+                      - img
+                    - generic: "1"
+                    - button:
+                      - img
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - textbox "Coupon code"
+                  - button "Apply" [disabled]
+                - generic:
+                  - generic:
+                    - generic: Subtotal
+                    - generic: ₹699.99
+                  - generic:
+                    - generic: Delivery
+                    - generic: FREE
+                  - paragraph: 🎉 Free delivery!
+                  - generic:
+                    - generic: Total
+                    - generic: ₹699.99
+                - button "Proceed to Checkout":
+                  - text: Proceed to Checkout
+                  - img
+  - generic [ref=e485]:
+    - generic [ref=e486]:
+      - img [ref=e488]
+      - generic [ref=e490]:
+        - heading "Install Luxora App" [level=3] [ref=e491]
+        - paragraph [ref=e492]: Install for faster access and offline browsing
+      - button [ref=e493] [cursor=pointer]:
+        - img [ref=e494]
+    - generic [ref=e497]:
+      - button "Not now" [ref=e498] [cursor=pointer]
+      - button "Install" [ref=e499] [cursor=pointer]:
+        - img [ref=e500]
+        - text: Install

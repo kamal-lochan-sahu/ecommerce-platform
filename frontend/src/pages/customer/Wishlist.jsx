@@ -60,7 +60,7 @@ export default function Wishlist() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {items.map((item) => {
               const p = item.product || item
-              const img = p.images?.[0] || '/placeholder.jpg'
+              const img = p.images?.[0] || 'https://placehold.co/400x400?text=Product'
               const price = p.salePrice || p.price
               const original = p.price
               const discount = original > price ? Math.round((1 - price/original)*100) : 0

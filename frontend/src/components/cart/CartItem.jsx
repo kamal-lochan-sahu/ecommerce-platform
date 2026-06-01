@@ -10,7 +10,7 @@ export default function CartItem({ item }) {
     <div className="flex gap-3 py-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
       <Link to={`/products/${item.slug}`} className="flex-shrink-0">
         <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-          <img src={item.image || "https://placehold.co/80x80?text=P"} alt={item.name} className="w-full h-full object-cover" />
+          <img src={item.image || "https://placehold.co/400x400?text=Product"} alt={item.name} className="w-full h-full object-cover" />
         </div>
       </Link>
       <div className="flex-1 min-w-0">

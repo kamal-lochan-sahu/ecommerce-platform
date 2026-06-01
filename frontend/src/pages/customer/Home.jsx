@@ -14,7 +14,7 @@ import { ProductCardSkeleton } from "../../components/ui/Skeleton";
 import SectionHeader from "../../components/common/SectionHeader";
 import DealTimer from "../../components/common/DealTimer";
 
-// ── Static fallback data (jab tak backend ready ho) ──
+// ── Static fallback data ──
 const MOCK_BANNERS = [
   {
     id: 1,
@@ -63,7 +63,7 @@ const MOCK_PRODUCTS = Array(8).fill(null).map((_, i) => ({
   brand:        ["Nike", "Apple", "Samsung", "Puma"][i % 4],
   price:        Math.floor(Math.random() * 4000) + 500,
   comparePrice: Math.floor(Math.random() * 6000) + 2000,
-  images:       [`https://placehold.co/300x300/f3f4f6/6366f1?text=Product+${i+1}`],
+  images:       [`https://placehold.co/400x400?text=Product`],
   ratings:      (3.5 + Math.random() * 1.5).toFixed(1),
   totalReviews: Math.floor(Math.random() * 500) + 10,
   stock:        i % 5 === 0 ? 0 : 10,
@@ -186,7 +186,7 @@ export default function Home() {
         <section>
           <SectionHeader
             title="Shop by Category"
-            subtitle="Apni favourite category choose karo"
+            subtitle="Choose your favorite category"
             href="/products"
           />
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
@@ -214,7 +214,7 @@ export default function Home() {
         <section>
           <SectionHeader
             title="Featured Products"
-            subtitle="Curated picks sirf tumhare liye"
+            subtitle="Curated picks just for you"
             href="/products?featured=true"
           />
           {featuredLoading ? (
@@ -269,7 +269,7 @@ export default function Home() {
               </div>
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Deal of the Day</h2>
-                <p className="text-xs text-gray-500">Aaj ke best offers — jaldi karo!</p>
+                <p className="text-xs text-gray-500">Today's best offers — hurry up!</p>
               </div>
             </div>
             <DealTimer endsAt={DEAL_END} />
@@ -291,7 +291,7 @@ export default function Home() {
         <section>
           <SectionHeader
             title="New Arrivals"
-            subtitle="Abhi abhi aaye — fresh stock!"
+            subtitle="Just arrived — fresh stock!"
             href="/products?sort=newest"
           />
           {newLoading ? (
@@ -311,7 +311,7 @@ export default function Home() {
         <section>
           <SectionHeader
             title="Top Rated"
-            subtitle="Customers ki favourite picks ⭐"
+            subtitle="Customer favorite picks ⭐"
             href="/products?sort=rating"
           />
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -327,10 +327,10 @@ export default function Home() {
       <section className="bg-gradient-to-r from-indigo-600 to-purple-700 mt-14 py-12">
         <div className="max-w-2xl mx-auto px-4 text-center">
           <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2">
-            Exclusive Deals pao! 🎁
+            Get Exclusive Deals! 🎁
           </h2>
           <p className="text-indigo-100 mb-6 text-sm">
-            Subscribe karo — best offers directly inbox mein
+            Subscribe for the best offers directly in your inbox
           </p>
           <div className="flex gap-2 max-w-md mx-auto">
             <input

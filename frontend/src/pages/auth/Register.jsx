@@ -12,13 +12,13 @@ import authService from "../../services/auth.service";
 import useAuthStore from "../../store/authStore";
 
 const schema = z.object({
-  name:     z.string().min(2, "Name kam se kam 2 characters"),
-  email:    z.string().email("Valid email daalo"),
-  phone:    z.string().regex(/^[6-9]\d{9}$/, "Valid 10-digit Indian mobile number daalo"),
-  password: z.string().min(6, "Password kam se kam 6 characters"),
+  name:     z.string().min(2, "Name must be at least 2 characters"),
+  email:    z.string().email("Please enter a valid email"),
+  phone:    z.string().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit mobile number"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string(),
 }).refine((d) => d.password === d.confirmPassword, {
-  message: "Passwords match nahi kar rahe",
+  message: "Passwords do not match",
   path: ["confirmPassword"],
 });
 
@@ -36,11 +36,11 @@ export default function Register() {
       const { confirmPassword, ...payload } = data;
       const res = await authService.register(payload);
       if (res.data.data.requiresOTP) {
-        toast.success("OTP bheja gaya! Check karo.");
+        toast.success("OTP sent! Please check your inbox.");
         navigate("/verify-otp", { state: { email: data.email, type: "register" } });
       } else {
         login(res.data.data.user, res.data.data.accessToken);
-        toast.success("Account create ho gaya! 🎉");
+        toast.success("Account created successfully! 🎉");
         navigate("/");
       }
     } catch (err) {
@@ -49,7 +49,7 @@ export default function Register() {
   };
 
   return (
-    <AuthLayout title="Create account" subtitle="Free mein join karo">
+    <AuthLayout title="Create account" subtitle="Join for free">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
         <Input
@@ -107,7 +107,7 @@ export default function Register() {
         </Button>
 
         <p className="text-center text-sm text-gray-600">
-          Pehle se account hai?{" "}
+          Already have an account?{" "}
           <Link to="/login" className="text-primary font-semibold hover:underline">Login</Link>
         </p>
       </form>

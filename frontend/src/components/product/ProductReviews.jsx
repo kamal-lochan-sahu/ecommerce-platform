@@ -9,7 +9,7 @@ const MOCK_REVIEWS = Array(6).fill(null).map((_, i) => ({
   user:     { name: ["Rahul K", "Priya S", "Amit V", "Sneha R", "Raj M", "Kavya T"][i] },
   rating:   [5, 4, 5, 3, 4, 5][i],
   title:    ["Excellent product!", "Good value", "Highly recommend", "Decent quality", "Fast delivery", "Worth buying"][i],
-  comment:  "Bahut accha product hai. Quality ekdum top hai aur delivery bhi fast thi. Definitely recommend karunga!",
+  comment:  "Very good product. Quality is top notch and delivery was fast. Definitely recommend!",
   helpful:  [12, 8, 25, 3, 15, 6][i],
   date:     new Date(Date.now() - i * 7 * 24 * 60 * 60 * 1000).toLocaleDateString("en-IN"),
   verified: true,

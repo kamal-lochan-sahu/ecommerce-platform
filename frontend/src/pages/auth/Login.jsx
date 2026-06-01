@@ -12,8 +12,8 @@ import authService from "../../services/auth.service";
 import useAuthStore from "../../store/authStore";
 
 const schema = z.object({
-  email:    z.string().email("Valid email daalo"),
-  password: z.string().min(6, "Password kam se kam 6 characters ka hona chahiye"),
+  email:    z.string().email("Please enter a valid email"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
 export default function Login() {
@@ -81,7 +81,7 @@ export default function Login() {
         </Button>
 
         <p className="text-center text-sm text-gray-600">
-          Account nahi hai?{" "}
+          Don't have an account?{" "}
           <Link to="/register" className="text-primary font-semibold hover:underline">
             Sign Up
           </Link>

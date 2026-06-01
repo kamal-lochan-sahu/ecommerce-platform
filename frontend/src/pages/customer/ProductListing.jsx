@@ -39,7 +39,7 @@ const MOCK = Array(20).fill(null).map((_, i) => ({
   brand:        ["Nike","Apple","Samsung","Puma","Adidas","Sony"][i % 6],
   price:        Math.floor(Math.random() * 8000) + 500,
   comparePrice: Math.floor(Math.random() * 12000) + 3000,
-  images:       [`https://placehold.co/300x300/f3f4f6/6366f1?text=P${i+1}`],
+  images:       [`https://placehold.co/400x400?text=Product`],
   ratings:      parseFloat((3 + Math.random() * 2).toFixed(1)),
   totalReviews: Math.floor(Math.random() * 800) + 10,
   stock:        i % 6 === 0 ? 0 : 10,

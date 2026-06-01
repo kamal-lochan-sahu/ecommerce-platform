@@ -1,0 +1,171 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - main [ref=e4]:
+      - generic [ref=e864]:
+        - complementary [ref=e865]:
+          - generic [ref=e867]:
+            - img [ref=e869]
+            - generic [ref=e873]: Admin
+          - navigation [ref=e874]:
+            - link "Dashboard" [ref=e875] [cursor=pointer]:
+              - /url: /admin
+              - img [ref=e876]
+              - text: Dashboard
+            - link "Products" [ref=e881] [cursor=pointer]:
+              - /url: /admin/products
+              - img [ref=e882]
+              - text: Products
+            - link "Categories" [ref=e886] [cursor=pointer]:
+              - /url: /admin/categories
+              - img [ref=e887]
+              - text: Categories
+            - link "Orders" [ref=e889] [cursor=pointer]:
+              - /url: /admin/orders
+              - img [ref=e890]
+              - text: Orders
+            - link "Customers" [ref=e893] [cursor=pointer]:
+              - /url: /admin/customers
+              - img [ref=e894]
+              - text: Customers
+            - link "Reviews" [ref=e899] [cursor=pointer]:
+              - /url: /admin/reviews
+              - img [ref=e900]
+              - text: Reviews
+            - link "Coupons" [ref=e902] [cursor=pointer]:
+              - /url: /admin/coupons
+              - img [ref=e903]
+              - text: Coupons
+            - link "Banners" [ref=e906] [cursor=pointer]:
+              - /url: /admin/banners
+              - img [ref=e907]
+              - text: Banners
+            - link "Analytics" [ref=e911] [cursor=pointer]:
+              - /url: /admin/analytics
+              - img [ref=e912]
+              - text: Analytics
+            - link "Settings" [ref=e913] [cursor=pointer]:
+              - /url: /admin/settings
+              - img [ref=e914]
+              - text: Settings
+          - generic [ref=e917]:
+            - generic [ref=e918]:
+              - generic [ref=e919]: K
+              - generic [ref=e920]:
+                - paragraph [ref=e921]: Kamal
+                - paragraph [ref=e922]: kamallochansahu300@gmail.com
+            - button "Logout" [ref=e923] [cursor=pointer]:
+              - img [ref=e924]
+              - text: Logout
+        - generic [ref=e927]:
+          - generic [ref=e928]:
+            - heading "Categories" [level=1] [ref=e930]
+            - generic [ref=e931]:
+              - generic [ref=e932]:
+                - img [ref=e933]
+                - textbox "Search..." [ref=e936]
+              - button [ref=e937] [cursor=pointer]:
+                - img [ref=e938]
+              - generic [ref=e942]: K
+          - main [ref=e943]:
+            - generic [ref=e944]:
+              - paragraph [ref=e945]: 1 categories · 0 subcategories
+              - button "Add Parent Category" [active] [ref=e946] [cursor=pointer]:
+                - img [ref=e947]
+                - text: Add Parent Category
+            - generic [ref=e949]:
+              - generic [ref=e950] [cursor=pointer]:
+                - button [ref=e951]:
+                  - img [ref=e952]
+                - img [ref=e955]
+                - generic [ref=e957]:
+                  - heading "Electronics" [level=3] [ref=e958]
+                  - paragraph [ref=e959]: Latest gadgets
+                - generic [ref=e960]:
+                  - generic [ref=e961]: 0 sub
+                  - button "Add Sub" [ref=e962]:
+                    - img [ref=e963]
+                    - text: Add Sub
+                  - button [ref=e964]:
+                    - img [ref=e965]
+                  - button [ref=e967]:
+                    - img [ref=e968]
+              - generic [ref=e972]:
+                - text: No subcategories yet —
+                - button "add one" [ref=e973] [cursor=pointer]
+            - generic [ref=e976]:
+              - generic [ref=e977]:
+                - heading "Add Category" [level=3] [ref=e978]
+                - button [ref=e979] [cursor=pointer]:
+                  - img [ref=e980]
+              - generic [ref=e984]:
+                - generic [ref=e985]:
+                  - generic [ref=e986]: Name *
+                  - textbox "e.g. Electronics" [ref=e987]
+                - generic [ref=e988]:
+                  - generic [ref=e989]: Description
+                  - textbox "Short description (optional)" [ref=e990]
+                - button "Create Category" [ref=e991] [cursor=pointer]
+    - generic:
+      - generic:
+        - generic:
+          - heading "Cart (1)" [level=3]
+          - button:
+            - img
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - link "Test Smartphone":
+                  - /url: /products/test-smartphone
+                  - generic:
+                    - img "Test Smartphone"
+                - generic:
+                  - link "Test Smartphone":
+                    - /url: /products/test-smartphone
+                    - heading "Test Smartphone" [level=4]
+                  - paragraph: Midnight Black
+                  - paragraph: ₹699.99
+                  - paragraph: ₹699.99 × 1
+                - generic:
+                  - button:
+                    - img
+                  - generic:
+                    - button:
+                      - img
+                    - generic: "1"
+                    - button:
+                      - img
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - textbox "Coupon code"
+                  - button "Apply" [disabled]
+                - generic:
+                  - generic:
+                    - generic: Subtotal
+                    - generic: ₹699.99
+                  - generic:
+                    - generic: Delivery
+                    - generic: FREE
+                  - paragraph: 🎉 Free delivery!
+                  - generic:
+                    - generic: Total
+                    - generic: ₹699.99
+                - button "Proceed to Checkout":
+                  - text: Proceed to Checkout
+                  - img
+  - generic [ref=e42]:
+    - generic [ref=e43]:
+      - img [ref=e45]
+      - generic [ref=e47]:
+        - heading "Install Luxora App" [level=3] [ref=e48]
+        - paragraph [ref=e49]: Install for faster access and offline browsing
+      - button [ref=e50] [cursor=pointer]:
+        - img [ref=e51]
+    - generic [ref=e54]:
+      - button "Not now" [ref=e55] [cursor=pointer]
+      - button "Install" [ref=e56] [cursor=pointer]:
+        - img [ref=e57]
+        - text: Install

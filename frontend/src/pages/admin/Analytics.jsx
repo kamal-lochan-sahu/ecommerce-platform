@@ -72,7 +72,7 @@ export default function Analytics() {
             {topProducts.slice(0,8).map((p,i)=>(
               <div key={p._id} className="flex items-center gap-3">
                 <span className="w-6 text-xs font-bold text-gray-400">#{i+1}</span>
-                <img src={p.images?.[0]||'/placeholder.jpg'} alt={p.name} className="w-10 h-10 rounded-xl object-cover flex-shrink-0"/>
+                <img src={p.images?.[0]||'https://placehold.co/400x400?text=Product'} alt={p.name} className="w-10 h-10 rounded-xl object-cover flex-shrink-0"/>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 truncate">{p.name}</p>
                   <div className="w-full bg-gray-100 rounded-full h-1.5 mt-1">

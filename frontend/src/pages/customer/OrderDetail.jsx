@@ -161,7 +161,7 @@ export default function OrderDetail() {
             {order.items?.map((item, idx) => (
               <div key={idx} className="flex gap-4 py-4 first:pt-0 last:pb-0">
                 <img
-                  src={item.product?.images?.[0] || '/placeholder.jpg'}
+                  src={item.product?.images?.[0] || 'https://placehold.co/400x400?text=Product'}
                   alt={item.product?.name}
                   className="w-16 h-16 object-cover rounded-xl border border-gray-100 flex-shrink-0"
                   loading="lazy"
