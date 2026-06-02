@@ -22,3 +22,11 @@ Thumbs.db
 # Editor
 .vscode/settings.json
 .idea/
+# Playwright MCP snapshots
+.playwright-mcp/
+
+# QA artifacts
+qa_screenshots/
+qa_report_luxora.md
+testing_review.md
+generate_icons.py
