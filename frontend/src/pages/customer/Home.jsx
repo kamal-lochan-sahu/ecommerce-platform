@@ -56,6 +56,18 @@ const MOCK_CATEGORIES = [
   { name: "Grocery",      emoji: "🛒", slug: "grocery",      color: "bg-teal-50   text-teal-600" },
 ];
 
+const CATEGORY_STYLE = {
+  "electronics-gadgets":  { emoji: "📱", color: "bg-blue-50   text-blue-600" },
+  "fashion-apparel":      { emoji: "👗", color: "bg-pink-50   text-pink-600" },
+  "home-kitchen":         { emoji: "🏠", color: "bg-amber-50  text-amber-600" },
+  "beauty-personal-care": { emoji: "💄", color: "bg-rose-50   text-rose-600" },
+  "sports-fitness":       { emoji: "⚽", color: "bg-green-50  text-green-600" },
+  "books-stationery":     { emoji: "📚", color: "bg-purple-50 text-purple-600" },
+  "toys-games":           { emoji: "🧸", color: "bg-yellow-50 text-yellow-600" },
+  "watches-accessories":  { emoji: "⌚", color: "bg-teal-50   text-teal-600" },
+};
+const DEFAULT_CATEGORY_STYLE = { emoji: "🛍️", color: "bg-gray-50 text-gray-600" };
+
 const MOCK_PRODUCTS = Array(8).fill(null).map((_, i) => ({
   _id:          `mock-${i}`,
   name:         `Premium Product ${i + 1}`,
@@ -90,7 +102,7 @@ export default function Home() {
   // Fetch new arrivals
   const { data: newArrivals, isLoading: newLoading } = useQuery({
     queryKey: ["new-arrivals"],
-    queryFn:  () => productService.getAll({ sort: 'newest', limit: 4 }).then(r => r.data?.data?.products ?? null),
+    queryFn:  () => productService.getAll({ sortBy: 'newest', limit: 4 }).then(r => r.data?.data?.products ?? null),
     retry: false,
   });
 
@@ -101,9 +113,31 @@ export default function Home() {
     retry: false,
   });
 
+  // Fetch real categories
+  const { data: categoriesRaw } = useQuery({
+    queryKey: ["home-categories"],
+    queryFn:  () => productService.getCategories().then(r => r.data?.data?.categories ?? null),
+    retry: false,
+  });
+
+  // Fetch real top-rated products
+  const { data: topRated, isLoading: topRatedLoading } = useQuery({
+    queryKey: ["top-rated"],
+    queryFn:  () => productService.getAll({ sortBy: 'rating', limit: 4 }).then(r => r.data?.data?.products ?? null),
+    retry: false,
+  });
+
   const featuredProducts = featured  || MOCK_PRODUCTS;
   const newProducts      = newArrivals || MOCK_PRODUCTS.slice(0, 4);
   const dealProducts     = deals     || MOCK_PRODUCTS.slice(0, 4);
+  const categories       = categoriesRaw
+    ? categoriesRaw.map((c) => ({
+        name: c.name,
+        slug: c.slug,
+        ...(CATEGORY_STYLE[c.slug] || DEFAULT_CATEGORY_STYLE),
+      }))
+    : MOCK_CATEGORIES;
+  const topRatedProducts = topRated || MOCK_PRODUCTS.slice(0, 4);
 
   return (
     <div className="pb-16">
@@ -190,7 +224,7 @@ export default function Home() {
             href="/products"
           />
           <div className="grid grid-cols-4 sm:grid-cols-8 gap-3">
-            {MOCK_CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <Link
                 key={cat.slug}
                 to={`/products?category=${cat.slug}`}
@@ -314,11 +348,17 @@ export default function Home() {
             subtitle="Customer favorite picks ⭐"
             href="/products?sort=rating"
           />
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {MOCK_PRODUCTS.slice(0, 4).map((p) => (
-              <ProductCard key={p._id} product={{ ...p, ratings: 4.8, totalReviews: 320 }} />
-            ))}
-          </div>
+          {topRatedLoading ? (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {Array(4).fill(0).map((_, i) => <ProductCardSkeleton key={i} />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {topRatedProducts.slice(0, 4).map((p) => (
+                <ProductCard key={p._id} product={p} />
+              ))}
+            </div>
+          )}
         </section>
 
       </div>
