@@ -9,6 +9,7 @@ import AuthLayout from "../../components/auth/AuthLayout";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import authService from "../../services/auth.service";
+import useCartStore from "../../store/cartStore";
 import useAuthStore from "../../store/authStore";
 
 const schema = z.object({
@@ -30,7 +31,9 @@ export default function Login() {
   const onSubmit = async (data) => {
     try {
       const res = await authService.login(data);
-      login(res.data.data.user, res.data.data.accessToken);
+      const { mergeGuestCart } = useCartStore.getState();
+        mergeGuestCart();
+        login(res.data.data.user, res.data.data.accessToken);
       toast.success(`Welcome back, ${res.data.data.user.name.split(" ")[0]}! 👋`);
       navigate(from, { replace: true });
     } catch (err) {

@@ -60,12 +60,13 @@ export default function ProductListing() {
 
   // Build query params
   const queryParams = {
-    page, sort,
+    page,
+    sortBy:    sort,
     category:  filters.category  || undefined,
     minPrice:  filters.priceRange?.min,
     maxPrice:  filters.priceRange?.max,
-    brands:    filters.brands.join(",") || undefined,
-    minRating: filters.rating || undefined,
+    brand:     filters.brands.join(",") || undefined,
+    rating:    filters.rating || undefined,
     inStock:   filters.inStock || undefined,
   };
 

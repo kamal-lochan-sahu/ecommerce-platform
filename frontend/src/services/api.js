@@ -11,6 +11,9 @@ const api = axios.create({
 api.interceptors.request.use((req) => {
   const token = useAuthStore.getState().accessToken;
   if (token) req.headers.Authorization = `Bearer ${token}`;
+  // Guest cart session ID
+  const sessionId = localStorage.getItem("x-session-id");
+  if (sessionId) req.headers["x-session-id"] = sessionId;
   return req;
 });
 
@@ -36,7 +39,7 @@ api.interceptors.response.use(
       original._retry = true;
       isRefreshing = true;
       try {
-        const res = await api.post("/auth/refresh-token");
+        const res = await api.post("/auth/refresh");
         const { accessToken } = res.data;
         useAuthStore.getState().setAccessToken(accessToken);
         processQueue(null, accessToken);

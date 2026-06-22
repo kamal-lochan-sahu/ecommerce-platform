@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import AuthLayout from "../../components/auth/AuthLayout";
 import Button from "../../components/ui/Button";
 import authService from "../../services/auth.service";
+import useCartStore from "../../store/cartStore";
 import useAuthStore from "../../store/authStore";
 
 export default function VerifyOTP() {
@@ -60,12 +61,16 @@ export default function VerifyOTP() {
 
     setLoading(true);
     try {
-      const res = await authService.verifyOTP({ email, otp: code, type });
+      let res;
       if (type === "register") {
+        res = await authService.verifyEmail({ otp: code });
         login(res.data.data.user, res.data.data.accessToken);
+          useCartStore.getState().mergeGuestCart();
         toast.success("Email verified successfully! Welcome 🎉");
         navigate("/");
       } else {
+        const { phone } = location.state || {};
+        res = await authService.verifyOtp({ phone, otp: code });
         toast.success("OTP verified! Now reset your password.");
         navigate("/reset-password", { state: { email, token: res.data.data.resetToken } });
       }
@@ -79,9 +84,14 @@ export default function VerifyOTP() {
   };
 
   const handleResend = async () => {
+    if (type === "register") {
+      toast.error("Please go back and register again to resend email OTP.");
+      return;
+    }
     setResending(true);
     try {
-      await authService.resendOTP({ email, type });
+      const { phone } = location.state || {};
+      await authService.sendOtp({ phone });
       toast.success("New OTP sent!");
       setTimer(60);
       setOtp(["", "", "", "", "", ""]);
