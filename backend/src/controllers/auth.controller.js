@@ -5,6 +5,7 @@ import { sendEmail, getOtpEmailTemplate, getWelcomeEmailTemplate, getPasswordRes
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import logger from '../utils/logger.js';
 
 // Helper — OTP generate karo (6 digits)
 const generateOTP = () => {
@@ -122,6 +123,10 @@ export const login = asyncHandler(async (req, res) => {
   if (!user.isActive) {
     throw new ApiError(403, 'Your account has been deactivated. Contact support.');
   }
+  // Email verification check
+  if (!user.isVerified) {
+    throw new ApiError(403, 'Please verify your email before logging in. Check your inbox.');
+  }
 
   // Last login update
   user.lastLogin = new Date();
@@ -196,9 +201,7 @@ export const sendOtp = asyncHandler(async (req, res) => {
   }
 
   // Development mein console pe dikhao
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`📱 OTP for ${phone}: ${otp}`);
-  }
+  logger.debug(`📱 OTP for ${phone}: [REDACTED in production]`);
 
   // Production mein Twilio se SMS bhejo
   // await sendSMS(phone, `Your OTP is ${otp}`);

@@ -3,6 +3,7 @@ import { Order, Cart, Product, Address, Coupon, Transaction, LoyaltyPoints, Noti
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import logger from '../utils/logger.js';
 import { getRazorpay } from '../config/razorpay.js';
 import { getStripe } from '../config/stripe.js';
 import { getPagination, getPaginationMeta } from '../utils/pagination.js';
@@ -570,7 +571,7 @@ export const stripeWebhook = asyncHandler(async (req, res) => {
       process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err) {
-    console.error('Webhook signature failed:', err.message);
+    logger.error('Webhook signature failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -598,7 +599,7 @@ export const stripeWebhook = asyncHandler(async (req, res) => {
         }
       );
 
-      console.log(`✅ Stripe payment confirmed: ${orderId}`);
+      logger.info(`Stripe payment confirmed: ${orderId}`);
       break;
     }
 
@@ -617,12 +618,12 @@ export const stripeWebhook = asyncHandler(async (req, res) => {
         },
       });
 
-      console.log(`❌ Stripe session expired: ${orderId}`);
+      logger.warn(`Stripe session expired: ${orderId}`);
       break;
     }
 
     default:
-      console.log(`Unhandled Stripe event: ${event.type}`);
+      logger.warn(`Unhandled Stripe event: ${event.type}`);
   }
 
   res.json({ received: true });
