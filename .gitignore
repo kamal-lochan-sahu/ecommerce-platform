@@ -40,3 +40,9 @@ qa_report_luxora.md
 testing_review.md
 generate_icons.py
 audit_report.md
+backend/audit_db.py
+backend/fix_smartphone_image.py
+backend/reset_and_seed_catalog.py
+fix_cart_sync.py
+fix_home_mock_data.py
+fix_otp_flow.py
