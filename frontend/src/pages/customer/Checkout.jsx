@@ -60,24 +60,68 @@ export default function Checkout() {
         city: address.city,
         state: address.state,
         addressLine1: address.address,
-        addressLine2: "N/A",
+        addressLine2: "",
         country: "India",
         isDefault: true,
-      }).catch(e => {
-         return { data: { data: { address: { _id: "6a08ebf72b74814169321dac" } } } };
       });
 
-      const addrId = addressRes?.data?.data?.address?._id || "6a08ebf72b74814169321dac";
+      const addrId = addressRes?.data?.data?.address?._id;
+      if (!addrId) throw new Error("Failed to save delivery address. Please try again.");
 
       const orderRes = await orderService.create({
         addressId: addrId,
-        paymentMethod: payment === "cod" ? "cod" : "razorpay",
+        paymentMethod: payment,
         notes: "Order from UI",
       });
 
+      const orderData = orderRes?.data?.data;
+      const order = orderData?.order;
+
+      // Stripe — redirect to hosted checkout page
+      if (payment === "stripe" && orderData?.sessionUrl) {
+        window.location.href = orderData.sessionUrl;
+        return;
+      }
+
+      // Razorpay — launch SDK
+      if (payment === "razorpay" && orderData?.razorpayOrder) {
+        const rzp = orderData.razorpayOrder;
+        const options = {
+          key: rzp.key,
+          amount: rzp.amount,
+          currency: rzp.currency,
+          name: "Luxora",
+          description: `Order ${order?.orderNumber}`,
+          order_id: rzp.id,
+          handler: async (response) => {
+            try {
+              await import("../../services/order.service").then(m =>
+                m.default.verifyRazorpay({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  orderId: order._id,
+                })
+              );
+              clearCart();
+              toast.success("Payment successful! 🎉");
+              navigate("/order-success", { state: { orderId: order?._id, orderNumber: order?.orderNumber } });
+            } catch {
+              toast.error("Payment verification failed. Contact support.");
+            }
+          },
+          prefill: { name: address?.fullName, contact: address?.phone },
+          theme: { color: "#6366f1" },
+        };
+        const razorpayInstance = new window.Razorpay(options);
+        razorpayInstance.open();
+        return;
+      }
+
+      // COD
       clearCart();
       toast.success("Order placed successfully! 🎉");
-      navigate("/order-success", { state: { orderId: orderRes?.data?.data?.order?.orderNumber || "ORD-" + Date.now() } });
+      navigate("/order-success", { state: { orderId: order?._id, orderNumber: order?.orderNumber } });
     } catch (err) {
       console.error(err);
       toast.error(err?.response?.data?.message || "Order failed. Try again.");
@@ -206,7 +250,7 @@ export default function Checkout() {
                 <div className="space-y-3">
                   {items.map(item => (
                     <div key={item._id} className="flex items-center gap-3">
-                      <img src={item.image || "https://placehold.co/400x400?text=Product"} alt={item.name}
+                      <img src={item.images?.[0] || item.image || "https://placehold.co/400x400?text=Product"} alt={item.name}
                         className="w-12 h-12 rounded-lg object-cover bg-gray-50" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 line-clamp-1">{item.name}</p>
@@ -240,7 +284,7 @@ export default function Checkout() {
               {items.map(item => (
                 <div key={item._id} className="flex items-center gap-2.5">
                   <div className="relative">
-                    <img src={item.image || "https://placehold.co/400x400?text=Product"} alt={item.name}
+                    <img src={item.images?.[0] || item.image || "https://placehold.co/400x400?text=Product"} alt={item.name}
                       className="w-10 h-10 rounded-lg object-cover bg-gray-50" />
                     <span className="absolute -top-1 -right-1 w-4 h-4 bg-gray-600 text-white text-[9px] rounded-full flex items-center justify-center font-bold">{item.quantity}</span>
                   </div>

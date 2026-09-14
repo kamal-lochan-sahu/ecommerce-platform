@@ -60,11 +60,6 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ===== Routes (agle din add honge) =====
-// import authRoutes from './routes/auth.routes.js';
-// app.use('/api/auth', authRoutes);
-// Routes ke section mein add karo
-
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import addressRoutes from './routes/address.routes.js';

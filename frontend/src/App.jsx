@@ -1,9 +1,11 @@
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, Component } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 import { applyTheme } from "./config";
 import useAuthStore from "./store/authStore";
+import useCartStore from "./store/cartStore";
+import useWishlistStore from "./store/wishlistStore";
 import useUiStore from "./store/uiStore";
 import Navbar from "./components/common/Navbar";
 import Footer from "./components/common/Footer";
@@ -44,13 +46,59 @@ const AdminBanners    = lazy(() => import("./pages/admin/Banners"));
 const AdminAnalytics  = lazy(() => import("./pages/admin/Analytics"));
 const AdminSettings   = lazy(() => import("./pages/admin/Settings"));
 
+// Per-query staleTime set karenge — blanket 5min too coarse for cart/orders
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 1000 * 60 * 5, retry: 1, refetchOnWindowFocus: false } },
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 2, // 2 min default
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
 });
+
+// ── Global Error Boundary ──
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, info) {
+    console.error("ErrorBoundary caught:", error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center px-4">
+          <div className="text-center max-w-md">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Something went wrong</h1>
+            <p className="text-gray-500 mb-6 text-sm">
+              An unexpected error occurred. Please refresh the page.
+            </p>
+            <button
+              onClick={() => { this.setState({ hasError: false }); window.location.href = "/"; }}
+              className="bg-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-primary-600 transition-colors"
+            >
+              Go to Home
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  const location = useLocation();
+  return isAuthenticated
+    ? children
+    : <Navigate to="/login" state={{ from: location }} replace />;
 };
 
 const AdminRoute = ({ children }) => {
@@ -66,7 +114,6 @@ const PageLoader = () => (
   </div>
 );
 
-// Layout wrapper — admin routes will not have Navbar/Footer
 function AppLayout() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith("/admin");
@@ -79,6 +126,7 @@ function AppLayout() {
       <main className="flex-1">
         <Suspense fallback={<PageLoader />}>
           <Routes>
+            {/* Public routes */}
             <Route path="/"                    element={<Home />} />
             <Route path="/products"            element={<ProductListing />} />
             <Route path="/products/:slug"      element={<ProductDetail />} />
@@ -88,10 +136,12 @@ function AppLayout() {
             <Route path="/forgot-password"     element={<ForgotPassword />} />
             <Route path="/reset-password"      element={<ResetPassword />} />
             <Route path="/verify-otp"          element={<VerifyOTP />} />
+
+            {/* Protected customer routes */}
             <Route path="/cart"          element={<ProtectedRoute><Cart /></ProtectedRoute>} />
-            <Route path="/checkout"      element={<Checkout />} />
-            <Route path="/order-success" element={<OrderSuccess />} />
-            <Route path="/orders"        element={<OrderHistory />} />
+            <Route path="/checkout"      element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
+            <Route path="/order-success" element={<ProtectedRoute><OrderSuccess /></ProtectedRoute>} />
+            <Route path="/orders"        element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
             <Route path="/orders/:id"    element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
             <Route path="/orders/:id/tracking" element={<ProtectedRoute><OrderTracking /></ProtectedRoute>} />
             <Route path="/profile"       element={<ProtectedRoute><Profile /></ProtectedRoute>} />
@@ -99,6 +149,8 @@ function AppLayout() {
             <Route path="/wishlist"      element={<ProtectedRoute><Wishlist /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/loyalty"       element={<ProtectedRoute><LoyaltyPoints /></ProtectedRoute>} />
+
+            {/* Admin routes */}
             <Route path="/admin"                    element={<AdminRoute><AdminDashboard /></AdminRoute>} />
             <Route path="/admin/products"           element={<AdminRoute><AdminProducts /></AdminRoute>} />
             <Route path="/admin/products/add"       element={<AdminRoute><AddProduct /></AdminRoute>} />
@@ -125,23 +177,39 @@ function AppLayout() {
 
 export default function App() {
   const { theme } = useUiStore();
+  const { isAuthenticated } = useAuthStore();
+  const { fetchCart } = useCartStore();
+  const { fetchWishlist, clearWishlist } = useWishlistStore();
+
   useEffect(() => {
     applyTheme();
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
+  // Sync cart + wishlist from server on auth state change
+  useEffect(() => {
+    fetchCart();
+    if (isAuthenticated) {
+      fetchWishlist();
+    } else {
+      clearWishlist();
+    }
+  }, [isAuthenticated]);
+
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AppLayout />
-        <Toaster position={isMobile ? "top-center" : "top-right"} toastOptions={{
-          duration: 3000,
-          style: { borderRadius: "12px", fontFamily: "Inter, sans-serif", fontSize: "14px" },
-        }} />
-        <PWAInstallPrompt />
-    </BrowserRouter>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <AppLayout />
+          <Toaster position={isMobile ? "top-center" : "top-right"} toastOptions={{
+            duration: 3000,
+            style: { borderRadius: "12px", fontFamily: "Inter, sans-serif", fontSize: "14px" },
+          }} />
+          <PWAInstallPrompt />
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

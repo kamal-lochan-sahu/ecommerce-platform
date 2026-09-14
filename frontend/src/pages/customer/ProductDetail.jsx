@@ -1,10 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Heart, ShoppingCart, Zap, Share2, Shield,
-  Truck, RefreshCw, Star, ChevronDown, ChevronUp,
-  Check, Package
+  Truck, RefreshCw, Star, Check, Package, AlertCircle
 } from "lucide-react";
 import { clsx } from "clsx";
 import toast from "react-hot-toast";
@@ -22,61 +21,6 @@ import useCartStore from "../../store/cartStore";
 import useWishlistStore from "../../store/wishlistStore";
 import useAuthStore from "../../store/authStore";
 
-// Mock product for UI dev
-const MOCK_PRODUCT = {
-  _id: "mock-1", slug: "premium-wireless-headphones",
-  name: "Premium Wireless Headphones Pro Max",
-  brand: "Sony", category: "Electronics",
-  price: 4999, comparePrice: 9999,
-  discount: 50,
-  images: [
-    "https://placehold.co/400x400?text=Product",
-    "https://placehold.co/400x400?text=Product",
-    "https://placehold.co/400x400?text=Product",
-    "https://placehold.co/400x400?text=Product",
-  ],
-  ratings: 4.5, totalReviews: 1284, stock: 15,
-  description: `Premium wireless headphones with industry-leading noise cancellation. 
-30-hour battery life, Hi-Res Audio, and multipoint connection technology. 
-Touch sensor controls, speak-to-chat, wearing detection and many more features.
-Foldable design for easy portability.`,
-  specifications: [
-    { key: "Driver Size",       value: "40mm" },
-    { key: "Frequency Response", value: "4Hz–40,000Hz" },
-    { key: "Battery Life",      value: "30 hours (NC on)" },
-    { key: "Charging Time",     value: "3 hours" },
-    { key: "Connectivity",      value: "Bluetooth 5.2" },
-    { key: "Weight",            value: "250g" },
-    { key: "Warranty",          value: "1 Year" },
-    { key: "In the Box",        value: "Headphones, USB-C Cable, Carry Case" },
-  ],
-  colors: [
-    { name: "Midnight Black", hex: "#111827" },
-    { name: "Pearl White",    hex: "#f9fafb" },
-    { name: "Navy Blue",      hex: "#1e3a8a" },
-    { name: "Rose Gold",      hex: "#e8a598" },
-  ],
-  sizes: [],
-  highlights: [
-    "Industry-leading noise cancellation",
-    "30-hour battery life",
-    "Hi-Res Audio certified",
-    "Multipoint connection (2 devices)",
-    "Touch sensor controls",
-  ],
-};
-
-const MOCK_RELATED = Array(4).fill(null).map((_, i) => ({
-  _id: `r-${i}`, name: `Related Product ${i+1}`, slug: `related-${i+1}`,
-  brand: ["Sony","Bose","JBL","Apple"][i],
-  price: Math.floor(Math.random()*5000)+2000,
-  comparePrice: Math.floor(Math.random()*8000)+5000,
-  images: [`https://placehold.co/400x400?text=Product`],
-  ratings: (3.5+Math.random()*1.5).toFixed(1),
-  totalReviews: Math.floor(Math.random()*500)+50,
-  stock: 10, discount: [10,20,30,15][i],
-}));
-
 export default function ProductDetail() {
   const { slug }    = useParams();
   const navigate    = useNavigate();
@@ -84,50 +28,104 @@ export default function ProductDetail() {
   const { toggleItem, isInWishlist } = useWishlistStore();
   const { isAuthenticated } = useAuthStore();
 
-  const [selectedColor, setSelectedColor] = useState(MOCK_PRODUCT.colors[0]?.name || "");
+  const [selectedColor, setSelectedColor] = useState("");
   const [selectedSize,  setSelectedSize]  = useState("");
   const [qty,           setQty]           = useState(1);
-  const [specsOpen,     setSpecsOpen]     = useState(false);
   const [activeTab,     setActiveTab]     = useState("description");
+  const [addingToCart,  setAddingToCart]  = useState(false);
 
-  const { data, isLoading } = useQuery({
+  const { data: product, isLoading, isError, error } = useQuery({
     queryKey: ["product", slug],
     queryFn:  async () => {
       const res = await productService.getBySlug(slug);
       return res.data?.data?.product || res.data?.product || null;
     },
-    retry: false,
+    retry: 1,
+    staleTime: 1000 * 60 * 5,
   });
 
-  const product    = data || MOCK_PRODUCT;
-  const inWishlist = isInWishlist(product._id);
+  // Fetch real related products from same category
+  const { data: relatedData } = useQuery({
+    queryKey: ["related", product?.category?._id || product?.category],
+    queryFn: () => productService.getAll({
+      category: product?.category?._id || product?.category,
+      limit: 4,
+    }).then(r => r.data?.data?.products || []),
+    enabled: !!product,
+    staleTime: 1000 * 60 * 5,
+  });
 
-  // Handle empty images
+  const relatedProducts = (relatedData || []).filter(p => p._id !== product?._id).slice(0, 4);
+
+  // Set default color/size when product loads
+  useEffect(() => {
+    if (product?.colors?.length > 0) setSelectedColor(product.colors[0].name);
+    if (product?.sizes?.length > 0)  setSelectedSize(product.sizes[0]);
+  }, [product]);
+
+  // ── Loading state ──
+  if (isLoading) return (
+    <div className="page-container">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        <div className="aspect-square bg-gray-100 rounded-2xl animate-pulse" />
+        <div className="space-y-4">
+          {[40, 80, 60, 100, 50, 70].map((w, i) => (
+            <div key={i} className="h-4 bg-gray-100 rounded animate-pulse" style={{ width: `${w}%` }} />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Error / Not found state ──
+  if (isError || !product) return (
+    <div className="page-container">
+      <div className="min-h-[50vh] flex flex-col items-center justify-center text-center">
+        <AlertCircle size={48} className="text-gray-300 mb-4" />
+        <h1 className="text-xl font-bold text-gray-900 mb-2">Product not found</h1>
+        <p className="text-gray-500 text-sm mb-6">
+          {error?.response?.data?.message || "This product may have been removed or the link is incorrect."}
+        </p>
+        <Link to="/products" className="btn-primary px-6 py-3">
+          Browse Products
+        </Link>
+      </div>
+    </div>
+  );
+
+  const inWishlist = isInWishlist(product._id);
+  const isOOS = product.stock === 0;
   const productImages = product.images?.length > 0
     ? product.images
-    : [`https://placehold.co/400x400?text=Product`];
-  const isOOS      = product.stock === 0;
+    : [`https://placehold.co/400x400?text=${encodeURIComponent(product.name)}`];
 
-  // Handle real backend ratings object
+  // Handle backend ratings object vs number
   const ratingValue = typeof product.ratings === "object"
     ? product.ratings?.average || 0 : product.ratings || 0;
   const ratingCount = typeof product.ratings === "object"
     ? product.ratings?.count || 0 : product.totalReviews || 0;
 
-  const discountPct = product.discount || (product.comparePrice > product.price
-    ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100) : 0);
+  const discountPct = product.comparePrice > product.price
+    ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100) : 0;
+  const savings = product.comparePrice > product.price
+    ? product.comparePrice - product.price : 0;
 
-  const savings = product.comparePrice - product.price;
-
-  const handleAddToCart = () => {
-    if (isOOS) return;
-    addItem({ ...product, quantity: qty, variant: selectedColor || selectedSize });
-    openCart();
-    toast.success("Added to cart! 🛒");
+  const handleAddToCart = async () => {
+    if (isOOS || addingToCart) return;
+    setAddingToCart(true);
+    try {
+      await addItem({ ...product, quantity: qty, variant: selectedColor || selectedSize || null });
+      openCart();
+      toast.success("Added to cart! 🛒");
+    } catch {
+      // cartStore already shows toast on error
+    } finally {
+      setAddingToCart(false);
+    }
   };
 
-  const handleBuyNow = () => {
-    handleAddToCart();
+  const handleBuyNow = async () => {
+    await handleAddToCart();
     navigate("/checkout");
   };
 
@@ -142,25 +140,12 @@ export default function ProductDetail() {
     toast.success("Link copied! 🔗");
   };
 
-  if (isLoading) return (
-    <div className="page-container">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        <div className="aspect-square bg-gray-100 rounded-2xl animate-pulse" />
-        <div className="space-y-4">
-          {Array(6).fill(0).map((_, i) => (
-            <div key={i} className={clsx("h-4 bg-gray-100 rounded animate-pulse",
-              [40,80,60,100,50,70][i] + "%" )} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="page-container">
       <Breadcrumb items={[
-        { label: "Products",          href: "/products" },
-        { label: product.category?.name || product.category, href: `/products?category=${product.category?.slug || product.category}` },
+        { label: "Products", href: "/products" },
+        { label: product.category?.name || "Category",
+          href: `/products?category=${product.category?._id || product.category}` },
         { label: product.name },
       ]} />
 
@@ -172,7 +157,6 @@ export default function ProductDetail() {
 
         {/* Right — Product Info */}
         <div className="space-y-5">
-          {/* Brand + Title */}
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xs text-primary font-semibold uppercase tracking-wider">
@@ -184,7 +168,6 @@ export default function ProductDetail() {
             <h1 className="text-2xl font-bold text-gray-900 leading-tight">{product.name}</h1>
           </div>
 
-          {/* Rating */}
           <div className="flex items-center gap-3">
             <Rating value={Math.round(ratingValue)} count={ratingCount} size={16} />
             <span className="text-sm text-gray-600 font-medium">{ratingValue} / 5</span>
@@ -192,7 +175,6 @@ export default function ProductDetail() {
             <span className="text-sm text-gray-500">{product.stock} in stock</span>
           </div>
 
-          {/* Price */}
           <div className="flex items-end gap-3 py-3 border-y border-gray-100">
             <span className="text-3xl font-bold text-gray-900">
               ₹{product.price?.toLocaleString("en-IN")}
@@ -209,7 +191,6 @@ export default function ProductDetail() {
             )}
           </div>
 
-          {/* Highlights */}
           {product.highlights?.length > 0 && (
             <ul className="space-y-1.5">
               {product.highlights.map((h, i) => (
@@ -221,115 +202,77 @@ export default function ProductDetail() {
             </ul>
           )}
 
-          {/* Color Variants */}
           {product.colors?.length > 0 && (
-            <ColorVariant
-              colors={product.colors}
-              selected={selectedColor}
-              onChange={setSelectedColor}
-            />
+            <ColorVariant colors={product.colors} selected={selectedColor} onChange={setSelectedColor} />
           )}
-
-          {/* Size Variants */}
           {product.sizes?.length > 0 && (
-            <SizeVariant
-              sizes={product.sizes}
-              selected={selectedSize}
-              onChange={setSelectedSize}
-            />
+            <SizeVariant sizes={product.sizes} selected={selectedSize} onChange={setSelectedSize} />
           )}
 
-          {/* Quantity */}
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-gray-700">Quantity:</span>
             <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
-              <button
-                onClick={() => setQty(q => Math.max(1, q - 1))}
-                className="w-10 h-10 flex items-center justify-center text-gray-600
-                           hover:bg-gray-50 transition-colors text-lg font-medium"
-              >
+              <button onClick={() => setQty(q => Math.max(1, q - 1))}
+                className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors text-lg font-medium">
                 −
               </button>
               <span className="w-12 text-center text-sm font-semibold">{qty}</span>
-              <button
-                onClick={() => setQty(q => Math.min(product.stock || 10, q + 1))}
-                className="w-10 h-10 flex items-center justify-center text-gray-600
-                           hover:bg-gray-50 transition-colors text-lg font-medium"
-              >
+              <button onClick={() => setQty(q => Math.min(product.stock || 10, q + 1))}
+                className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors text-lg font-medium">
                 +
               </button>
             </div>
             {product.stock <= 5 && product.stock > 0 && (
-              <span className="text-xs text-orange-500 font-medium">
-                ⚠️ Only {product.stock} left!
-              </span>
+              <span className="text-xs text-orange-500 font-medium">⚠️ Only {product.stock} left!</span>
             )}
           </div>
 
-          {/* Action Buttons */}
           <div className="flex gap-3">
-            <button
-              onClick={handleAddToCart}
-              disabled={isOOS}
+            <button onClick={handleAddToCart} disabled={isOOS || addingToCart}
               className={clsx(
-                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl",
-                "font-semibold text-sm border-2 transition-all",
-                isOOS
+                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm border-2 transition-all",
+                isOOS || addingToCart
                   ? "border-gray-200 text-gray-400 cursor-not-allowed"
                   : "border-primary text-primary hover:bg-primary-50 active:scale-95"
-              )}
-            >
-              <ShoppingCart size={18} />
-              Add to Cart
+              )}>
+              {addingToCart
+                ? <><div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />Adding...</>
+                : <><ShoppingCart size={18} />Add to Cart</>
+              }
             </button>
-            <button
-              onClick={handleBuyNow}
-              disabled={isOOS}
+            <button onClick={handleBuyNow} disabled={isOOS || addingToCart}
               className={clsx(
-                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl",
-                "font-semibold text-sm transition-all",
-                isOOS
+                "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all",
+                isOOS || addingToCart
                   ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                   : "bg-primary text-white hover:bg-primary-600 active:scale-95 shadow-md"
-              )}
-            >
-              <Zap size={18} />
-              Buy Now
+              )}>
+              <Zap size={18} />Buy Now
             </button>
           </div>
 
-          {/* Secondary Actions */}
           <div className="flex gap-2">
-            <button
-              onClick={handleWishlist}
+            <button onClick={handleWishlist}
               className={clsx(
                 "flex items-center gap-2 px-4 py-2 rounded-xl border text-sm font-medium transition-all",
-                inWishlist
-                  ? "border-red-200 text-red-500 bg-red-50"
-                  : "border-gray-200 text-gray-600 hover:border-red-200 hover:text-red-500"
-              )}
-            >
+                inWishlist ? "border-red-200 text-red-500 bg-red-50" : "border-gray-200 text-gray-600 hover:border-red-200 hover:text-red-500"
+              )}>
               <Heart size={16} fill={inWishlist ? "currentColor" : "none"} />
               {inWishlist ? "Wishlisted" : "Wishlist"}
             </button>
-            <button
-              onClick={handleShare}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200
-                         text-sm font-medium text-gray-600 hover:border-gray-300 transition-all"
-            >
+            <button onClick={handleShare}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:border-gray-300 transition-all">
               <Share2 size={16} /> Share
             </button>
           </div>
 
-          {/* Trust Badges */}
           <div className="grid grid-cols-3 gap-3 pt-2">
             {[
-              { icon: Truck,     label: "Free Delivery", sub: "Above ₹499"   },
+              { icon: Truck,     label: "Free Delivery", sub: "Above ₹499" },
               { icon: RefreshCw, label: "7-Day Return",  sub: "Easy returns" },
-              { icon: Shield,    label: "Genuine",       sub: "100% original"},
+              { icon: Shield,    label: "Genuine",       sub: "100% original" },
             ].map(({ icon: Icon, label, sub }) => (
-              <div key={label} className="flex flex-col items-center text-center p-3
-                                          bg-gray-50 rounded-xl">
+              <div key={label} className="flex flex-col items-center text-center p-3 bg-gray-50 rounded-xl">
                 <Icon size={18} className="text-primary mb-1" />
                 <span className="text-xs font-semibold text-gray-800">{label}</span>
                 <span className="text-xs text-gray-500">{sub}</span>
@@ -343,63 +286,53 @@ export default function ProductDetail() {
       <div className="mb-12">
         <div className="flex border-b border-gray-200 mb-6 gap-1">
           {["description", "specifications", "reviews"].map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
+            <button key={tab} onClick={() => setActiveTab(tab)}
               className={clsx(
                 "px-5 py-3 text-sm font-medium capitalize transition-all border-b-2 -mb-px",
-                activeTab === tab
-                  ? "border-primary text-primary"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
-              )}
-            >
-              {tab === "reviews"
-                ? `Reviews (${product.totalReviews})`
-                : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                activeTab === tab ? "border-primary text-primary" : "border-transparent text-gray-500 hover:text-gray-700"
+              )}>
+              {tab === "reviews" ? `Reviews (${ratingCount})` : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
 
-        {/* Description Tab */}
         {activeTab === "description" && (
           <div className="prose prose-sm max-w-none text-gray-600 leading-relaxed whitespace-pre-line">
             {product.description}
           </div>
         )}
-
-        {/* Specifications Tab */}
         {activeTab === "specifications" && (
           <div className="card overflow-hidden">
-            <table className="w-full text-sm">
-              <tbody>
-                {product.specifications?.map((spec, i) => (
-                  <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : "bg-white"}>
-                    <td className="px-5 py-3 font-medium text-gray-700 w-1/3">{spec.key}</td>
-                    <td className="px-5 py-3 text-gray-600">{spec.value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {product.specifications?.length > 0 ? (
+              <table className="w-full text-sm">
+                <tbody>
+                  {product.specifications.map((spec, i) => (
+                    <tr key={i} className={i % 2 === 0 ? "bg-gray-50" : "bg-white"}>
+                      <td className="px-5 py-3 font-medium text-gray-700 w-1/3">{spec.key}</td>
+                      <td className="px-5 py-3 text-gray-600">{spec.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="p-6 text-gray-400 text-sm text-center">No specifications available.</p>
+            )}
           </div>
         )}
-
-        {/* Reviews Tab */}
         {activeTab === "reviews" && (
-          <ProductReviews
-            productId={product._id}
-            ratings={product.ratings}
-            totalReviews={product.totalReviews}
-          />
+          <ProductReviews productId={product._id} ratings={product.ratings} totalReviews={ratingCount} />
         )}
       </div>
 
       {/* ── Related Products ── */}
-      <div>
-        <h2 className="text-xl font-bold text-gray-900 mb-6">Related Products</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {MOCK_RELATED.map(p => <ProductCard key={p._id} product={p} />)}
+      {relatedProducts.length > 0 && (
+        <div>
+          <h2 className="text-xl font-bold text-gray-900 mb-6">Related Products</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {relatedProducts.map(p => <ProductCard key={p._id} product={p} />)}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

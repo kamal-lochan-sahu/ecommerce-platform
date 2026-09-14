@@ -31,21 +31,6 @@ const DEFAULT_FILTERS = {
   inStock:    false,
 };
 
-// Mock products while backend connects
-const MOCK = Array(20).fill(null).map((_, i) => ({
-  _id:          `p-${i}`,
-  name:         `Premium Product ${i + 1} — Best Quality Guaranteed`,
-  slug:         `premium-product-${i + 1}`,
-  brand:        ["Nike","Apple","Samsung","Puma","Adidas","Sony"][i % 6],
-  price:        Math.floor(Math.random() * 8000) + 500,
-  comparePrice: Math.floor(Math.random() * 12000) + 3000,
-  images:       [`https://placehold.co/400x400?text=Product`],
-  ratings:      parseFloat((3 + Math.random() * 2).toFixed(1)),
-  totalReviews: Math.floor(Math.random() * 800) + 10,
-  stock:        i % 6 === 0 ? 0 : 10,
-  discount:     [0, 10, 20, 30, 40, 50][i % 6],
-}));
-
 export default function ProductListing() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters]     = useState({
@@ -70,16 +55,16 @@ export default function ProductListing() {
     inStock:   filters.inStock || undefined,
   };
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ["products", queryParams],
     queryFn:  () => productService.getAll(queryParams).then(r => r.data?.data ?? r.data),
-    retry: false,
-    placeholderData: { products: MOCK, total: 20, totalPages: 2 },
+    retry: 1,
+    staleTime: 1000 * 60 * 2,
   });
 
-  const products   = data?.products   || MOCK;
-  const total      = data?.pagination?.total      || 20;
-  const totalPages = data?.pagination?.totalPages || 2;
+  const products   = data?.products   || [];
+  const total      = data?.pagination?.total      || 0;
+  const totalPages = data?.pagination?.totalPages || 1;
 
   const handleFilterChange = useCallback((newFilters) => {
     setFilters(newFilters);

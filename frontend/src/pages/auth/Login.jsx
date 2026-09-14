@@ -31,9 +31,9 @@ export default function Login() {
   const onSubmit = async (data) => {
     try {
       const res = await authService.login(data);
-      const { mergeGuestCart } = useCartStore.getState();
-        mergeGuestCart();
-        login(res.data.data.user, res.data.data.accessToken);
+      login(res.data.data.user, res.data.data.accessToken);
+      // Merge guest cart AFTER login so access token is set
+      useCartStore.getState().mergeGuestCart();
       toast.success(`Welcome back, ${res.data.data.user.name.split(" ")[0]}! 👋`);
       navigate(from, { replace: true });
     } catch (err) {

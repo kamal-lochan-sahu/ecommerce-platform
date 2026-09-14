@@ -1,3 +1,4 @@
+import logger from './utils/logger.js';
 import 'dotenv/config';
 import app from './app.js';
 import connectDB from './config/db.js';
@@ -23,15 +24,15 @@ const startServer = async () => {
     }
 
     app.listen(PORT, () => {
-      console.log(`\n🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📦 Client: ${process.env.CLIENT_NAME}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
-      console.log(`\n🔗 Health check: http://localhost:${PORT}/health\n`);
+      logger.info(`Server running on http://localhost:${PORT}`);
+      logger.info(`Client: ${process.env.CLIENT_NAME}`);
+      logger.info(`Environment: ${process.env.NODE_ENV}`);
+      logger.info(`Health check: http://localhost:${PORT}/health`);
   startCronJobs();
     });
 
   } catch (error) {
-    console.error('❌ Server failed to start:', error);
+    logger.error('Server failed to start:', error);
     process.exit(1);
   }
 };

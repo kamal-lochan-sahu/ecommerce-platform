@@ -1,3 +1,4 @@
+import logger from '../utils/logger.js';
 import nodemailer from "nodemailer";
 import handlebars from "handlebars";
 import juice from "juice";
@@ -403,10 +404,10 @@ const sendEmail = async ({ to, subject, template, data, html, text }) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent to ${to}: ${info.messageId}`);
+    logger.info(`Email sent to ${to}: ${info.messageId}`);
     return { success: true, messageId: info.messageId };
   } catch (error) {
-    console.error("❌ Email send failed:", error.message);
+    logger.error("Email send failed:", error.message);
     return { success: false, error: error.message };
   }
 };
