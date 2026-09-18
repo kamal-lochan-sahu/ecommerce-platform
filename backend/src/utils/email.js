@@ -7,6 +7,9 @@ const createTransporter = () => {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_PASS, // Gmail App Password
     },
+    // Render's outbound IPv6 route to Gmail's SMTP servers is unreachable
+    // (ENETUNREACH on 2404:6800:...:465), so force IPv4 for the connection.
+    family: 4,
     // Agar Gmail SMTP unreachable/slow hai (galat App Password, blocked
     // outbound port, etc.), ye fail-fast karta hai instead of hanging
     // indefinitely and blocking whichever request called sendEmail().

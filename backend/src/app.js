@@ -8,6 +8,11 @@ import errorHandler from './middleware/error.middleware.js';
 
 const app = express();
 
+// Render (aur zyadatar hosting platforms) ek reverse proxy ke peeche chalta
+// hai jo X-Forwarded-For header set karta hai. Iske bina express-rate-limit
+// sahi se real client IP identify nahi kar pata.
+app.set('trust proxy', 1);
+
 // ===== Security Middleware =====
 app.use(helmet());
 
