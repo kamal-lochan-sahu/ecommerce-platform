@@ -1,9 +1,9 @@
-import { LayoutGrid, List } from "lucide-react";
 import { clsx } from "clsx";
 import ProductCard from "./ProductCard";
 import { ProductCardSkeleton } from "../ui/Skeleton";
 import EmptyState from "../ui/EmptyState";
 import Pagination from "../ui/Pagination";
+import { buildResponsiveImageProps } from "../../utils/image";
 
 export default function ProductGrid({
   products = [],
@@ -64,9 +64,16 @@ function ListProductCard({ product }) {
     <div className="card-hover flex gap-4 p-3">
       <div className="w-28 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-gray-50">
         <img
-          src={images?.[0] || "https://placehold.co/400x400?text=Product"}
+          {...buildResponsiveImageProps(
+            images?.[0] || "https://placehold.co/400x400?text=Product",
+            { widths: [112, 224], sizes: "112px" }
+          )}
           alt={name}
           className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
+          width={112}
+          height={112}
         />
       </div>
       <div className="flex-1 min-w-0">

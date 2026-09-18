@@ -1,5 +1,6 @@
+import mongoose from 'mongoose';
 import crypto from 'crypto';
-import { Order, Cart, Product, Address, Coupon, Transaction, LoyaltyPoints, Notification } from '../models/index.js';
+import { Order, Cart, Product, ProductVariant, Address, Coupon, Transaction, LoyaltyPoints, Notification } from '../models/index.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
@@ -82,7 +83,9 @@ export const createOrder = asyncHandler(async (req, res) => {
   const address = await Address.findOne({ _id: addressId, userId });
   if (!address) throw new ApiError(404, 'Address not found');
 
-  // Stock validate karo
+  // Stock validate karo — friendly early error. NOT the authoritative check:
+  // stock can still change between this read and the atomic decrement below,
+  // so the real guard is the conditional $gte update inside the transaction.
   for (const item of cart.items) {
     const product = item.product;
     if (!product || !product.isActive) {
@@ -137,48 +140,79 @@ export const createOrder = asyncHandler(async (req, res) => {
     total: item.price * item.quantity,
   }));
 
-  // Order create karo
-  const order = await Order.create({
-    userId,
-    items: orderItems,
-    shippingAddress,
-    pricing: {
-      subtotal,
-      shippingCharge,
-      tax,
-      couponDiscount,
-      total,
-    },
-    couponCode: couponCode || null,
-    paymentMethod,
-    paymentStatus: paymentMethod === 'cod' ? 'pending' : 'pending',
-    orderStatus: 'placed',
-    statusHistory: [{ status: 'placed', message: 'Order placed successfully' }],
-    notes,
-    expectedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days
-  });
+  // ── Order create + stock decrement + coupon usage + cart clear ─ sab ek
+  // MongoDB transaction mein karte hain, taaki concurrent orders same product
+  // ko oversell na kar sakein. Stock decrement conditional hai ($gte guard) ─
+  // isse race condition mein bhi stock kabhi negative nahi ho sakta, chahe
+  // do requests exact same moment pe last unit ke liye race kar rahe hon.
+  // NOTE: requires a replica-set MongoDB (MongoDB Atlas already is one;
+  // a bare standalone local `mongod` does NOT support transactions).
+  const session = await mongoose.startSession();
+  let order;
+  try {
+    await session.withTransaction(async () => {
+      for (const item of cart.items) {
+        if (item.variant) {
+          const updated = await ProductVariant.findOneAndUpdate(
+            { _id: item.variant._id, stock: { $gte: item.quantity } },
+            { $inc: { stock: -item.quantity } },
+            { session, new: true }
+          );
+          if (!updated) {
+            throw new ApiError(400, `"${item.product.name}" ─ not enough stock left`);
+          }
+        } else {
+          const updated = await Product.findOneAndUpdate(
+            { _id: item.product._id, stock: { $gte: item.quantity } },
+            { $inc: { stock: -item.quantity, totalSold: item.quantity } },
+            { session, new: true }
+          );
+          if (!updated) {
+            throw new ApiError(400, `"${item.product.name}" ─ not enough stock left`);
+          }
+        }
+      }
 
-  // Stock reduce karo
-  for (const item of cart.items) {
-    if (item.variant) {
-      await item.variant.updateOne({ $inc: { stock: -item.quantity } });
-    } else {
-      await Product.findByIdAndUpdate(item.product._id, {
-        $inc: { stock: -item.quantity, totalSold: item.quantity },
-      });
-    }
-  }
+      const created = await Order.create([{
+        userId,
+        items: orderItems,
+        shippingAddress,
+        pricing: {
+          subtotal,
+          shippingCharge,
+          tax,
+          couponDiscount,
+          total,
+        },
+        couponCode: couponCode || null,
+        paymentMethod,
+        paymentStatus: 'pending',
+        orderStatus: 'placed',
+        statusHistory: [{ status: 'placed', message: 'Order placed successfully' }],
+        notes,
+        expectedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days
+      }], { session });
+      order = created[0];
 
-  // Coupon use mark karo
-  if (appliedCoupon) {
-    await Coupon.findByIdAndUpdate(appliedCoupon._id, {
-      $inc: { usedCount: 1 },
-      $push: { usedBy: { userId } },
+      // Coupon use mark karo
+      if (appliedCoupon) {
+        await Coupon.findByIdAndUpdate(
+          appliedCoupon._id,
+          { $inc: { usedCount: 1 }, $push: { usedBy: { userId } } },
+          { session }
+        );
+      }
+
+      // Cart clear karo
+      await Cart.findOneAndUpdate(
+        { userId },
+        { items: [], couponCode: null, couponDiscount: 0 },
+        { session }
+      );
     });
+  } finally {
+    await session.endSession();
   }
-
-  // Cart clear karo
-  await Cart.findOneAndUpdate({ userId }, { items: [], couponCode: null, couponDiscount: 0 });
 
   // Loyalty points add karo (1 point per ₹10)
   if (process.env.LOYALTY_ENABLED === 'true') {

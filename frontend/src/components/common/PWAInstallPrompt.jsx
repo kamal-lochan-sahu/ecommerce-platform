@@ -4,19 +4,13 @@ import { Download, X, Smartphone } from 'lucide-react'
 export default function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showPrompt, setShowPrompt] = useState(false)
-  const [isIOS, setIsIOS] = useState(false)
-  const [isInstalled, setIsInstalled] = useState(false)
+  const [isIOS] = useState(() => /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase()))
+  const [isInstalled, setIsInstalled] = useState(
+    () => window.matchMedia('(display-mode: standalone)').matches
+  )
 
   useEffect(() => {
-    // Check if already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-      setIsInstalled(true)
-      return
-    }
-
-    // iOS detection
-    const ios = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase())
-    setIsIOS(ios)
+    if (isInstalled) return
 
     // Android/Desktop install prompt
     const handler = (e) => {
@@ -29,12 +23,12 @@ export default function PWAInstallPrompt() {
     window.addEventListener('beforeinstallprompt', handler)
 
     // iOS: show after 5 seconds if not dismissed before
-    if (ios && !localStorage.getItem('pwa-dismissed')) {
+    if (isIOS && !localStorage.getItem('pwa-dismissed')) {
       setTimeout(() => setShowPrompt(true), 5000)
     }
 
     return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [])
+  }, [isIOS, isInstalled])
 
   const handleInstall = async () => {
     if (deferredPrompt) {

@@ -33,7 +33,8 @@ export default function Register() {
 
   const onSubmit = async (data) => {
     try {
-      const { confirmPassword, ...payload } = data;
+      const payload = { ...data };
+      delete payload.confirmPassword;
       const res = await authService.register(payload);
       if (res.data.data.requiresOTP) {
         toast.success("OTP sent! Please check your inbox.");

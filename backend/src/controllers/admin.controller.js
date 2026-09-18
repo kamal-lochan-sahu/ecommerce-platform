@@ -1,4 +1,4 @@
-import { Order, Product, User, Review } from "../models/index.js";
+import { Order, Product, User, Review, Settings } from "../models/index.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
@@ -516,6 +516,38 @@ export const getLowStockProducts = asyncHandler(async (req, res) => {
       pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
     }, "Low stock products fetched")
   );
+});
+
+// ─── GET /api/admin/settings ─────────────────────────────────────────────────────────────────
+
+export const getSettings = asyncHandler(async (req, res) => {
+  const settings = await Settings.getSingleton();
+  return res.status(200).json(new ApiResponse(200, { settings }, "Settings fetched"));
+});
+
+// ─── PUT /api/admin/settings ─────────────────────────────────────────────────────────────────
+
+const ALLOWED_SETTINGS_FIELDS = [
+  "storeName", "storeEmail", "storePhone", "storeAddress",
+  "currency", "deliveryFee", "freeDeliveryAbove", "taxRate", "maintenanceMode",
+];
+
+export const updateSettings = asyncHandler(async (req, res) => {
+  const updates = {};
+  for (const key of ALLOWED_SETTINGS_FIELDS) {
+    if (req.body[key] !== undefined) updates[key] = req.body[key];
+  }
+
+  if (Object.keys(updates).length === 0) {
+    throw new ApiError(400, "No valid settings fields provided");
+  }
+
+  const existing = await Settings.findOne();
+  const settings = existing
+    ? await Settings.findByIdAndUpdate(existing._id, updates, { new: true, runValidators: true })
+    : await Settings.create(updates);
+
+  return res.status(200).json(new ApiResponse(200, { settings }, "Settings updated"));
 });
 
 // ─── Internal helper ──────────────────────────────────────────────────────────

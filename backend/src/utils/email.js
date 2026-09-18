@@ -7,6 +7,12 @@ const createTransporter = () => {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_PASS, // Gmail App Password
     },
+    // Agar Gmail SMTP unreachable/slow hai (galat App Password, blocked
+    // outbound port, etc.), ye fail-fast karta hai instead of hanging
+    // indefinitely and blocking whichever request called sendEmail().
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
   });
 };
 

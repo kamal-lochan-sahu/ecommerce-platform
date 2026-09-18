@@ -2,6 +2,18 @@ import { useState, useEffect } from "react";
 
 function pad(n) { return String(n).padStart(2, "0"); }
 
+function Box({ val, label }) {
+  return (
+    <div className="flex flex-col items-center">
+      <div className="w-12 h-12 bg-gray-900 text-white rounded-xl flex items-center
+                      justify-center text-xl font-bold font-mono">
+        {pad(val)}
+      </div>
+      <span className="text-xs text-gray-500 mt-1">{label}</span>
+    </div>
+  );
+}
+
 export default function DealTimer({ endsAt }) {
   const [timeLeft, setTimeLeft] = useState({ h: 0, m: 0, s: 0 });
 
@@ -18,16 +30,6 @@ export default function DealTimer({ endsAt }) {
     const id = setInterval(calc, 1000);
     return () => clearInterval(id);
   }, [endsAt]);
-
-  const Box = ({ val, label }) => (
-    <div className="flex flex-col items-center">
-      <div className="w-12 h-12 bg-gray-900 text-white rounded-xl flex items-center
-                      justify-center text-xl font-bold font-mono">
-        {pad(val)}
-      </div>
-      <span className="text-xs text-gray-500 mt-1">{label}</span>
-    </div>
-  );
 
   return (
     <div className="flex items-end gap-2">

@@ -96,7 +96,7 @@ export default function VerifyOTP() {
       setTimer(60);
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
-    } catch (err) {
+    } catch {
       toast.error("Resend failed. Try again.");
     } finally {
       setResending(false);

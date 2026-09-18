@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Package, Mail, Phone, ExternalLink } from "lucide-react";
+import { Package, Mail, Phone } from "lucide-react";
 import { config } from "../../config";
 
 const links = {

@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Heart, ShoppingCart, Zap, Share2, Shield,
-  Truck, RefreshCw, Star, Check, Package, AlertCircle
+  Truck, RefreshCw, Check, AlertCircle
 } from "lucide-react";
 import { clsx } from "clsx";
 import toast from "react-hot-toast";
@@ -13,7 +13,6 @@ import ProductImages from "../../components/product/ProductImages";
 import { ColorVariant, SizeVariant } from "../../components/product/ProductVariants";
 import ProductReviews from "../../components/product/ProductReviews";
 import ProductCard from "../../components/product/ProductCard";
-import { ProductCardSkeleton } from "../../components/ui/Skeleton";
 import Breadcrumb from "../../components/common/Breadcrumb";
 import Badge from "../../components/ui/Badge";
 import Rating from "../../components/ui/Rating";
@@ -57,11 +56,11 @@ export default function ProductDetail() {
 
   const relatedProducts = (relatedData || []).filter(p => p._id !== product?._id).slice(0, 4);
 
-  // Set default color/size when product loads
-  useEffect(() => {
-    if (product?.colors?.length > 0) setSelectedColor(product.colors[0].name);
-    if (product?.sizes?.length > 0)  setSelectedSize(product.sizes[0]);
-  }, [product]);
+  // Default to the product's first color/size until the user picks one —
+  // derived at render time instead of set in an effect, since it's a pure
+  // function of `product` + user selection.
+  const displayedColor = selectedColor || product?.colors?.[0]?.name || "";
+  const displayedSize  = selectedSize  || product?.sizes?.[0]        || "";
 
   // ── Loading state ──
   if (isLoading) return (
@@ -114,7 +113,7 @@ export default function ProductDetail() {
     if (isOOS || addingToCart) return;
     setAddingToCart(true);
     try {
-      await addItem({ ...product, quantity: qty, variant: selectedColor || selectedSize || null });
+      await addItem({ ...product, quantity: qty, variant: displayedColor || displayedSize || null });
       openCart();
       toast.success("Added to cart! 🛒");
     } catch {
@@ -203,10 +202,10 @@ export default function ProductDetail() {
           )}
 
           {product.colors?.length > 0 && (
-            <ColorVariant colors={product.colors} selected={selectedColor} onChange={setSelectedColor} />
+            <ColorVariant colors={product.colors} selected={displayedColor} onChange={setSelectedColor} />
           )}
           {product.sizes?.length > 0 && (
-            <SizeVariant sizes={product.sizes} selected={selectedSize} onChange={setSelectedSize} />
+            <SizeVariant sizes={product.sizes} selected={displayedSize} onChange={setSelectedSize} />
           )}
 
           <div className="flex items-center gap-3">

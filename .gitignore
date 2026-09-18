@@ -46,3 +46,8 @@ backend/reset_and_seed_catalog.py
 fix_cart_sync.py
 fix_home_mock_data.py
 fix_otp_flow.py
+fix_phase3_critical1.py
+fix_phase3_critical2.py
+fix_phase3_critical3.py
+fix_phase3_critical4.py
+fix_security.py

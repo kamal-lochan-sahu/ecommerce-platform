@@ -46,7 +46,11 @@ const AdminBanners    = lazy(() => import("./pages/admin/Banners"));
 const AdminAnalytics  = lazy(() => import("./pages/admin/Analytics"));
 const AdminSettings   = lazy(() => import("./pages/admin/Settings"));
 
-// Per-query staleTime set karenge — blanket 5min too coarse for cart/orders
+// Global default below is a reasonable baseline for most reads (products,
+// categories). Cart is Zustand-managed (useCartStore.fetchCart(), called on
+// app load + after login) so it doesn't go through react-query at all.
+// Notifications and OrderHistory override staleTime individually — see
+// their useQuery calls — since they need to feel fresher than 2 min.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -194,7 +198,7 @@ export default function App() {
     } else {
       clearWishlist();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchCart, fetchWishlist, clearWishlist]);
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 

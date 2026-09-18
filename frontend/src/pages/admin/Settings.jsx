@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Save, Store, Globe, AlertCircle, Loader } from 'lucide-react'
+import { Save, Store, Globe, Loader } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import AdminLayout from '../../components/admin/AdminLayout'
@@ -24,9 +24,6 @@ export default function Settings() {
     queryKey: ['admin-settings'],
     queryFn: () => api.get('/admin/settings').then(r => r.data?.data?.settings),
     onSuccess: (data) => { if (data) setForm(prev => ({ ...prev, ...data })); },
-    retry: false,
-    // Backend settings API not yet implemented — graceful fail
-    onError: () => {},
   })
 
   const mutation = useMutation({
@@ -34,12 +31,7 @@ export default function Settings() {
     onSuccess: () => toast.success('Settings saved!'),
     onError: (err) => {
       const msg = err?.response?.data?.message || 'Failed to save settings'
-      // 404 means backend route not yet implemented
-      if (err?.response?.status === 404) {
-        toast.error('Settings API not yet configured on backend')
-      } else {
-        toast.error(msg)
-      }
+      toast.error(msg)
     },
   })
 
@@ -66,17 +58,6 @@ export default function Settings() {
   return (
     <AdminLayout title="Settings">
       <div className="max-w-2xl space-y-4">
-
-        {/* API status notice */}
-        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
-          <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="font-semibold">Settings persistence coming soon</p>
-            <p className="text-amber-700 text-xs mt-0.5">
-              Changes are not yet saved to the database. Backend /api/admin/settings endpoint needs to be implemented.
-            </p>
-          </div>
-        </div>
 
         {SECTIONS.map(({ icon: Icon, title, fields }) => (
           <div key={title} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
@@ -117,7 +98,7 @@ export default function Settings() {
 
         <button
           onClick={() => mutation.mutate(form)}
-          disabled={mutation.isPending}
+          disabled={mutation.isPending || loadingSettings}
           className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-60"
         >
           {mutation.isPending ? <Loader size={16} className="animate-spin" /> : <Save size={16} />}

@@ -6,6 +6,7 @@ import Badge from "../ui/Badge";
 import useCartStore from "../../store/cartStore";
 import useWishlistStore from "../../store/wishlistStore";
 import useAuthStore from "../../store/authStore";
+import { buildResponsiveImageProps } from "../../utils/image";
 
 // ── Star Rating (inline — no import needed) ──
 function Stars({ value = 0, count = 0 }) {
@@ -71,9 +72,9 @@ export default function ProductCard({ product }) {
       <div className="card-hover overflow-hidden">
         {/* Image */}
         <div className="relative aspect-square overflow-hidden bg-gray-50">
-          <img src={imageUrl} alt={name}
+          <img {...buildResponsiveImageProps(imageUrl)} alt={name}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy" />
+            loading="lazy" decoding="async" width={400} height={400} />
 
           {/* Badges */}
           <div className="absolute top-2 left-2 flex flex-col gap-1">

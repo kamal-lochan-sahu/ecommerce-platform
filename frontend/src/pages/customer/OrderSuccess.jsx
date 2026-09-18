@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { CheckCircle, Package, Home, ShoppingBag, Copy, AlertCircle } from "lucide-react";
+import { CheckCircle, Package, Home, ShoppingBag, Copy } from "lucide-react";
 import useAuthStore from "../../store/authStore";
 import orderService from "../../services/order.service";
 import toast from "react-hot-toast";
@@ -47,8 +47,10 @@ export default function OrderSuccess() {
           if (Date.now() < end) requestAnimationFrame(frame);
         })();
       });
-    } catch {}
-  }, []);
+    } catch {
+      // canvas-confetti is a non-critical visual flourish — ignore load/play failures
+    }
+  }, [orderId, orderNumber]);
 
   const displayOrderNumber = order?.orderNumber || orderNumber || "ORD-XXXXXX";
 

@@ -25,7 +25,11 @@ export default function AdminSidebar({ isOpen, onClose }) {
   const navigate = useNavigate()
 
   const handleLogout = async () => {
-    try { await authService.logout() } catch {}
+    try {
+      await authService.logout()
+    } catch {
+      // Server-side logout failing shouldn't block local logout — ignore
+    }
     logout()
     navigate('/login')
     toast.success('Logged out')

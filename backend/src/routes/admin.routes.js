@@ -10,6 +10,8 @@ import {
   approveReview,
   rejectReview,
   getLowStockProducts,
+  getSettings,
+  updateSettings,
 } from "../controllers/admin.controller.js";
 import { protect, adminOnly } from "../middleware/auth.middleware.js";
 
@@ -37,5 +39,9 @@ router.put("/reviews/:id/reject", rejectReview);
 
 // Low Stock
 router.get("/low-stock", getLowStockProducts);
+
+// Settings
+router.get("/settings", getSettings);
+router.put("/settings", updateSettings);
 
 export default router;

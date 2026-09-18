@@ -19,6 +19,8 @@ export default function Notifications() {
   const { data, isLoading } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => notificationService.getAll().then(r => r.data?.data?.notifications || r.data?.notifications || []),
+    staleTime: 1000 * 30,      // 30s — notifications should feel close to live
+    refetchInterval: 1000 * 30, // poll while the page is open
   })
 
   const readMutation = useMutation({

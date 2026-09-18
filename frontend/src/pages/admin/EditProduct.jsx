@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Plus, X } from 'lucide-react'
@@ -14,7 +14,7 @@ export default function EditProduct() {
   const [form, setForm] = useState({name:'',description:'',price:'',salePrice:'',stock:'',brand:'',tags:''})
   const [specs, setSpecs] = useState([])
 
-  const { data: product, isLoading } = useQuery({
+  const { isLoading } = useQuery({
     queryKey: ['product-admin', id],
     queryFn: () => api.get(`/products/id/${id}`).then(r => r.data?.data?.product),
     onSuccess: (p) => {
@@ -28,8 +28,6 @@ export default function EditProduct() {
     onSuccess: () => { toast.success('Product updated!'); qc.invalidateQueries({queryKey:['admin-products']}); navigate('/admin/products') },
     onError: (e) => toast.error(e?.response?.data?.message||'Failed'),
   })
-
-  const { data: catData } = useQuery({ queryKey:['categories'], queryFn: ()=>api.get('/categories').then(r=>r.data?.data?.categories||[]) })
 
   const handleSubmit = (e) => {
     e.preventDefault()

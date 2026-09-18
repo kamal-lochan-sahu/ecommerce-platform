@@ -74,19 +74,21 @@ export const register = asyncHandler(async (req, res) => {
     otp: { code: otp, expiresAt: otpExpiresAt },
   });
 
-  // Welcome email bhejo
-  await sendEmail({
+  // Welcome + OTP email — fire-and-forget, non-blocking. Registration
+  // shouldn't hang or fail just because Gmail SMTP is slow/unreachable;
+  // the OTP is already saved to the user doc above, so the verify-otp
+  // flow works regardless of whether this email actually lands.
+  sendEmail({
     to: email,
     subject: `Welcome to ${process.env.CLIENT_NAME}!`,
     html: getWelcomeEmailTemplate(name, process.env.CLIENT_NAME),
-  });
+  }).catch((err) => logger.error('Welcome email failed', err));
 
-  // OTP email bhejo
-  await sendEmail({
+  sendEmail({
     to: email,
     subject: 'Verify your email',
     html: getOtpEmailTemplate(otp, process.env.CLIENT_NAME),
-  });
+  }).catch((err) => logger.error('OTP email failed', err));
 
   sendTokenResponse(res, user, 201, 'Registration successful! Please verify your email.');
 });
@@ -271,11 +273,14 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   // Reset URL — frontend ka URL
   const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}&email=${email}`;
 
-  await sendEmail({
+  // Fire-and-forget — this was hanging/failing the whole request when
+  // Gmail SMTP was slow, which is exactly the bug Kamal hit. The reset
+  // token is already saved above regardless of email delivery.
+  sendEmail({
     to: email,
     subject: 'Password Reset Request',
     html: getPasswordResetTemplate(resetUrl, process.env.CLIENT_NAME),
-  });
+  }).catch((err) => logger.error('Password reset email failed', err));
 
   res.json(new ApiResponse(200, null, 'Password reset link sent to your email.'));
 });

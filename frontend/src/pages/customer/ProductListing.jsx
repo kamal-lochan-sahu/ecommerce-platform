@@ -55,7 +55,7 @@ export default function ProductListing() {
     inStock:   filters.inStock || undefined,
   };
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["products", queryParams],
     queryFn:  () => productService.getAll(queryParams).then(r => r.data?.data ?? r.data),
     retry: 1,
@@ -239,7 +239,16 @@ export default function ProductListing() {
 
         {/* Product Grid */}
         <main className="flex-1 min-w-0">
-          {!isLoading && products.length === 0 ? (
+          {isError ? (
+            <div className="py-20">
+              <EmptyState
+                title="Couldn't load products"
+                description="Something went wrong fetching products. Please try again."
+                buttonText="Retry"
+                onButtonClick={refetch}
+              />
+            </div>
+          ) : !isLoading && products.length === 0 ? (
             <div className="py-20">
               <EmptyState
                 title="No products found"

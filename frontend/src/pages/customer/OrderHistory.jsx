@@ -25,6 +25,7 @@ export default function OrderHistory() {
     queryKey: ['orders', activeStatus, page],
     queryFn: () =>
       orderService.getAll({ status: activeStatus, page, limit: 8 }),
+    staleTime: 1000 * 30, // 30s — order status (shipped/delivered) can change
   })
 
   const handleTabChange = (val) => {

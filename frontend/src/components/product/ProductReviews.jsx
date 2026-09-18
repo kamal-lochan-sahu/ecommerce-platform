@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { ThumbsUp, Star } from "lucide-react";
-import { clsx } from "clsx";
 import Rating from "../ui/Rating";
 import Pagination from "../ui/Pagination";
 
@@ -29,7 +28,7 @@ function RatingBar({ label, value, total }) {
   );
 }
 
-export default function ProductReviews({ productId, ratings = 4.2, totalReviews = 128 }) {
+export default function ProductReviews({ ratings = 4.2, totalReviews = 128 }) {
   const [page, setPage] = useState(1);
 
   const breakdown = { 5: 68, 4: 32, 3: 15, 2: 8, 1: 5 };

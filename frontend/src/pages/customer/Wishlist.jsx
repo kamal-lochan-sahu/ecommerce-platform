@@ -9,7 +9,6 @@ import Skeleton from '../../components/ui/Skeleton'
 export default function Wishlist() {
   const qc = useQueryClient()
   const addToCart = useCartStore(s => s.addItem)
-  const removeFromWishlist = useWishlistStore(s => s.removeItem)
 
   const { data, isLoading } = useQuery({
     queryKey: ['wishlist'],

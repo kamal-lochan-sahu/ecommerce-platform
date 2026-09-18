@@ -132,4 +132,24 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+          // Charting stack (recharts + its d3-* deps) is only pulled in by
+          // the two admin pages (Dashboard, Analytics), which are already
+          // route-lazy-loaded. Giving it its own named chunk stops Rollup
+          // from naming it after an unrelated component (it was showing up
+          // as "StatsCard-*.js") and keeps it cacheable independently of
+          // the admin page code itself.
+          if (id.includes('recharts') || id.includes('d3-')) {
+            return 'vendor-charts';
+          }
+          if (id.includes('react-router')) return 'vendor-router';
+          if (id.includes('/react/') || id.includes('/react-dom/')) return 'vendor-react';
+        },
+      },
+    },
+  },
 })

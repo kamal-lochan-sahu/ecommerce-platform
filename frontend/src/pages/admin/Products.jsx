@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import api from '../../services/api'
 import AdminLayout from '../../components/admin/AdminLayout'
 import DataTable from '../../components/admin/DataTable'
+import Pagination from '../../components/ui/Pagination'
 
 export default function Products() {
   const qc = useQueryClient()
@@ -74,6 +75,11 @@ export default function Products() {
             </button>
           </div>
         )}
+      />
+      <Pagination
+        page={page}
+        totalPages={data?.pagination?.totalPages || 1}
+        onPageChange={setPage}
       />
     </AdminLayout>
   )

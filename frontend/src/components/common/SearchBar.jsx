@@ -19,11 +19,7 @@ export default function SearchBar({ onClose, autoFocus = false }) {
   // Debounced search for suggestions
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) {
-      if (suggestions.length > 0) setSuggestions([]);
-      if (showDropdown) setShowDropdown(false);
-      return;
-    }
+    if (q.length < 2) return;
 
     const handler = setTimeout(async () => {
       setLoading(true);

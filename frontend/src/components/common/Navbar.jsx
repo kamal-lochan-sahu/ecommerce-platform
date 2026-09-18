@@ -4,7 +4,6 @@ import {
   ShoppingCart, Heart, User, Search, Menu, X,
   Sun, Moon, Package, LogOut, Settings, ChevronDown
 } from "lucide-react";
-import { clsx } from "clsx";
 import useAuthStore from "../../store/authStore";
 import useCartStore from "../../store/cartStore";
 import useWishlistStore from "../../store/wishlistStore";
