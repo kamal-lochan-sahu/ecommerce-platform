@@ -2,7 +2,12 @@ import nodemailer from 'nodemailer';
 
 const createTransporter = () => {
   return nodemailer.createTransport({
-    service: 'gmail',
+    // Port 465 (implicit TLS, what 'service: gmail' shorthand uses) was
+    // timing out — likely filtered on Render's network. Port 587 with
+    // STARTTLS is the more commonly-open submission port for cloud hosts.
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false, // STARTTLS — upgrades the connection after connecting
     auth: {
       user: process.env.GMAIL_USER,
       pass: process.env.GMAIL_PASS, // Gmail App Password
