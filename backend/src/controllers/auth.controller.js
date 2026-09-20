@@ -21,10 +21,14 @@ const sendTokenResponse = (res, user, statusCode = 200, message = 'Success') => 
   user.save({ validateBeforeSave: false });
 
   // Cookie options
+  // Cross-domain (Vercel frontend + Render backend) needs sameSite: 'none'
+  // in production — 'strict'/'lax' block the cookie on cross-site requests.
+  // sameSite: 'none' MUST be paired with secure: true or browsers reject it.
+  const isProd = process.env.NODE_ENV === 'production';
   const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: isProd,
+    sameSite: isProd ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   };
 
@@ -171,9 +175,15 @@ export const logout = asyncHandler(async (req, res) => {
     $unset: { refreshToken: 1 },
   });
 
-  // Cookie clear karo
+  // Cookie clear karo — same options jo set karte waqt diye the,
+  // warna browser cookie ko match/clear nahi kar payega
+  const isProdClear = process.env.NODE_ENV === 'production';
   res
-    .clearCookie('refreshToken')
+    .clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: isProdClear,
+      sameSite: isProdClear ? 'none' : 'lax',
+    })
     .json(new ApiResponse(200, null, 'Logged out successfully'));
 });
 

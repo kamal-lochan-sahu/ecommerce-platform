@@ -101,7 +101,12 @@ export const deleteAccount = asyncHandler(async (req, res) => {
   // Soft delete — account deactivate karo
   await User.findByIdAndUpdate(req.user._id, { isActive: false });
 
+  const isProdClear = process.env.NODE_ENV === 'production';
   res
-    .clearCookie('refreshToken')
+    .clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: isProdClear,
+      sameSite: isProdClear ? 'none' : 'lax',
+    })
     .json(new ApiResponse(200, null, 'Account deleted successfully'));
 });
