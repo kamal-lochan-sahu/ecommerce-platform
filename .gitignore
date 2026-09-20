@@ -55,3 +55,6 @@ fix_security.py
 # Local one-off fix/patch scripts (never meant to ship with the repo)
 fix_*.py
 phase*.py
+
+# Antigravity/Playwright test scratch files (never meant to ship with the repo)
+scratch/
