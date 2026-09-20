@@ -10,6 +10,7 @@ import useWishlistStore from "../../store/wishlistStore";
 import useUiStore from "../../store/uiStore";
 import SearchBar from "./SearchBar";
 import { config } from "../../config";
+import authService from "../../services/auth.service";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -20,7 +21,12 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await authService.logout(); // clears httpOnly refreshToken cookie + DB token
+    } catch {
+      // Server-side logout failing shouldn't block local logout — ignore
+    }
     logout();
     setUserMenuOpen(false);
     navigate("/");
