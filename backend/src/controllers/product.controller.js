@@ -78,7 +78,15 @@ export const getProducts = asyncHandler(async (req, res) => {
   // Filter object build karo
   const filter = { isActive: true };
 
-  if (category) filter.category = category;
+  // `category` query param is a SLUG (e.g. "electronics-gadgets"), but
+  // Product.category is an ObjectId ref — resolve slug -> _id first,
+  // otherwise Mongoose throws a CastError which the error middleware
+  // turns into a misleading 404.
+  if (category) {
+    const categoryDoc = await Category.findOne({ slug: category }).select('_id');
+    // No matching category (bad/stale slug) -> empty result, not a crash.
+    filter.category = categoryDoc ? categoryDoc._id : null;
+  }
   if (brand) filter.brand = { $regex: brand, $options: 'i' };
   if (isFeatured === 'true') filter.isFeatured = true;
   if (inStock === 'true') filter.stock = { $gt: 0 };

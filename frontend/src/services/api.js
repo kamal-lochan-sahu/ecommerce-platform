@@ -40,7 +40,9 @@ api.interceptors.response.use(
       isRefreshing = true;
       try {
         const res = await api.post("/auth/refresh");
-        const { accessToken } = res.data;
+        // Backend wraps responses as { success, statusCode, data, message } —
+        // accessToken lives at res.data.data.accessToken, not res.data.accessToken.
+        const { accessToken } = res.data.data;
         useAuthStore.getState().setAccessToken(accessToken);
         processQueue(null, accessToken);
         original.headers.Authorization = `Bearer ${accessToken}`;
