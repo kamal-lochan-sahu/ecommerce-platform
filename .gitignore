@@ -51,3 +51,7 @@ fix_phase3_critical2.py
 fix_phase3_critical3.py
 fix_phase3_critical4.py
 fix_security.py
+
+# Local one-off fix/patch scripts (never meant to ship with the repo)
+fix_*.py
+phase*.py
