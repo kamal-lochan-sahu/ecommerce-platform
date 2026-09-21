@@ -13,12 +13,17 @@ const generateOTP = () => {
 };
 
 // Helper — tokens set karo + response do
-const sendTokenResponse = (res, user, statusCode = 200, message = 'Success') => {
+// NOTE: async now — every caller MUST await this. Previously user.save()
+// ran without await/catch: the response could reach the client before the
+// refreshToken was actually persisted (race: an immediate /refresh right
+// after login could fail), and any save failure became an unhandled
+// promise rejection — which can crash the whole Node process on Render.
+const sendTokenResponse = async (res, user, statusCode = 200, message = 'Success') => {
   const { accessToken, refreshToken } = generateTokenPair(user._id, user.role);
 
   // Refresh token DB mein save karo
   user.refreshToken = refreshToken;
-  user.save({ validateBeforeSave: false });
+  await user.save({ validateBeforeSave: false });
 
   // Cookie options
   // Cross-domain (Vercel frontend + Render backend) needs sameSite: 'none'
@@ -94,7 +99,7 @@ export const register = asyncHandler(async (req, res) => {
     html: getOtpEmailTemplate(otp, process.env.CLIENT_NAME),
   }).catch((err) => logger.error('OTP email failed', err));
 
-  sendTokenResponse(res, user, 201, 'Registration successful! Please verify your email.');
+  await sendTokenResponse(res, user, 201, 'Registration successful! Please verify your email.');
 });
 
 // =====================
@@ -138,7 +143,7 @@ export const login = asyncHandler(async (req, res) => {
   user.lastLogin = new Date();
   await user.save({ validateBeforeSave: false });
 
-  sendTokenResponse(res, user, 200, 'Login successful');
+  await sendTokenResponse(res, user, 200, 'Login successful');
 });
 
 // =====================
@@ -162,7 +167,7 @@ export const refreshToken = asyncHandler(async (req, res) => {
     throw new ApiError(401, 'Invalid refresh token');
   }
 
-  sendTokenResponse(res, user, 200, 'Token refreshed');
+  await sendTokenResponse(res, user, 200, 'Token refreshed');
 });
 
 // =====================
@@ -250,7 +255,7 @@ export const verifyOtp = asyncHandler(async (req, res) => {
   user.lastLogin = new Date();
   await user.save({ validateBeforeSave: false });
 
-  sendTokenResponse(res, user, 200, 'OTP verified successfully');
+  await sendTokenResponse(res, user, 200, 'OTP verified successfully');
 });
 
 // =====================

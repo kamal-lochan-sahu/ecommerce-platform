@@ -305,8 +305,33 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
     razorpay_order_id,
     razorpay_payment_id,
     razorpay_signature,
-    orderId,
   } = req.body;
+
+  // SECURITY: never trust a client-supplied orderId here. The signature
+  // only certifies (razorpay_order_id + razorpay_payment_id) — it says
+  // nothing about which of OUR orders should be marked paid. That link
+  // must come from OUR OWN Transaction record (created server-side when
+  // the Razorpay order was created), never from the request body.
+  // Without this lookup, a user could complete a real payment for a
+  // cheap order of their own, then replay that valid signature with a
+  // different `orderId` in the body to fraudulently mark someone else's
+  // (or their own bigger) order as paid without actually paying for it.
+  const transaction = await Transaction.findOne({
+    gatewayOrderId: razorpay_order_id,
+    gateway: 'razorpay',
+  });
+
+  if (!transaction) {
+    throw new ApiError(404, 'Transaction not found for this payment');
+  }
+
+  const orderId = transaction.order;
+
+  // Ownership check — sirf apna order verify kar sakta hai
+  const orderCheck = await Order.findOne({ _id: orderId, userId: req.user._id });
+  if (!orderCheck) {
+    throw new ApiError(404, 'Order not found');
+  }
 
   // Signature verify karo
   const body = razorpay_order_id + '|' + razorpay_payment_id;
