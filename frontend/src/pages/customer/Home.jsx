@@ -127,6 +127,15 @@ export default function Home() {
     retry: false,
   });
 
+  // Fetch real hero banners (admin-managed via /api/banners). Falls back
+  // to MOCK_BANNERS below only when none are configured yet, so the admin
+  // Banner CRUD actually shows up on the storefront.
+  const { data: bannersRaw } = useQuery({
+    queryKey: ["home-banners"],
+    queryFn:  () => productService.getBanners({ position: 'home_top', active: 'true' }).then(r => r.data?.data ?? null),
+    retry: false,
+  });
+
   const featuredProducts = featured  || MOCK_PRODUCTS;
   const newProducts      = newArrivals || MOCK_PRODUCTS.slice(0, 4);
   const dealProducts     = deals     || MOCK_PRODUCTS.slice(0, 4);
@@ -138,6 +147,7 @@ export default function Home() {
       }))
     : MOCK_CATEGORIES;
   const topRatedProducts = topRated || MOCK_PRODUCTS.slice(0, 4);
+  const banners = bannersRaw && bannersRaw.length > 0 ? bannersRaw : MOCK_BANNERS;
 
   return (
     <div className="pb-16">
@@ -152,39 +162,73 @@ export default function Home() {
           loop
           className="hero-swiper"
         >
-          {MOCK_BANNERS.map((banner) => (
-            <SwiperSlide key={banner.id}>
-              <div className={`bg-gradient-to-r ${banner.bg} min-h-[320px] sm:min-h-[420px]
-                              flex items-center relative overflow-hidden`}>
-                {/* Background decorative circles */}
-                <div className="absolute right-0 top-0 w-64 h-64 bg-white/10 rounded-full
-                                translate-x-1/3 -translate-y-1/3" />
-                <div className="absolute right-20 bottom-0 w-40 h-40 bg-white/10 rounded-full
-                                translate-y-1/2" />
-
-                <div className="max-w-7xl mx-auto px-8 sm:px-16 py-12 relative z-10 flex items-center justify-between w-full">
-                  <div className="text-white max-w-lg">
-                    <p className="text-white/80 text-sm font-medium uppercase tracking-widest mb-3">
-                      Special Offer
-                    </p>
-                    <h1 className="text-3xl sm:text-5xl font-bold mb-3 leading-tight">
-                      {banner.title}
-                    </h1>
-                    <p className="text-white/90 text-lg mb-6">{banner.subtitle}</p>
-                    <Link
-                      to={banner.href}
-                      className="inline-flex items-center gap-2 bg-white text-gray-900
-                                 px-6 py-3 rounded-xl font-semibold hover:shadow-lg
-                                 transition-all duration-200 hover:scale-105"
-                    >
-                      {banner.cta} <ChevronRight size={18} />
-                    </Link>
-                  </div>
-                  <div className="hidden sm:block text-[120px] opacity-30 select-none">
-                    {banner.emoji}
+          {banners.map((banner) => (
+            <SwiperSlide key={banner._id || banner.id}>
+              {banner.image ? (
+                // Real admin-managed banner (has an uploaded image)
+                <div
+                  className="min-h-[320px] sm:min-h-[420px] flex items-center relative
+                             overflow-hidden bg-cover bg-center"
+                  style={{ backgroundImage: `url(${banner.image})` }}
+                >
+                  <div className="absolute inset-0 bg-black/30" />
+                  <div className="max-w-7xl mx-auto px-8 sm:px-16 py-12 relative z-10 flex items-center justify-between w-full">
+                    <div className="text-white max-w-lg">
+                      {banner.subtitle && (
+                        <p className="text-white/80 text-sm font-medium uppercase tracking-widest mb-3">
+                          {banner.subtitle}
+                        </p>
+                      )}
+                      <h1 className="text-3xl sm:text-5xl font-bold mb-3 leading-tight">
+                        {banner.title}
+                      </h1>
+                      {banner.link && (
+                        <Link
+                          to={banner.link}
+                          className="inline-flex items-center gap-2 bg-white text-gray-900
+                                     px-6 py-3 rounded-xl font-semibold hover:shadow-lg
+                                     transition-all duration-200 hover:scale-105"
+                        >
+                          Shop Now <ChevronRight size={18} />
+                        </Link>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                // Fallback mock banner (no admin banners configured yet)
+                <div className={`bg-gradient-to-r ${banner.bg} min-h-[320px] sm:min-h-[420px]
+                                flex items-center relative overflow-hidden`}>
+                  {/* Background decorative circles */}
+                  <div className="absolute right-0 top-0 w-64 h-64 bg-white/10 rounded-full
+                                  translate-x-1/3 -translate-y-1/3" />
+                  <div className="absolute right-20 bottom-0 w-40 h-40 bg-white/10 rounded-full
+                                  translate-y-1/2" />
+
+                  <div className="max-w-7xl mx-auto px-8 sm:px-16 py-12 relative z-10 flex items-center justify-between w-full">
+                    <div className="text-white max-w-lg">
+                      <p className="text-white/80 text-sm font-medium uppercase tracking-widest mb-3">
+                        Special Offer
+                      </p>
+                      <h1 className="text-3xl sm:text-5xl font-bold mb-3 leading-tight">
+                        {banner.title}
+                      </h1>
+                      <p className="text-white/90 text-lg mb-6">{banner.subtitle}</p>
+                      <Link
+                        to={banner.href}
+                        className="inline-flex items-center gap-2 bg-white text-gray-900
+                                   px-6 py-3 rounded-xl font-semibold hover:shadow-lg
+                                   transition-all duration-200 hover:scale-105"
+                      >
+                        {banner.cta} <ChevronRight size={18} />
+                      </Link>
+                    </div>
+                    <div className="hidden sm:block text-[120px] opacity-30 select-none">
+                      {banner.emoji}
+                    </div>
+                  </div>
+                </div>
+              )}
             </SwiperSlide>
           ))}
         </Swiper>

@@ -694,11 +694,14 @@ export const getInvoicePDF = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id)
     .populate("items.product", "name price images");
 
+  // Null-check BEFORE touching order.userId — previously this read
+  // order.userId one line below the check that guards against it, so an
+  // invalid/deleted order id crashed with a raw 500 instead of a clean 404.
+  if (!order) throw new ApiError(404, "Order not found");
+
   const user = await (await import("../models/user.model.js")).default
     .findById(order.userId)
     .select("name email phone");
-
-  if (!order) throw new ApiError(404, "Order not found");
 
   // Sirf apna order dekh sakta hai (admin sab dekh sakta hai)
   if (

@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { User } from '../models/index.js';
 import { generateTokenPair, verifyRefreshToken } from '../utils/jwt.js';
 import { sendEmail, getOtpEmailTemplate, getWelcomeEmailTemplate, getPasswordResetTemplate } from '../utils/email.js';
+import { sendOtpSMS } from '../services/sms.service.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
@@ -217,11 +218,14 @@ export const sendOtp = asyncHandler(async (req, res) => {
     });
   }
 
-  // Development mein console pe dikhao
+  // Development mein console pe dikhao (Twilio configured na ho tab bhi
+  // testing chal sake)
   logger.debug(`📱 OTP for ${phone}: [REDACTED in production]`);
 
-  // Production mein Twilio se SMS bhejo
-  // await sendSMS(phone, `Your OTP is ${otp}`);
+  // SMS bhejo — fire-and-forget, same non-blocking pattern jo email sends
+  // ke liye use hota hai. Twilio env vars missing hain toh sendOtpSMS khud
+  // gracefully skip kar deta hai (sms.service.js), request hang nahi hoga.
+  sendOtpSMS(phone, otp).catch((err) => logger.error('OTP SMS failed', err));
 
   res.json(new ApiResponse(200, null, `OTP sent to ${phone}`));
 });
