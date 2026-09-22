@@ -11,7 +11,7 @@ export default function VerifyOTP() {
   const navigate  = useNavigate();
   const location  = useLocation();
   const { login } = useAuthStore();
-  const { email, type } = location.state || {};
+  const { email, phone, type } = location.state || {};
 
   const [otp, setOtp]           = useState(["", "", "", "", "", ""]);
   const [loading, setLoading]   = useState(false);
@@ -19,10 +19,11 @@ export default function VerifyOTP() {
   const [timer, setTimer]       = useState(60);
   const inputRefs = useRef([]);
 
-  // Redirect if no email
+  // Redirect if we have neither an email (register flow) nor a phone
+  // (phone-login flow) to verify against.
   useEffect(() => {
-    if (!email) navigate("/login");
-  }, [email, navigate]);
+    if (!email && !phone) navigate("/login");
+  }, [email, phone, navigate]);
 
   // Countdown timer
   useEffect(() => {
@@ -61,18 +62,20 @@ export default function VerifyOTP() {
 
     setLoading(true);
     try {
-      let res;
       if (type === "register") {
-        res = await authService.verifyEmail({ otp: code });
+        const res = await authService.verifyEmail({ otp: code });
         login(res.data.data.user, res.data.data.accessToken);
-          useCartStore.getState().mergeGuestCart();
+        useCartStore.getState().mergeGuestCart();
         toast.success("Email verified successfully! Welcome 🎉");
         navigate("/");
+      } else if (type === "phone-login") {
+        const res = await authService.verifyOtp({ phone, otp: code });
+        login(res.data.data.user, res.data.data.accessToken);
+        useCartStore.getState().mergeGuestCart();
+        toast.success("Logged in successfully! 🎉");
+        navigate("/");
       } else {
-        const { phone } = location.state || {};
-        res = await authService.verifyOtp({ phone, otp: code });
-        toast.success("OTP verified! Now reset your password.");
-        navigate("/reset-password", { state: { email, token: res.data.data.resetToken } });
+        toast.error("Unknown verification type.");
       }
     } catch (err) {
       toast.error(err.response?.data?.message || "Invalid OTP.");
@@ -90,7 +93,6 @@ export default function VerifyOTP() {
     }
     setResending(true);
     try {
-      const { phone } = location.state || {};
       await authService.sendOtp({ phone });
       toast.success("New OTP sent!");
       setTimer(60);
@@ -106,7 +108,7 @@ export default function VerifyOTP() {
   return (
     <AuthLayout
       title="Verify OTP"
-      subtitle={`A 6-digit code has been sent to: ${email}`}
+      subtitle={`A 6-digit code has been sent to: ${email || phone}`}
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* OTP Inputs */}

@@ -7,10 +7,16 @@ import AdminLayout from '../../components/admin/AdminLayout'
 import Modal from '../../components/ui/Modal'
 import Skeleton from '../../components/ui/Skeleton'
 
+const TYPE_OPTIONS = ['hero', 'promotional', 'category', 'popup']
+const POSITION_OPTIONS = ['home_top', 'home_middle', 'sidebar', 'popup']
+
 export default function Banners() {
   const qc = useQueryClient()
   const [showModal, setShowModal] = useState(false)
-  const [form, setForm] = useState({ title:'', subtitle:'', link:'', sortOrder:0 })
+  const [form, setForm] = useState({
+    title: '', subtitle: '', link: '',
+    type: 'hero', position: 'home_top', isActive: true, sortOrder: 0,
+  })
   const [imageFile, setImageFile] = useState(null)
 
   const { data, isLoading } = useQuery({
@@ -20,7 +26,13 @@ export default function Banners() {
 
   const createMutation = useMutation({
     mutationFn: (fd) => api.post('/banners', fd, { headers:{'Content-Type':'multipart/form-data'} }),
-    onSuccess: () => { qc.invalidateQueries({queryKey:['admin-banners']}); toast.success('Banner created!'); setShowModal(false); setForm({title:'',subtitle:'',link:'',sortOrder:0}); setImageFile(null) },
+    onSuccess: () => {
+      qc.invalidateQueries({queryKey:['admin-banners']})
+      toast.success('Banner created!')
+      setShowModal(false)
+      setForm({ title:'', subtitle:'', link:'', type:'hero', position:'home_top', isActive:true, sortOrder:0 })
+      setImageFile(null)
+    },
     onError: (e) => toast.error(e?.response?.data?.message||'Failed'),
   })
   const deleteMutation = useMutation({
@@ -35,7 +47,7 @@ export default function Banners() {
   const handleSubmit = (e) => {
     e.preventDefault()
     const fd = new FormData()
-    Object.entries(form).forEach(([k,v])=>v!==''&&fd.append(k,v))
+    Object.entries(form).forEach(([k,v]) => { if (v !== '') fd.append(k, v) })
     if(imageFile) fd.append('image', imageFile)
     createMutation.mutate(fd)
   }
@@ -62,6 +74,7 @@ export default function Banners() {
                 <h3 className="font-semibold text-gray-900">{b.title}</h3>
                 {b.subtitle && <p className="text-sm text-gray-500 mt-0.5">{b.subtitle}</p>}
                 {b.link && <p className="text-xs text-indigo-500 mt-1 truncate">{b.link}</p>}
+                <p className="text-xs text-gray-400 mt-1">{b.type} · {b.position} · order {b.sortOrder ?? 0}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className={`text-xs px-2 py-0.5 rounded-full ${b.isActive?'bg-green-100 text-green-700':'bg-gray-100 text-gray-500'}`}>{b.isActive?'Active':'Hidden'}</span>
@@ -86,6 +99,51 @@ export default function Banners() {
               <input value={form[k]} onChange={e=>setForm(p=>({...p,[k]:e.target.value}))} required={l.includes('*')} className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-indigo-400 outline-none text-sm"/>
             </div>
           ))}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
+              <select
+                value={form.type}
+                onChange={e=>setForm(p=>({...p,type:e.target.value}))}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-indigo-400 outline-none text-sm"
+              >
+                {TYPE_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Position</label>
+              <select
+                value={form.position}
+                onChange={e=>setForm(p=>({...p,position:e.target.value}))}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-indigo-400 outline-none text-sm"
+              >
+                {POSITION_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 items-end">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Sort Order</label>
+              <input
+                type="number"
+                value={form.sortOrder}
+                onChange={e=>setForm(p=>({...p,sortOrder:Number(e.target.value)}))}
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-indigo-400 outline-none text-sm"
+              />
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer pb-2">
+              <input
+                type="checkbox"
+                checked={form.isActive}
+                onChange={e=>setForm(p=>({...p,isActive:e.target.checked}))}
+                className="rounded text-indigo-600"
+              />
+              <span className="text-sm text-gray-700">Active (visible now)</span>
+            </label>
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Banner Image</label>
             {imageFile ? (
@@ -100,6 +158,7 @@ export default function Banners() {
               </label>
             )}
           </div>
+
           <button type="submit" disabled={createMutation.isPending} className="w-full bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-60">
             {createMutation.isPending?'Creating...':'Create Banner'}
           </button>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,7 +21,14 @@ const schema = z.object({
 export default function ResetPassword() {
   const navigate  = useNavigate();
   const location  = useLocation();
-  const { email, token } = location.state || {};
+  const [searchParams] = useSearchParams();
+
+  // The reset email links to /reset-password?token=...&email=... — a fresh
+  // page load, so the URL is the source of truth. location.state is kept
+  // only as a fallback for in-app navigation that still passes it directly.
+  const email = searchParams.get("email") || location.state?.email;
+  const token = searchParams.get("token") || location.state?.token;
+
   const [showPass, setShowPass] = useState(false);
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
@@ -29,6 +36,10 @@ export default function ResetPassword() {
   });
 
   const onSubmit = async (data) => {
+    if (!token) {
+      toast.error("Reset link is invalid or missing. Please request a new one.");
+      return;
+    }
     try {
       await authService.resetPassword({ email, token, password: data.password });
       toast.success("Password reset successfully! Please login. 🔐");
@@ -41,6 +52,13 @@ export default function ResetPassword() {
   return (
     <AuthLayout title="Set New Password" subtitle="Choose a strong password">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+        {!token && (
+          <p className="text-sm text-red-600 bg-red-50 rounded-xl p-3">
+            This reset link looks invalid or expired. Please request a new
+            one from the Forgot Password page.
+          </p>
+        )}
+
         <Input
           label="New Password"
           type={showPass ? "text" : "password"}
@@ -65,14 +83,13 @@ export default function ResetPassword() {
           {...register("confirmPassword")}
         />
 
-        {/* Password strength hint */}
         <ul className="text-xs text-gray-500 space-y-1 bg-gray-50 rounded-xl p-3">
           <li>✅ At least 6 characters</li>
           <li>✅ One uppercase letter (A-Z)</li>
           <li>✅ One number (0-9)</li>
         </ul>
 
-        <Button type="submit" fullWidth loading={isSubmitting} size="lg">
+        <Button type="submit" fullWidth loading={isSubmitting} size="lg" disabled={!token}>
           Reset Password
         </Button>
       </form>
