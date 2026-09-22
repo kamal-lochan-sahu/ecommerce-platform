@@ -101,7 +101,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/.*\.onrender\.com\/api\/(products|categories|banners)/,
+            urlPattern: /^https:\/\/.*\.onrender\.com\/api\/(products|categories)/,
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'api-cache',

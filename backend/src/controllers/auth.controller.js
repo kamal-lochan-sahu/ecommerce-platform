@@ -211,9 +211,16 @@ export const sendOtp = asyncHandler(async (req, res) => {
     user.otp = { code: otp, expiresAt: otpExpiresAt };
     await user.save({ validateBeforeSave: false });
   } else {
+    // User model requires `email` (unique) — a brand-new phone-only user
+    // has none yet, so give it a unique placeholder. This keeps every
+    // other part of the app that assumes user.email exists (order
+    // emails, invoices, notifications) working without needing to make
+    // email optional schema-wide. The user can add a real email later
+    // from their profile.
     user = await User.create({
       phone,
       name: `User${phone.slice(-4)}`, // temp name
+      email: `phone_${phone}@luxora.local`, // placeholder — not a real inbox
       otp: { code: otp, expiresAt: otpExpiresAt },
     });
   }
