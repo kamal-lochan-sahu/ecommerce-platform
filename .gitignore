@@ -58,3 +58,6 @@ phase*.py
 
 # Antigravity/Playwright test scratch files (never meant to ship with the repo)
 scratch/
+banner.jpg
+playwright_test_report.md
+result.txt

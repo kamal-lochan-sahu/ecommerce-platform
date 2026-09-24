@@ -1,6 +1,0 @@
-PASS: The Razorpay payment flow successfully completed.
-- Visually confirmed the Razorpay popup opened.
-- Filled in the test card details (4100 2800 0000 1007) and submitted.
-- Auto-redirected to the Mock Bank popup where "Success" was clicked.
-- The app navigated to the `/order-success` confirmation page which correctly displayed "Order Placed!", "Your order has been confirmed.", and a status notification "Payment successful! 🎉".
-(Note: the subsequent `View My Orders` and order detail pages failed to load the data correctly, showing "Something went wrong" and broken values, but the payment/checkout flow itself passed.)
