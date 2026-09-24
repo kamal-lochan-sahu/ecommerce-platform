@@ -24,7 +24,8 @@ export default function OrderHistory() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['orders', activeStatus, page],
     queryFn: () =>
-      orderService.getAll({ status: activeStatus, page, limit: 8 }),
+      orderService.getMyOrders({ status: activeStatus, page, limit: 8 })
+        .then(r => r.data?.data ?? { orders: [], pagination: null }),
     staleTime: 1000 * 30, // 30s — order status (shipped/delivered) can change
   })
 

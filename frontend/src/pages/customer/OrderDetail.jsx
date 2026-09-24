@@ -28,7 +28,12 @@ export default function OrderDetail() {
 
   const { data: order, isLoading, isError } = useQuery({
     queryKey: ['order', id],
-    queryFn: () => orderService.getById(id),
+    // Unwrap the axios response — without this, `order` was the raw
+    // {data, status, headers, ...} axios object, so every field read off
+    // it (order.createdAt, order.pricing, order.orderStatus, ...) was
+    // undefined, showing up as "Invalid Date" / missing price / a
+    // default status even though the backend data was correct.
+    queryFn: () => orderService.getById(id).then(r => r.data?.data?.order ?? null),
   })
 
   const cancelMutation = useMutation({
