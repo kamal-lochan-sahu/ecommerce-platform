@@ -29,6 +29,13 @@ const errorHandler = (err, req, res, next) => {
     error = new ApiError(401, 'Token expired');
   }
 
+  // Razorpay SDK errors — shaped like { statusCode, error: { description } },
+  // NOT a flat .message string, so without this they showed up as a blank
+  // "Internal Server Error" with no clue what actually went wrong.
+  if (err.error?.description) {
+    error = new ApiError(err.statusCode || 400, `Razorpay: ${err.error.description}`);
+  }
+
   res.status(error.statusCode || 500).json({
     success: false,
     message: error.message || 'Internal Server Error',
