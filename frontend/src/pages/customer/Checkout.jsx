@@ -31,6 +31,21 @@ const PAYMENT_METHODS = [
 
 const STEPS = ["Address", "Payment", "Review"];
 
+// Razorpay's checkout SDK isn't bundled — it must be loaded from their CDN
+// at runtime. Resolves immediately if it's already on the page (e.g. a
+// second checkout attempt in the same session), so this is cheap to call
+// every time right before opening the popup.
+function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) return resolve(true);
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
+
 export default function Checkout() {
   const navigate = useNavigate();
   const { items, totalAmount, clearCart } = useCartStore();
@@ -85,6 +100,11 @@ export default function Checkout() {
 
       // Razorpay — launch SDK
       if (payment === "razorpay" && orderData?.razorpayOrder) {
+        const scriptOk = await loadRazorpayScript();
+        if (!scriptOk) {
+          toast.error("Couldn't load the payment gateway. Check your connection and try again.");
+          return;
+        }
         const rzp = orderData.razorpayOrder;
         const options = {
           key: rzp.key,
