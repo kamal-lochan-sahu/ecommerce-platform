@@ -33,7 +33,7 @@ const reviewSchema = new mongoose.Schema({
   },
   isApproved: {
     type: Boolean,
-    default: true,
+    default: false, // naya review admin-approve hone tak public listing/rating mein nahi aata
   },
   helpfulCount: {
     type: Number,

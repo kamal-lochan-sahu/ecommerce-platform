@@ -78,8 +78,10 @@ import reviewRoutes from './routes/review.routes.js';
 import couponRoutes from './routes/coupon.routes.js';
 import bannerRoutes from "./routes/banner.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
+import settingsRoutes from "./routes/settings.routes.js";
 
 app.use("/api/banners", bannerRoutes);
+app.use("/api/settings", settingsRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use('/api', reviewRoutes);

@@ -38,6 +38,8 @@ const useCartStore = create(
       items:       [],
       totalAmount: 0,
       totalItems:  0,
+      couponCode:     null,
+      couponDiscount: 0,
       isOpen:      false,
       loading:     false,
 
@@ -144,11 +146,15 @@ const useCartStore = create(
 
       // ── Clear cart ──
       clearCart: async (syncServer = true) => {
-        set({ items: [], totalAmount: 0, totalItems: 0 });
+        set({ items: [], totalAmount: 0, totalItems: 0, couponCode: null, couponDiscount: 0 });
         if (syncServer) {
           try { await cartService.clearCart(); } catch { /* silent */ }
         }
       },
+
+      // ── Coupon (applied via CartSummary, read at checkout) ──
+      setCoupon:   (code, discount) => set({ couponCode: code, couponDiscount: discount }),
+      clearCoupon: () => set({ couponCode: null, couponDiscount: 0 }),
 
       // ── Merge guest cart after login ──
       mergeGuestCart: async () => {

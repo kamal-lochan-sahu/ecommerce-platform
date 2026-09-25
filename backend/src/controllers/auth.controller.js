@@ -250,6 +250,10 @@ export const verifyOtp = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'User not found');
   }
 
+  if (!user.isActive) {
+    throw new ApiError(403, 'Your account has been deactivated. Contact support.');
+  }
+
   // OTP check
   if (!user.otp?.code || user.otp.code !== otp) {
     throw new ApiError(400, 'Invalid OTP');

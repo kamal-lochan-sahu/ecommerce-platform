@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -31,6 +31,8 @@ const PAYMENT_METHODS = [
 
 const STEPS = ["Address", "Payment", "Review"];
 
+const DEFAULT_SETTINGS = { taxRate: 18, deliveryFee: 49, freeDeliveryAbove: 499 };
+
 // Razorpay's checkout SDK isn't bundled — it must be loaded from their CDN
 // at runtime. Resolves immediately if it's already on the page (e.g. a
 // second checkout attempt in the same session), so this is cheap to call
@@ -48,15 +50,49 @@ function loadRazorpayScript() {
 
 export default function Checkout() {
   const navigate = useNavigate();
-  const { items, totalAmount, clearCart } = useCartStore();
+  const { items, totalAmount, clearCart, couponCode, couponDiscount, clearCoupon } = useCartStore();
   const { user } = useAuthStore();
   const [step,    setStep]    = useState(0);
   const [payment, setPayment] = useState("razorpay");
   const [placing, setPlacing] = useState(false);
   const [address, setAddress] = useState(null);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [selectedSavedId, setSelectedSavedId] = useState(null);
+  const [showNewAddressForm, setShowNewAddressForm] = useState(true);
 
-  const delivery = totalAmount >= 499 ? 0 : 49;
-  const total    = totalAmount + delivery;
+  // Real tax/delivery numbers — same source the backend uses, so what's
+  // shown here always matches what actually gets charged.
+  useEffect(() => {
+    api.get("/settings/public")
+      .then(res => {
+        const s = res?.data?.data;
+        if (s) setSettings({ taxRate: s.taxRate, deliveryFee: s.deliveryFee, freeDeliveryAbove: s.freeDeliveryAbove });
+      })
+      .catch(() => { /* keep defaults */ });
+  }, []);
+
+  // Saved addresses — so checkout doesn't create a duplicate address row
+  // on every single order for repeat customers.
+  useEffect(() => {
+    if (!user) return;
+    api.get("/addresses")
+      .then(res => {
+        const list = res?.data?.data?.addresses || [];
+        setSavedAddresses(list);
+        if (list.length > 0) {
+          const def = list.find(a => a.isDefault) || list[0];
+          setSelectedSavedId(def._id);
+          setShowNewAddressForm(false);
+        }
+      })
+      .catch(() => { /* no saved addresses available */ });
+  }, [user]);
+
+  const discount = couponCode ? Math.min(couponDiscount, totalAmount) : 0;
+  const delivery = totalAmount >= settings.freeDeliveryAbove ? 0 : settings.deliveryFee;
+  const tax      = Math.round(totalAmount * (settings.taxRate / 100));
+  const total    = totalAmount + delivery + tax - discount;
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
@@ -65,27 +101,42 @@ export default function Checkout() {
 
   const onAddressSubmit = (data) => { setAddress(data); setStep(1); window.scrollTo({ top: 0, behavior: "smooth" }); };
 
+  const useSavedAddress = () => {
+    const saved = savedAddresses.find(a => a._id === selectedSavedId);
+    if (!saved) { toast.error("Please select an address"); return; }
+    setAddress({ ...saved, address: saved.addressLine1, _id: saved._id });
+    setStep(1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const handlePlaceOrder = async () => {
     setPlacing(true);
     try {
-      const addressRes = await api.post("/addresses", {
-        fullName: address.fullName,
-        phone: address.phone,
-        pincode: address.pincode,
-        city: address.city,
-        state: address.state,
-        addressLine1: address.address,
-        addressLine2: "",
-        country: "India",
-        isDefault: true,
-      });
+      let addrId = address?._id;
 
-      const addrId = addressRes?.data?.data?.address?._id;
+      // Only create a new Address doc when the customer actually typed a
+      // new one — reusing a saved address doesn't create a duplicate.
+      if (!addrId) {
+        const addressRes = await api.post("/addresses", {
+          fullName: address.fullName,
+          phone: address.phone,
+          pincode: address.pincode,
+          city: address.city,
+          state: address.state,
+          addressLine1: address.address,
+          addressLine2: "",
+          country: "India",
+          isDefault: savedAddresses.length === 0,
+        });
+        addrId = addressRes?.data?.data?.address?._id;
+      }
+
       if (!addrId) throw new Error("Failed to save delivery address. Please try again.");
 
       const orderRes = await orderService.create({
         addressId: addrId,
         paymentMethod: payment,
+        couponCode: couponCode || undefined,
         notes: "Order from UI",
       });
 
@@ -124,6 +175,7 @@ export default function Checkout() {
                 })
               );
               clearCart();
+              clearCoupon();
               toast.success("Payment successful! 🎉");
               navigate("/order-success", { state: { orderId: order?._id, orderNumber: order?.orderNumber } });
             } catch {
@@ -140,6 +192,7 @@ export default function Checkout() {
 
       // COD
       clearCart();
+      clearCoupon();
       toast.success("Order placed successfully! 🎉");
       navigate("/order-success", { state: { orderId: order?._id, orderNumber: order?.orderNumber } });
     } catch (err) {
@@ -162,13 +215,11 @@ export default function Checkout() {
   return (
     <div className="page-container max-w-5xl">
       <Breadcrumb items={[{ label: "Cart", href: "/cart" }, { label: "Checkout" }]} />
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Checkout</h1>
 
-      {/* Steps */}
-      <div className="flex items-center mb-8 gap-1">
+      <div className="flex items-center justify-center mb-8">
         {STEPS.map((s, i) => (
           <div key={s} className="flex items-center">
-            <div className={clsx("flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold transition-all",
+            <div className={clsx("w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold",
               i < step ? "bg-green-500 text-white" : i === step ? "bg-primary text-white" : "bg-gray-100 text-gray-400")}>
               {i < step ? <Check size={14} /> : i + 1}
             </div>
@@ -189,27 +240,60 @@ export default function Checkout() {
                 <MapPin size={20} className="text-primary" />
                 <h2 className="text-lg font-semibold">Delivery Address</h2>
               </div>
-              <form onSubmit={handleSubmit(onAddressSubmit)} className="space-y-4">
-                {!user && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700">
-                    💡 Checking out as a guest —{" "}
-                    <a href="/login" className="font-semibold underline">Login</a> to save your order history
+
+              {!showNewAddressForm && savedAddresses.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    {savedAddresses.map(a => (
+                      <label key={a._id} className={clsx("flex items-start gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all",
+                        selectedSavedId === a._id ? "border-primary bg-primary-50" : "border-gray-100 hover:border-gray-200")}>
+                        <input type="radio" name="savedAddress" className="mt-1 text-primary w-4 h-4"
+                          checked={selectedSavedId === a._id} onChange={() => setSelectedSavedId(a._id)} />
+                        <div className="text-sm">
+                          <p className="font-medium text-gray-900">{a.fullName} {a.isDefault && <span className="text-xs text-primary font-normal">(Default)</span>}</p>
+                          <p className="text-gray-600">{a.addressLine1}, {a.city}, {a.state} — {a.pincode}</p>
+                          <p className="text-gray-500">📞 {a.phone}</p>
+                        </div>
+                      </label>
+                    ))}
                   </div>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  <Input label="Full Name" placeholder="Kamal Sahu" required error={errors.fullName?.message} {...register("fullName")} />
-                  <Input label="Phone" type="tel" placeholder="9876543210" required error={errors.phone?.message} {...register("phone")} />
+                  <button type="button" onClick={() => setShowNewAddressForm(true)}
+                    className="text-sm text-primary font-medium hover:underline">
+                    + Use a different address
+                  </button>
+                  <button onClick={useSavedAddress} className="btn-primary w-full py-3 flex items-center justify-center gap-2">
+                    Continue to Payment <ChevronRight size={16} />
+                  </button>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <Input label="Pincode" placeholder="751001" required maxLength={6} error={errors.pincode?.message} {...register("pincode")} />
-                  <Input label="City" placeholder="Bhubaneswar" required error={errors.city?.message} {...register("city")} />
-                </div>
-                <Input label="Address" placeholder="House no, Street, Area..." required error={errors.address?.message} {...register("address")} />
-                <Input label="State" placeholder="Odisha" required error={errors.state?.message} {...register("state")} />
-                <button type="submit" className="btn-primary w-full py-3 flex items-center justify-center gap-2">
-                  Continue to Payment <ChevronRight size={16} />
-                </button>
-              </form>
+              ) : (
+                <form onSubmit={handleSubmit(onAddressSubmit)} className="space-y-4">
+                  {!user && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700">
+                      💡 Checking out as a guest —{" "}
+                      <a href="/login" className="font-semibold underline">Login</a> to save your order history
+                    </div>
+                  )}
+                  {savedAddresses.length > 0 && (
+                    <button type="button" onClick={() => setShowNewAddressForm(false)}
+                      className="text-sm text-primary font-medium hover:underline">
+                      ← Use a saved address instead
+                    </button>
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input label="Full Name" placeholder="Kamal Sahu" required error={errors.fullName?.message} {...register("fullName")} />
+                    <Input label="Phone" type="tel" placeholder="9876543210" required error={errors.phone?.message} {...register("phone")} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input label="Pincode" placeholder="751001" required maxLength={6} error={errors.pincode?.message} {...register("pincode")} />
+                    <Input label="City" placeholder="Bhubaneswar" required error={errors.city?.message} {...register("city")} />
+                  </div>
+                  <Input label="Address" placeholder="House no, Street, Area..." required error={errors.address?.message} {...register("address")} />
+                  <Input label="State" placeholder="Odisha" required error={errors.state?.message} {...register("state")} />
+                  <button type="submit" className="btn-primary w-full py-3 flex items-center justify-center gap-2">
+                    Continue to Payment <ChevronRight size={16} />
+                  </button>
+                </form>
+              )}
             </div>
           )}
 
@@ -315,9 +399,17 @@ export default function Checkout() {
             </div>
             <div className="border-t border-gray-100 pt-3 space-y-2 text-sm">
               <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>₹{totalAmount.toLocaleString("en-IN")}</span></div>
+              {discount > 0 && (
+                <div className="flex justify-between text-green-600 font-medium">
+                  <span>Coupon ({couponCode})</span><span>−₹{discount.toLocaleString("en-IN")}</span>
+                </div>
+              )}
               <div className="flex justify-between text-gray-600">
                 <span>Delivery</span>
                 <span className={delivery === 0 ? "text-green-600" : ""}>{delivery === 0 ? "FREE" : `₹${delivery}`}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>Tax (GST {settings.taxRate}%)</span><span>₹{tax.toLocaleString("en-IN")}</span>
               </div>
               <div className="flex justify-between font-bold text-gray-900 text-base border-t border-gray-100 pt-2">
                 <span>Total</span><span>₹{total.toLocaleString("en-IN")}</span>

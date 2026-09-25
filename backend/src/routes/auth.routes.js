@@ -32,7 +32,7 @@ router.post('/refresh', refreshToken);
 router.post('/forgot-password', forgotPasswordSchema && validate(forgotPasswordSchema), forgotPassword);
 router.post('/reset-password', validate(resetPasswordSchema), resetPassword);
 router.post('/send-otp', otpLimiter, validate(sendOtpSchema), sendOtp);
-router.post('/verify-otp', validate(verifyOtpSchema), verifyOtp);
+router.post('/verify-otp', otpLimiter, validate(verifyOtpSchema), verifyOtp);
 
 // Private routes
 router.get('/me', protect, getMe);

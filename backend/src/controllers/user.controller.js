@@ -65,6 +65,12 @@ export const changePassword = asyncHandler(async (req, res) => {
   // Password select karo (default mein nahi aata)
   const user = await User.findById(req.user._id).select('+password');
 
+  // Google/phone-OTP-only accounts have no password set yet — bcrypt.compare
+  // throws on a non-string hash, so guard explicitly instead of crashing.
+  if (!user.password) {
+    throw new ApiError(400, 'This account has no password set yet. Use "Forgot Password" to set one.');
+  }
+
   // Old password check
   const isMatch = await user.comparePassword(oldPassword);
   if (!isMatch) {

@@ -518,6 +518,19 @@ export const getLowStockProducts = asyncHandler(async (req, res) => {
   );
 });
 
+// ─── GET /api/settings/public ────────────────────────────────────────────────
+// Public — checkout page needs the real tax/delivery numbers so what the
+// customer sees before paying always matches what the order actually charges.
+export const getPublicSettings = asyncHandler(async (req, res) => {
+  const settings = await Settings.getSingleton();
+  return res.status(200).json(new ApiResponse(200, {
+    taxRate: settings.taxRate,
+    deliveryFee: settings.deliveryFee,
+    freeDeliveryAbove: settings.freeDeliveryAbove,
+    currency: settings.currency,
+  }, "Public settings fetched"));
+});
+
 // ─── GET /api/admin/settings ─────────────────────────────────────────────────────────────────
 
 export const getSettings = asyncHandler(async (req, res) => {

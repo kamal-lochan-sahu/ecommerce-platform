@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import crypto from 'crypto';
-import { Order, Cart, Product, ProductVariant, Address, Coupon, Transaction, LoyaltyPoints, Notification } from '../models/index.js';
+import { Order, Cart, Product, ProductVariant, Address, Coupon, Transaction, LoyaltyPoints, Notification, Settings } from '../models/index.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
@@ -98,13 +98,17 @@ export const createOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  // Pricing calculate karo
+  // Pricing calculate karo — Settings se live values lo (admin panel se
+  // configurable), hardcoded nahi. Frontend checkout bhi /api/settings/public
+  // se yehi values padhta hai taaki displayed total aur actually charged
+  // total hamesha match kare.
   const subtotal = cart.items.reduce(
     (sum, item) => sum + item.price * item.quantity, 0
   );
 
-  const shippingCharge = subtotal >= 500 ? 0 : 49; // Free shipping above ₹500
-  const tax = Math.round(subtotal * 0.18); // 18% GST
+  const settings = await Settings.getSingleton();
+  const shippingCharge = subtotal >= settings.freeDeliveryAbove ? 0 : settings.deliveryFee;
+  const tax = Math.round(subtotal * (settings.taxRate / 100));
 
   // Coupon
   let couponDiscount = 0;
@@ -161,6 +165,15 @@ export const createOrder = asyncHandler(async (req, res) => {
           if (!updated) {
             throw new ApiError(400, `"${item.product.name}" ─ not enough stock left`);
           }
+          // Variant stock ProductVariant pe hai, lekin totalSold hum hamesha
+          // parent Product pe track karte hain (admin "top products" analytics
+          // isi field se aata hai) — warna variant products kabhi top-sellers
+          // mein nahi dikhte.
+          await Product.findByIdAndUpdate(
+            item.product._id,
+            { $inc: { totalSold: item.quantity } },
+            { session }
+          );
         } else {
           const updated = await Product.findOneAndUpdate(
             { _id: item.product._id, stock: { $gte: item.quantity } },
@@ -453,11 +466,23 @@ export const cancelOrder = asyncHandler(async (req, res) => {
     throw new ApiError(400, `Cannot cancel order in "${order.orderStatus}" status`);
   }
 
-  // Stock wapas karo
+  // Stock wapas karo — variant wale item ka stock ProductVariant pe wapas
+  // jana chahiye (wahi se order ke time kata tha), Product.stock pe nahi.
+  // totalSold hamesha Product pe hi decrement hota hai (variant purchases bhi
+  // ab createOrder mein Product.totalSold increment karte hain, isliye symmetric hai).
   for (const item of order.items) {
-    await Product.findByIdAndUpdate(item.product, {
-      $inc: { stock: item.quantity, totalSold: -item.quantity },
-    });
+    if (item.variant) {
+      await ProductVariant.findByIdAndUpdate(item.variant, {
+        $inc: { stock: item.quantity },
+      });
+      await Product.findByIdAndUpdate(item.product, {
+        $inc: { totalSold: -item.quantity },
+      });
+    } else {
+      await Product.findByIdAndUpdate(item.product, {
+        $inc: { stock: item.quantity, totalSold: -item.quantity },
+      });
+    }
   }
 
   await Order.findByIdAndUpdate(order._id, {
