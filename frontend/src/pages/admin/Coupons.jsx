@@ -9,6 +9,23 @@ import Skeleton from '../../components/ui/Skeleton'
 
 const EMPTY = { code:'', type:'percentage', value:'', minOrder:'', maxUses:'', expiresAt:'', isActive:true }
 
+// Form field names (minOrder/maxUses) are UI-friendly; the backend's Joi
+// schema/model use minOrderAmount/usageLimit and rejects unknown keys, and
+// rejects empty strings on optional number fields — so we translate names
+// and drop anything left blank rather than sending it as "".
+function buildPayload(form) {
+  const payload = {
+    code: form.code.trim().toUpperCase(),
+    type: form.type,
+    value: Number(form.value),
+    isActive: form.isActive,
+    expiresAt: form.expiresAt,
+  }
+  if (form.minOrder !== '') payload.minOrderAmount = Number(form.minOrder)
+  if (form.maxUses !== '')  payload.usageLimit    = Number(form.maxUses)
+  return payload
+}
+
 export default function Coupons() {
   const qc = useQueryClient()
   const [showModal, setShowModal] = useState(false)
@@ -57,8 +74,8 @@ export default function Coupons() {
               </div>
               <p className="text-sm text-gray-500 mt-0.5">
                 {c.type==='percentage'?`${c.value}% off`:`₹${c.value} off`}
-                {c.minOrder?` · Min ₹${c.minOrder}`:''}
-                {c.maxUses?` · ${c.usedCount||0}/${c.maxUses} used`:''}
+                {c.minOrderAmount?` · Min ₹${c.minOrderAmount}`:''}
+                {c.usageLimit?` · ${c.usedCount||0}/${c.usageLimit} used`:''}
                 {c.expiresAt?` · Expires ${new Date(c.expiresAt).toLocaleDateString('en-IN')}` : ''}
               </p>
             </div>
@@ -70,7 +87,7 @@ export default function Coupons() {
       </div>
 
       <Modal isOpen={showModal} onClose={()=>setShowModal(false)} title="Create Coupon">
-        <form onSubmit={(e)=>{ e.preventDefault(); createMutation.mutate(form) }} className="p-4 space-y-3">
+        <form onSubmit={(e)=>{ e.preventDefault(); createMutation.mutate(buildPayload(form)) }} className="p-4 space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-700 mb-1">Coupon Code *</label>
             <input value={form.code} onChange={f('code')} required placeholder="e.g. SAVE20" className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-indigo-400 outline-none text-sm uppercase"/>
@@ -99,8 +116,8 @@ export default function Coupons() {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Expiry Date</label>
-            <input type="date" value={form.expiresAt} onChange={f('expiresAt')} min={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-indigo-400 outline-none text-sm"/>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Expiry Date *</label>
+            <input type="date" value={form.expiresAt} onChange={f('expiresAt')} required min={new Date().toISOString().split('T')[0]} className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:border-indigo-400 outline-none text-sm"/>
           </div>
           <button type="submit" disabled={createMutation.isPending} className="w-full bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-60">
             {createMutation.isPending?'Creating...':'Create Coupon'}

@@ -319,7 +319,7 @@ export default function ProductDetail() {
           </div>
         )}
         {activeTab === "reviews" && (
-          <ProductReviews productId={product._id} ratings={product.ratings} totalReviews={ratingCount} />
+          <ProductReviews productId={product._id} ratings={ratingValue} totalReviews={ratingCount} />
         )}
       </div>
 
