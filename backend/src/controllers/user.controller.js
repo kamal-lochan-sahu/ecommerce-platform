@@ -9,7 +9,11 @@ import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js
 // @access Private
 // =====================
 export const getProfile = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id);
+  // password is select:false and stripped by toJSON — fetch it only to learn
+  // whether the account HAS one, so the UI can show "Change" vs "Set" password.
+  const doc = await User.findById(req.user._id).select('+password');
+  const user = doc.toJSON();
+  user.hasPassword = Boolean(doc.password);
   res.json(new ApiResponse(200, { user }, 'Profile fetched successfully'));
 });
 
@@ -65,27 +69,33 @@ export const changePassword = asyncHandler(async (req, res) => {
   // Password select karo (default mein nahi aata)
   const user = await User.findById(req.user._id).select('+password');
 
-  // Google/phone-OTP-only accounts have no password set yet — bcrypt.compare
-  // throws on a non-string hash, so guard explicitly instead of crashing.
-  if (!user.password) {
-    throw new ApiError(400, 'This account has no password set yet. Use "Forgot Password" to set one.');
-  }
+  const hadPassword = Boolean(user.password);
 
-  // Old password check
-  const isMatch = await user.comparePassword(oldPassword);
-  if (!isMatch) {
-    throw new ApiError(400, 'Current password is incorrect');
+  if (hadPassword) {
+    // Normal case: must prove knowledge of the current password.
+    if (!oldPassword) {
+      throw new ApiError(400, 'Current password is required');
+    }
+    const isMatch = await user.comparePassword(oldPassword);
+    if (!isMatch) {
+      throw new ApiError(400, 'Current password is incorrect');
+    }
+    if (oldPassword === newPassword) {
+      throw new ApiError(400, 'New password must be different from current password');
+    }
   }
-
-  // Same password?
-  if (oldPassword === newPassword) {
-    throw new ApiError(400, 'New password must be different from current password');
-  }
+  // else: Google/phone-OTP-only account. They are already authenticated and
+  // their email may be a placeholder (phone_XXXX@luxora.local) so "Forgot
+  // Password" can never reach them — let them set a first password directly.
 
   user.password = newPassword;
   await user.save();
 
-  res.json(new ApiResponse(200, null, 'Password changed successfully'));
+  res.json(new ApiResponse(
+    200,
+    null,
+    hadPassword ? 'Password changed successfully' : 'Password set successfully'
+  ));
 });
 
 // =====================

@@ -6,7 +6,7 @@ import addressService from '../../services/address.service'
 import Modal from '../../components/ui/Modal'
 import Skeleton from '../../components/ui/Skeleton'
 
-const EMPTY = { name:'', phone:'', addressLine1:'', addressLine2:'', city:'', state:'', pincode:'', type:'home' }
+const EMPTY = { fullName:'', phone:'', addressLine1:'', addressLine2:'', city:'', state:'', pincode:'', type:'home' }
 const STATES = ['Andhra Pradesh','Assam','Bihar','Delhi','Goa','Gujarat','Haryana','Himachal Pradesh','Jharkhand','Karnataka','Kerala','Madhya Pradesh','Maharashtra','Manipur','Meghalaya','Mizoram','Nagaland','Odisha','Punjab','Rajasthan','Sikkim','Tamil Nadu','Telangana','Tripura','Uttar Pradesh','Uttarakhand','West Bengal']
 
 export default function Addresses() {
@@ -40,7 +40,7 @@ export default function Addresses() {
   })
 
   const openAdd = () => { setEditing(null); setForm(EMPTY); setShowModal(true) }
-  const openEdit = (addr) => { setEditing(addr._id); setForm({ name:addr.name, phone:addr.phone, addressLine1:addr.addressLine1, addressLine2:addr.addressLine2||'', city:addr.city, state:addr.state, pincode:addr.pincode, type:addr.type||'home' }); setShowModal(true) }
+  const openEdit = (addr) => { setEditing(addr._id); setForm({ fullName:addr.fullName, phone:addr.phone, addressLine1:addr.addressLine1, addressLine2:addr.addressLine2||'', city:addr.city, state:addr.state, pincode:addr.pincode, type:addr.type||'home' }); setShowModal(true) }
   const closeModal = () => { setShowModal(false); setEditing(null); setForm(EMPTY) }
 
   const handleSubmit = (e) => {
@@ -106,7 +106,7 @@ export default function Addresses() {
                   </button>
                 </div>
               </div>
-              <p className="font-semibold text-gray-900">{addr.name}</p>
+              <p className="font-semibold text-gray-900">{addr.fullName}</p>
               <p className="text-sm text-gray-500 mt-0.5">{addr.phone}</p>
               <p className="text-sm text-gray-600 mt-1">
                 {addr.addressLine1}{addr.addressLine2 && `, ${addr.addressLine2}`}<br/>
@@ -120,7 +120,7 @@ export default function Addresses() {
       <Modal isOpen={showModal} onClose={closeModal} title={editing ? 'Edit Address' : 'Add New Address'}>
         <form onSubmit={handleSubmit} className="p-4 space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            {[['name','Full Name'],['phone','Phone']].map(([k,l])=>(
+            {[['fullName','Full Name'],['phone','Phone']].map(([k,l])=>(
               <div key={k}>
                 <label className="block text-xs font-medium text-gray-600 mb-1">{l}</label>
                 <input value={form[k]} onChange={e=>setForm(p=>({...p,[k]:e.target.value}))} required

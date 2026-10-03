@@ -85,8 +85,6 @@ export default function ResetPassword() {
 
         <ul className="text-xs text-gray-500 space-y-1 bg-gray-50 rounded-xl p-3">
           <li>✅ At least 6 characters</li>
-          <li>✅ One uppercase letter (A-Z)</li>
-          <li>✅ One number (0-9)</li>
         </ul>
 
         <Button type="submit" fullWidth loading={isSubmitting} size="lg" disabled={!token}>

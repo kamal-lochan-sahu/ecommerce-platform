@@ -13,6 +13,11 @@ const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+// Helper — emails are stored lowercase/trimmed by the User schema, so every
+// lookup must normalise the same way or "Kamal@Gmail.com" never matches.
+const normalizeEmail = (email) =>
+  typeof email === 'string' ? email.trim().toLowerCase() : email;
+
 // Helper — tokens set karo + response do
 // NOTE: async now — every caller MUST await this. Previously user.save()
 // ran without await/catch: the response could reach the client before the
@@ -54,7 +59,8 @@ const sendTokenResponse = async (res, user, statusCode = 200, message = 'Success
 // @access Public
 // =====================
 export const register = asyncHandler(async (req, res) => {
-  const { name, email, phone, password } = req.body;
+  const { name, phone, password } = req.body;
+  const email = normalizeEmail(req.body.email);
 
   // Email already exists?
   const existingUser = await User.findOne({
@@ -108,7 +114,8 @@ export const register = asyncHandler(async (req, res) => {
 // @access Public
 // =====================
 export const login = asyncHandler(async (req, res) => {
-  const { email, phone, password } = req.body;
+  const { phone, password } = req.body;
+  const email = normalizeEmail(req.body.email);
 
   // User dhundho with password
   const user = await User.findOne({
@@ -135,10 +142,11 @@ export const login = asyncHandler(async (req, res) => {
   if (!user.isActive) {
     throw new ApiError(403, 'Your account has been deactivated. Contact support.');
   }
-  // Email verification check
-  if (!user.isVerified) {
-    throw new ApiError(403, 'Please verify your email before logging in. Check your inbox.');
-  }
+  // NOTE: unverified users are NOT blocked here any more. register() already
+  // hands out tokens to unverified users and protect() never checks
+  // isVerified, so this 403 only ever produced a permanent lockout (the
+  // verify-email route itself needs a token). The frontend sends unverified
+  // users to the verify screen after login instead.
 
   // Last login update
   user.lastLogin = new Date();
@@ -278,7 +286,7 @@ export const verifyOtp = asyncHandler(async (req, res) => {
 // @access Public
 // =====================
 export const forgotPassword = asyncHandler(async (req, res) => {
-  const { email } = req.body;
+  const email = normalizeEmail(req.body.email);
 
   const user = await User.findOne({ email });
 
@@ -301,7 +309,7 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
 
   // Reset URL — frontend ka URL
-  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}&email=${email}`;
+  const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
 
   // Fire-and-forget — this was hanging/failing the whole request when
   // Gmail SMTP was slow, which is exactly the bug Kamal hit. The reset
@@ -340,6 +348,30 @@ export const resetPassword = asyncHandler(async (req, res) => {
   await user.save();
 
   res.json(new ApiResponse(200, null, 'Password reset successful. Please login.'));
+});
+
+// =====================
+// @route  POST /api/auth/resend-verification
+// @access Private
+// =====================
+export const resendVerification = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (user.isVerified) {
+    return res.json(new ApiResponse(200, null, 'Email already verified'));
+  }
+
+  const otp = generateOTP();
+  user.otp = { code: otp, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
+  await user.save({ validateBeforeSave: false });
+
+  sendEmail({
+    to: user.email,
+    subject: 'Verify your email',
+    html: getOtpEmailTemplate(otp, process.env.CLIENT_NAME),
+  }).catch((err) => logger.error('Resend verification email failed', err));
+
+  res.json(new ApiResponse(200, null, 'A new verification code has been sent to your email.'));
 });
 
 // =====================

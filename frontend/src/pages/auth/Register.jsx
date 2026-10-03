@@ -10,6 +10,7 @@ import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import authService from "../../services/auth.service";
 import useAuthStore from "../../store/authStore";
+import useCartStore from "../../store/cartStore";
 
 const schema = z.object({
   name:     z.string().min(2, "Name must be at least 2 characters"),
@@ -36,14 +37,13 @@ export default function Register() {
       const payload = { ...data };
       delete payload.confirmPassword;
       const res = await authService.register(payload);
-      if (res.data.data.requiresOTP) {
-        toast.success("OTP sent! Please check your inbox.");
-        navigate("/verify-otp", { state: { email: data.email, type: "register" } });
-      } else {
-        login(res.data.data.user, res.data.data.accessToken);
-        toast.success("Account created successfully! 🎉");
-        navigate("/");
-      }
+      // The backend always returns tokens on register (user is unverified).
+      // Log in FIRST: /auth/verify-email is a protected route, so the verify
+      // screen can only work if we already hold the access token.
+      login(res.data.data.user, res.data.data.accessToken);
+      useCartStore.getState().mergeGuestCart();
+      toast.success("Account created! Please verify your email.");
+      navigate("/verify-otp", { state: { email: data.email, type: "register" } });
     } catch (err) {
       toast.error(err.response?.data?.message || "Registration failed.");
     }

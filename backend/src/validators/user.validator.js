@@ -8,9 +8,10 @@ export const updateProfileSchema = Joi.object({
 });
 
 export const changePasswordSchema = Joi.object({
-  oldPassword: Joi.string().required().messages({
-    'any.required': 'Current password is required',
-  }),
+  // Optional here: accounts created via phone-OTP have no password yet and
+  // set their first one without an "old" password. The controller enforces
+  // oldPassword whenever the account already has a password.
+  oldPassword: Joi.string().optional().allow(''),
   newPassword: Joi.string().min(6).required().messages({
     'string.min': 'New password must be at least 6 characters',
     'any.required': 'New password is required',

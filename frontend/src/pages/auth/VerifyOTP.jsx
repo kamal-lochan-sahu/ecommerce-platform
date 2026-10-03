@@ -10,7 +10,7 @@ import useAuthStore from "../../store/authStore";
 export default function VerifyOTP() {
   const navigate  = useNavigate();
   const location  = useLocation();
-  const { login } = useAuthStore();
+  const { login, updateUser } = useAuthStore();
   const { email, phone, type } = location.state || {};
 
   const [otp, setOtp]           = useState(["", "", "", "", "", ""]);
@@ -63,11 +63,12 @@ export default function VerifyOTP() {
     setLoading(true);
     try {
       if (type === "register") {
-        const res = await authService.verifyEmail({ otp: code });
-        login(res.data.data.user, res.data.data.accessToken);
-        useCartStore.getState().mergeGuestCart();
+        // verify-email returns no user/token (data is null) — the user is
+        // already logged in from Register/Login, we only flip the flag.
+        await authService.verifyEmail({ otp: code });
+        updateUser({ isVerified: true });
         toast.success("Email verified successfully! Welcome 🎉");
-        navigate("/");
+        navigate("/", { replace: true });
       } else if (type === "phone-login") {
         const res = await authService.verifyOtp({ phone, otp: code });
         login(res.data.data.user, res.data.data.accessToken);
@@ -87,19 +88,19 @@ export default function VerifyOTP() {
   };
 
   const handleResend = async () => {
-    if (type === "register") {
-      toast.error("Please go back and register again to resend email OTP.");
-      return;
-    }
     setResending(true);
     try {
-      await authService.sendOtp({ phone });
+      if (type === "register") {
+        await authService.resendVerification();
+      } else {
+        await authService.sendOtp({ phone });
+      }
       toast.success("New OTP sent!");
       setTimer(60);
       setOtp(["", "", "", "", "", ""]);
       inputRefs.current[0]?.focus();
-    } catch {
-      toast.error("Resend failed. Try again.");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Resend failed. Try again.");
     } finally {
       setResending(false);
     }
@@ -149,6 +150,18 @@ export default function VerifyOTP() {
             </button>
           )}
         </div>
+
+        {type === "register" && (
+          <div className="text-center text-sm">
+            <button
+              type="button"
+              onClick={() => navigate("/", { replace: true })}
+              className="text-gray-500 hover:text-gray-700 hover:underline"
+            >
+              Verify later
+            </button>
+          </div>
+        )}
       </form>
     </AuthLayout>
   );

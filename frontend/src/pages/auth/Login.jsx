@@ -35,10 +35,21 @@ export default function Login() {
   const onSubmit = async (data) => {
     try {
       const res = await authService.login(data);
-      login(res.data.data.user, res.data.data.accessToken);
+      const u = res.data.data.user;
+      login(u, res.data.data.accessToken);
       // Merge guest cart AFTER login so access token is set
       useCartStore.getState().mergeGuestCart();
-      toast.success(`Welcome back, ${res.data.data.user.name.split(" ")[0]}! 👋`);
+
+      // Registered but never verified their email: the backend no longer
+      // blocks login, so send them to the verify screen with a fresh code.
+      if (!u.isVerified) {
+        try { await authService.resendVerification(); } catch { /* user can resend manually */ }
+        toast("Please verify your email — we've sent you a new code.", { icon: "📧" });
+        navigate("/verify-otp", { state: { email: u.email, type: "register" }, replace: true });
+        return;
+      }
+
+      toast.success(`Welcome back, ${u.name.split(" ")[0]}! 👋`);
       navigate(from, { replace: true });
     } catch (err) {
       toast.error(err.response?.data?.message || "Login failed. Try again.");
@@ -112,11 +123,7 @@ export default function Login() {
             {...register("password")}
           />
 
-          <div className="flex items-center justify-between text-sm">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" className="rounded text-primary" />
-              <span className="text-gray-600">Remember me</span>
-            </label>
+          <div className="flex items-center justify-end text-sm">
             <Link to="/forgot-password" className="text-primary hover:underline font-medium">
               Forgot password?
             </Link>

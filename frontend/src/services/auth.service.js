@@ -7,6 +7,7 @@ const authService = {
   forgotPassword: (data) => api.post("/auth/forgot-password", data),
   verifyOtp:      (data) => api.post("/auth/verify-otp", data),
   verifyEmail:    (data) => api.post("/auth/verify-email", data),
+  resendVerification: ()  => api.post("/auth/resend-verification"),
   resetPassword:  (data) => api.post("/auth/reset-password", data),
   sendOtp:        (data) => api.post("/auth/send-otp", data),
   getMe:          ()     => api.get("/auth/me"),

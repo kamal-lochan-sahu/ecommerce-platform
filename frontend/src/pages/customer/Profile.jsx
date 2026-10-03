@@ -14,20 +14,38 @@ export default function Profile() {
   const [showOldPw, setShowOldPw] = useState(false)
   const [showNewPw, setShowNewPw] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [profileForm, setProfileForm] = useState({ name: user?.name || '', phone: user?.phone || '' })
+  const [deletePassword, setDeletePassword] = useState('')
+  // Only what the user has typed; everything else shows the server value
+  const [profileEdits, setProfileEdits] = useState({})
   const [pwForm, setPwForm] = useState({ oldPassword: '', newPassword: '', confirmPassword: '' })
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile'],
-    queryFn: () => userService.getProfile().then(r => r.data?.user || r.data),
-    onSuccess: (d) => setProfileForm({ name: d.name || '', phone: d.phone || '' }),
+    queryFn: () => userService.getProfile().then(r => r.data?.data?.user),
   })
 
+  // react-query v5 removed useQuery's onSuccess, so derive the form instead:
+  // typed value wins, otherwise the loaded profile, otherwise the auth store.
+  const profileForm = {
+    name:  profileEdits.name  ?? profile?.name  ?? user?.name  ?? '',
+    phone: profileEdits.phone ?? profile?.phone ?? user?.phone ?? '',
+  }
+
+  // hasPassword comes from the backend; false for phone-OTP-only accounts
+  const hasPassword = profile?.hasPassword !== false
+
   const updateMutation = useMutation({
-    mutationFn: (data) => userService.updateProfile(data),
+    mutationFn: (data) => {
+      // updateProfile sends multipart/form-data (avatar lives on this same endpoint)
+      const form = new FormData()
+      if (data.name) form.append('name', data.name)
+      if (data.phone) form.append('phone', data.phone)
+      return userService.updateProfile(form)
+    },
     onSuccess: (r) => {
-      const updated = r.data?.user || r.data
-      updateUser(updated)
+      const updated = r.data?.data?.user
+      if (updated) updateUser(updated)
+      setProfileEdits({})
       qc.invalidateQueries({ queryKey: ['profile'] })
       toast.success('Profile updated!')
     },
@@ -35,20 +53,31 @@ export default function Profile() {
   })
 
   const pwMutation = useMutation({
-    mutationFn: (data) => userService.updatePassword(data),
-    onSuccess: () => { toast.success('Password changed!'); setPwForm({ oldPassword:'', newPassword:'', confirmPassword:'' }) },
+    mutationFn: (data) => userService.changePassword(data),
+    onSuccess: () => {
+      toast.success(hasPassword ? 'Password changed!' : 'Password set!')
+      setPwForm({ oldPassword:'', newPassword:'', confirmPassword:'' })
+      qc.invalidateQueries({ queryKey: ['profile'] })
+    },
     onError: (e) => toast.error(e?.response?.data?.message || 'Failed'),
   })
 
   const avatarMutation = useMutation({
-    mutationFn: (form) => userService.uploadAvatar(form),
-    onSuccess: (r) => { updateUser({ avatar: r.data?.avatar }); toast.success('Avatar updated!') },
-    onError: () => toast.error('Upload failed'),
+    // No separate avatar endpoint — avatar is part of PUT /users/profile
+    mutationFn: (form) => userService.updateProfile(form),
+    onSuccess: (r) => {
+      const updated = r.data?.data?.user
+      if (updated) updateUser(updated)
+      qc.invalidateQueries({ queryKey: ['profile'] })
+      toast.success('Avatar updated!')
+    },
+    onError: (e) => toast.error(e?.response?.data?.message || 'Upload failed'),
   })
 
   const deleteMutation = useMutation({
-    mutationFn: () => userService.deleteAccount(),
+    mutationFn: () => userService.deleteAccount({ password: deletePassword }),
     onSuccess: () => { logout(); toast.success('Account deleted') },
+    onError: (e) => toast.error(e?.response?.data?.message || 'Could not delete account'),
   })
 
   const handleAvatarChange = (e) => {
@@ -63,7 +92,11 @@ export default function Profile() {
     e.preventDefault()
     if (pwForm.newPassword !== pwForm.confirmPassword) return toast.error("Passwords don't match")
     if (pwForm.newPassword.length < 6) return toast.error("Min 6 characters")
-    pwMutation.mutate({ oldPassword: pwForm.oldPassword, newPassword: pwForm.newPassword })
+    pwMutation.mutate({
+      ...(hasPassword ? { oldPassword: pwForm.oldPassword } : {}),
+      newPassword: pwForm.newPassword,
+      confirmPassword: pwForm.confirmPassword,
+    })
   }
 
   const avatar = user?.avatar || profile?.avatar
@@ -127,7 +160,7 @@ export default function Profile() {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Full Name</label>
               <input
                 value={profileForm.name}
-                onChange={(e) => setProfileForm(p => ({ ...p, name: e.target.value }))}
+                onChange={(e) => setProfileEdits(p => ({ ...p, name: e.target.value }))}
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none text-sm transition"
                 placeholder="Your name"
               />
@@ -144,7 +177,7 @@ export default function Profile() {
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
               <input
                 value={profileForm.phone}
-                onChange={(e) => setProfileForm(p => ({ ...p, phone: e.target.value }))}
+                onChange={(e) => setProfileEdits(p => ({ ...p, phone: e.target.value }))}
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none text-sm transition"
                 placeholder="+91 9876543210"
               />
@@ -163,11 +196,14 @@ export default function Profile() {
         {/* Change Password */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
           <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Lock size={17} className="text-indigo-500" /> Change Password
+            <Lock size={17} className="text-indigo-500" /> {hasPassword ? 'Change Password' : 'Set a Password'}
           </h2>
+          {!hasPassword && (
+            <p className="text-sm text-gray-500 mb-4">You signed in with your phone, so no password is set yet. Create one to also log in with email.</p>
+          )}
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             {[
-              { key:'oldPassword', label:'Current Password', show: showOldPw, toggle: () => setShowOldPw(p=>!p) },
+              ...(hasPassword ? [{ key:'oldPassword', label:'Current Password', show: showOldPw, toggle: () => setShowOldPw(p=>!p) }] : []),
               { key:'newPassword', label:'New Password',     show: showNewPw, toggle: () => setShowNewPw(p=>!p) },
               { key:'confirmPassword', label:'Confirm New Password', show: showNewPw, toggle: () => setShowNewPw(p=>!p) },
             ].map(({ key, label, show, toggle }) => (
@@ -192,7 +228,7 @@ export default function Profile() {
               disabled={pwMutation.isPending}
               className="flex items-center gap-2 bg-gray-900 text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-gray-800 transition-colors disabled:opacity-60"
             >
-              {pwMutation.isPending ? 'Updating...' : 'Update Password'}
+              {pwMutation.isPending ? 'Updating...' : (hasPassword ? 'Update Password' : 'Set Password')}
             </button>
           </form>
         </div>
@@ -215,9 +251,18 @@ export default function Profile() {
 
       <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Delete Account?">
         <div className="p-4">
-          <p className="text-sm text-gray-600 mb-6">This action is <strong>permanent</strong>. All your data will be erased.</p>
+          <p className="text-sm text-gray-600 mb-4">This action is <strong>permanent</strong>. All your data will be erased.</p>
+          {hasPassword && (
+            <input
+              type="password"
+              value={deletePassword}
+              onChange={(e) => setDeletePassword(e.target.value)}
+              placeholder="Enter your password to confirm"
+              className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-red-300 focus:ring-2 focus:ring-red-100 outline-none text-sm mb-4"
+            />
+          )}
           <div className="flex gap-3">
-            <button onClick={() => setShowDeleteModal(false)} className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-xl text-sm font-medium">Cancel</button>
+            <button onClick={() => { setShowDeleteModal(false); setDeletePassword('') }} className="flex-1 bg-gray-100 text-gray-700 py-2.5 rounded-xl text-sm font-medium">Cancel</button>
             <button onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending} className="flex-1 bg-red-500 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-red-600 disabled:opacity-60">
               {deleteMutation.isPending ? 'Deleting...' : 'Delete Forever'}
             </button>

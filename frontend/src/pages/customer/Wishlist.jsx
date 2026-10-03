@@ -12,17 +12,29 @@ export default function Wishlist() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['wishlist'],
-    queryFn: () => wishlistService.getAll().then(r => r.data?.data?.items || r.data?.data || r.data?.items || []),
+    queryFn: () => wishlistService.getWishlist().then(r => r.data?.data?.products || []),
   })
 
   const removeMutation = useMutation({
-    mutationFn: (pid) => wishlistService.remove(pid),
+    mutationFn: (pid) => wishlistService.removeFromWishlist({ productId: pid }),
+    onError: (e) => toast.error(e?.response?.data?.message || 'Could not remove item'),
     onSuccess: () => { qc.invalidateQueries({ queryKey:['wishlist'] }); toast.success('Removed from wishlist') },
   })
 
   const handleMoveToCart = (item) => {
-    addToCart({ product: item.product, quantity: 1 })
-    removeMutation.mutate(item.product._id)
+    const p = item.product || item
+    // cartStore.addItem expects a flat product object (_id/name/price at top level)
+    addToCart({
+      _id: p._id,
+      name: p.name,
+      slug: p.slug,
+      price: p.price,
+      comparePrice: p.comparePrice,
+      images: p.images,
+      stock: p.stock,
+      quantity: 1,
+    })
+    removeMutation.mutate(p._id)
     toast.success('Moved to cart!')
   }
 
@@ -61,8 +73,9 @@ export default function Wishlist() {
             {items.map((item) => {
               const p = item.product || item
               const img = p.images?.[0] || 'https://placehold.co/400x400?text=Product'
-              const price = p.salePrice || p.price
-              const original = p.price
+              // price is the selling price; comparePrice is the struck-through MRP
+              const price = p.price
+              const original = p.comparePrice
               const discount = original > price ? Math.round((1 - price/original)*100) : 0
               return (
                 <div key={p._id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all group">
