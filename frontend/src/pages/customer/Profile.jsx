@@ -179,7 +179,7 @@ export default function Profile() {
                 value={profileForm.phone}
                 onChange={(e) => setProfileEdits(p => ({ ...p, phone: e.target.value }))}
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none text-sm transition"
-                placeholder="+91 9876543210"
+                placeholder="9876543210 (10 digits)"
               />
             </div>
             <button

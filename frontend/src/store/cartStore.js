@@ -97,11 +97,13 @@ const useCartStore = create(
             variantId: product.variant || undefined,
             quantity:  product.quantity || 1,
           });
+          return true;
         } catch (err) {
           // Revert on failure
           set({ items: prevItems });
           get()._recalc();
           toast.error(err.response?.data?.message || "Could not add to cart");
+          return false;
         }
       },
 

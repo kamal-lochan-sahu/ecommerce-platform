@@ -11,7 +11,7 @@ export const getWishlist = asyncHandler(async (req, res) => {
   const wishlist = await Wishlist.findOne({ userId: req.user._id })
     .populate({
       path: 'products.product',
-      select: 'name slug images price comparePrice stock isActive discountPercent stockStatus ratings',
+      select: 'name slug images price comparePrice stock hasVariants isActive discountPercent stockStatus ratings',
     });
 
   if (!wishlist) {

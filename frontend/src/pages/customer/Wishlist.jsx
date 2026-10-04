@@ -21,10 +21,12 @@ export default function Wishlist() {
     onSuccess: () => { qc.invalidateQueries({ queryKey:['wishlist'] }); toast.success('Removed from wishlist') },
   })
 
-  const handleMoveToCart = (item) => {
+  const handleMoveToCart = async (item) => {
     const p = item.product || item
-    // cartStore.addItem expects a flat product object (_id/name/price at top level)
-    addToCart({
+    // cartStore.addItem expects a flat product object (_id/name/price at top level).
+    // It returns false (and shows its own error toast) if the server rejected
+    // the add - e.g. out of stock - so only then do we leave the item in the wishlist.
+    const added = await addToCart({
       _id: p._id,
       name: p.name,
       slug: p.slug,
@@ -34,6 +36,7 @@ export default function Wishlist() {
       stock: p.stock,
       quantity: 1,
     })
+    if (!added) return
     removeMutation.mutate(p._id)
     toast.success('Moved to cart!')
   }
@@ -94,10 +97,23 @@ export default function Wishlist() {
                       {discount > 0 && <span className="text-xs text-gray-400 line-through">₹{original?.toLocaleString('en-IN')}</span>}
                     </div>
                     <div className="flex gap-2 mt-3">
-                      <button onClick={() => handleMoveToCart(item)}
-                        className="flex-1 flex items-center justify-center gap-1.5 bg-indigo-600 text-white py-2 rounded-xl text-xs font-medium hover:bg-indigo-700 transition-colors">
-                        <ShoppingCart size={13}/> Add to Cart
-                      </button>
+                      {p.hasVariants ? (
+                        // Variant products need a size/colour choice - send to the product page
+                        <Link to={`/products/${p.slug}`}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-indigo-600 text-white py-2 rounded-xl text-xs font-medium hover:bg-indigo-700 transition-colors">
+                          Select Options
+                        </Link>
+                      ) : typeof p.stock === 'number' && p.stock <= 0 ? (
+                        <button disabled
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-gray-100 text-gray-400 py-2 rounded-xl text-xs font-medium cursor-not-allowed">
+                          Out of Stock
+                        </button>
+                      ) : (
+                        <button onClick={() => handleMoveToCart(item)}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-indigo-600 text-white py-2 rounded-xl text-xs font-medium hover:bg-indigo-700 transition-colors">
+                          <ShoppingCart size={13}/> Add to Cart
+                        </button>
+                      )}
                       <button onClick={() => removeMutation.mutate(p._id)}
                         className="w-9 h-9 flex items-center justify-center rounded-xl bg-red-50 text-red-500 hover:bg-red-100 transition-colors">
                         <Trash2 size={14}/>
