@@ -17,43 +17,55 @@ api.interceptors.request.use((req) => {
   return req;
 });
 
-let isRefreshing = false;
-let failedQueue = [];
-const processQueue = (error, token = null) => {
-  failedQueue.forEach((p) => error ? p.reject(error) : p.resolve(token));
-  failedQueue = [];
+// These endpoints return 401 for reasons that have nothing to do with an expired
+// session (wrong password, bad/expired refresh cookie). Trying to "refresh and
+// retry" on them used to deadlock: the inner /auth/refresh 401 re-entered this
+// interceptor, waited forever on the queue, and left the login button spinning
+// with no error toast.
+const isAuthEndpoint = (url = "") =>
+  /\/auth\/(login|register|refresh|forgot-password|reset-password|send-otp|verify-otp)/.test(url);
+
+// ONE in-flight refresh shared by everyone (the 401 interceptor AND the
+// on-load session restore in App.jsx). Refresh tokens are rotated server-side,
+// so two parallel refreshes with the same cookie make the second one fail.
+let refreshPromise = null;
+export const refreshAccessToken = () => {
+  if (!refreshPromise) {
+    refreshPromise = api
+      .post("/auth/refresh")
+      .then((res) => {
+        // Backend wraps responses as { success, statusCode, data, message } -
+        // accessToken lives at res.data.data.accessToken.
+        const { accessToken } = res.data.data;
+        useAuthStore.getState().setAccessToken(accessToken);
+        return accessToken;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
 };
 
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config;
-    if (error.response?.status === 401 && !original._retry) {
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => failedQueue.push({ resolve, reject }))
-          .then((token) => {
-            original.headers.Authorization = `Bearer ${token}`;
-            return api(original);
-          });
-      }
+    if (
+      error.response?.status === 401 &&
+      original &&
+      !original._retry &&
+      !isAuthEndpoint(original.url)
+    ) {
       original._retry = true;
-      isRefreshing = true;
       try {
-        const res = await api.post("/auth/refresh");
-        // Backend wraps responses as { success, statusCode, data, message } —
-        // accessToken lives at res.data.data.accessToken, not res.data.accessToken.
-        const { accessToken } = res.data.data;
-        useAuthStore.getState().setAccessToken(accessToken);
-        processQueue(null, accessToken);
+        const accessToken = await refreshAccessToken();
         original.headers.Authorization = `Bearer ${accessToken}`;
         return api(original);
       } catch (err) {
-        processQueue(err, null);
         useAuthStore.getState().logout();
         window.location.href = "/login";
         return Promise.reject(err);
-      } finally {
-        isRefreshing = false;
       }
     }
     return Promise.reject(error);

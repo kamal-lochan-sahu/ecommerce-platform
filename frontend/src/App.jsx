@@ -1,8 +1,9 @@
-import { Suspense, lazy, useEffect, Component } from "react";
+import { Suspense, lazy, useEffect, useState, Component } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 import { applyTheme } from "./config";
+import { refreshAccessToken } from "./services/api";
 import useAuthStore from "./store/authStore";
 import useCartStore from "./store/cartStore";
 import useWishlistStore from "./store/wishlistStore";
@@ -190,15 +191,32 @@ export default function App() {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  // Sync cart + wishlist from server on auth state change
+  // The access token lives in memory only (see authStore), so after any page
+  // reload we are "authenticated" (persisted flag) but hold no token. Restore it
+  // from the refresh cookie FIRST. Without this, fetchCart() ran as a guest on
+  // every reload, got an empty guest cart and wiped the logged-in user's cart.
+  const [sessionReady, setSessionReady] = useState(() => {
+    const s = useAuthStore.getState();
+    return !s.isAuthenticated || Boolean(s.accessToken);
+  });
+
   useEffect(() => {
+    if (sessionReady) return;
+    refreshAccessToken()
+      .catch(() => useAuthStore.getState().logout()) // cookie expired -> signed out
+      .finally(() => setSessionReady(true));
+  }, [sessionReady]);
+
+  // Sync cart + wishlist from server on auth state change (once session is ready)
+  useEffect(() => {
+    if (!sessionReady) return;
     fetchCart();
     if (isAuthenticated) {
       fetchWishlist();
     } else {
       clearWishlist();
     }
-  }, [isAuthenticated, fetchCart, fetchWishlist, clearWishlist]);
+  }, [sessionReady, isAuthenticated, fetchCart, fetchWishlist, clearWishlist]);
 
   const isMobile = typeof window !== "undefined" && window.innerWidth < 768;
 
