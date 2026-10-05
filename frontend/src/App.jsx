@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 import { applyTheme } from "./config";
 import { refreshAccessToken } from "./services/api";
+import { isChunkLoadError, reloadOnceForStaleChunk } from "./utils/chunkReload";
 import useAuthStore from "./store/authStore";
 import useCartStore from "./store/cartStore";
 import useWishlistStore from "./store/wishlistStore";
@@ -73,6 +74,8 @@ class ErrorBoundary extends Component {
   }
   componentDidCatch(error, info) {
     console.error("ErrorBoundary caught:", error, info);
+    // A stale tab after a deploy: reload once instead of showing the error page
+    if (isChunkLoadError(error)) reloadOnceForStaleChunk();
   }
   render() {
     if (this.state.hasError) {
