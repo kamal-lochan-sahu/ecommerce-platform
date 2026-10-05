@@ -7,6 +7,7 @@ import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import logger from '../utils/logger.js';
+import { placeholderEmailFor } from '../utils/identity.js';
 
 // Helper — OTP generate karo (6 digits)
 const generateOTP = () => {
@@ -130,7 +131,7 @@ export const login = asyncHandler(async (req, res) => {
   }
 
   if (!user.password) {
-    throw new ApiError(400, 'Please login with Google or use OTP');
+    throw new ApiError(400, 'No password is set for this account yet. Please log in with Phone OTP, then set a password from your profile.');
   }
 
   // Password match?
@@ -228,7 +229,7 @@ export const sendOtp = asyncHandler(async (req, res) => {
     user = await User.create({
       phone,
       name: `User${phone.slice(-4)}`, // temp name
-      email: `phone_${phone}@luxora.local`, // placeholder — not a real inbox
+      email: placeholderEmailFor(phone), // placeholder — not a real inbox
       otp: { code: otp, expiresAt: otpExpiresAt },
     });
   }

@@ -11,6 +11,7 @@ import useUiStore from "../../store/uiStore";
 import SearchBar from "./SearchBar";
 import { config } from "../../config";
 import authService from "../../services/auth.service";
+import { displayEmail } from "../../utils/identity";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -122,7 +123,7 @@ export default function Navbar() {
                                       border border-gray-100 py-2 z-20">
                         <div className="px-4 py-2 border-b border-gray-50">
                           <p className="text-sm font-semibold text-gray-900 truncate">{user?.name}</p>
-                          <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                          <p className="text-xs text-gray-500 truncate">{displayEmail(user) || (user?.phone ? `+91 ${user.phone}` : "")}</p>
                         </div>
                         {[
                           { label: "My Profile",  icon: User,     href: "/profile" },

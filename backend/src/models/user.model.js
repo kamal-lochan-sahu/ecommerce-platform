@@ -52,6 +52,14 @@ const userSchema = new mongoose.Schema({
     code: String,
     expiresAt: Date,
   },
+  // A phone-only user adding a real email: held here until they prove they own
+  // it with a code, then moved to `email`. Separate from `otp` on purpose -
+  // `otp` is also used by password-reset and phone login and would collide.
+  pendingEmail: {
+    email: { type: String, lowercase: true, trim: true },
+    code: String,
+    expiresAt: Date,
+  },
   refreshToken: {
     type: String,
     select: false,
@@ -80,6 +88,7 @@ userSchema.methods.toJSON = function () {
   delete obj.password;
   delete obj.refreshToken;
   delete obj.otp;
+  delete obj.pendingEmail;
   return obj;
 };
 

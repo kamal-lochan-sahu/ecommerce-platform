@@ -1,4 +1,5 @@
 import logger from '../utils/logger.js';
+import { isPlaceholderEmail } from '../utils/identity.js';
 import nodemailer from "nodemailer";
 import handlebars from "handlebars";
 import juice from "juice";
@@ -390,6 +391,10 @@ const inlineTemplates = {
 
 // ─── Main Send Function ───────────────────────────────────────
 const sendEmail = async ({ to, subject, template, data, html, text }) => {
+  // Phone-only accounts carry a fake placeholder email - never try to deliver.
+  const recipients = (Array.isArray(to) ? to : [to]).filter((addr) => !isPlaceholderEmail(addr));
+  if (recipients.length === 0) return false;
+  to = recipients;
   try {
     const transporter = createTransporter();
 

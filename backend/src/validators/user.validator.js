@@ -38,3 +38,17 @@ export const addAddressSchema = Joi.object({
   type: Joi.string().valid('home', 'work', 'other').default('home'),
   isDefault: Joi.boolean().default(false),
 });
+
+export const requestEmailSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    'string.email': 'Please enter a valid email',
+    'any.required': 'Email is required',
+  }),
+});
+
+export const verifyEmailSchema = Joi.object({
+  otp: Joi.string().length(6).required().messages({
+    'string.length': 'Code must be 6 digits',
+    'any.required': 'Code is required',
+  }),
+});

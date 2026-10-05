@@ -6,6 +6,8 @@ import useAuthStore from '../../store/authStore'
 import userService from '../../services/user.service'
 import Skeleton from '../../components/ui/Skeleton'
 import Modal from '../../components/ui/Modal'
+import AddEmailForm from '../../components/profile/AddEmailForm'
+import { displayEmail, isPlaceholderEmail } from '../../utils/identity'
 
 export default function Profile() {
   const { user, updateUser, logout } = useAuthStore()
@@ -144,7 +146,7 @@ export default function Profile() {
             </div>
             <div>
               <p className="font-bold text-gray-900 text-lg">{user?.name}</p>
-              <p className="text-sm text-gray-500">{user?.email}</p>
+              <p className="text-sm text-gray-500">{displayEmail(user) || (user?.phone ? `+91 ${user.phone}` : '')}</p>
               {user?.role === 'admin' && (
                 <span className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full mt-1 inline-block font-medium">Admin</span>
               )}
@@ -165,14 +167,18 @@ export default function Profile() {
                 placeholder="Your name"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-              <input
-                value={user?.email || ''}
-                disabled
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-gray-400 text-sm cursor-not-allowed"
-              />
-            </div>
+            {isPlaceholderEmail(user?.email) ? (
+              <AddEmailForm />
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+                <input
+                  value={user?.email || ''}
+                  disabled
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-100 bg-gray-50 text-gray-400 text-sm cursor-not-allowed"
+                />
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
               <input
@@ -199,7 +205,7 @@ export default function Profile() {
             <Lock size={17} className="text-indigo-500" /> {hasPassword ? 'Change Password' : 'Set a Password'}
           </h2>
           {!hasPassword && (
-            <p className="text-sm text-gray-500 mb-4">You signed in with your phone, so no password is set yet. Create one to also log in with email.</p>
+            <p className="text-sm text-gray-500 mb-4">You signed in with your phone, so no password is set yet. Create one to also log in with your mobile number and password.</p>
           )}
           <form onSubmit={handlePasswordSubmit} className="space-y-4">
             {[

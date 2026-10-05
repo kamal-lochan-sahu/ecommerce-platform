@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { isPlaceholderEmail } from './identity.js';
 
 const createTransporter = () => {
   return nodemailer.createTransport({
@@ -25,6 +26,11 @@ const createTransporter = () => {
 };
 
 export const sendEmail = async ({ to, subject, html }) => {
+  // Phone-only accounts carry a fake placeholder email - nothing to deliver.
+  if (isPlaceholderEmail(to)) {
+    console.log('📧 Skipped email to placeholder address (phone-only account)');
+    return false;
+  }
   try {
     const transporter = createTransporter();
     const info = await transporter.sendMail({

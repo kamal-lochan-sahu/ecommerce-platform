@@ -3,6 +3,10 @@ import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js';
+import { sendEmail, getOtpEmailTemplate } from '../utils/email.js';
+import { isPlaceholderEmail } from '../utils/identity.js';
+
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 // =====================
 // @route  GET /api/users/profile
@@ -14,6 +18,7 @@ export const getProfile = asyncHandler(async (req, res) => {
   const doc = await User.findById(req.user._id).select('+password');
   const user = doc.toJSON();
   user.hasPassword = Boolean(doc.password);
+  user.hasRealEmail = !isPlaceholderEmail(doc.email);
   res.json(new ApiResponse(200, { user }, 'Profile fetched successfully'));
 });
 
@@ -125,4 +130,87 @@ export const deleteAccount = asyncHandler(async (req, res) => {
       sameSite: isProdClear ? 'none' : 'lax',
     })
     .json(new ApiResponse(200, null, 'Account deleted successfully'));
+});
+
+// =====================
+// @route  POST /api/users/email/request
+// @access Private
+// Phone-only accounts (placeholder email) add a REAL email. We email a code to
+// that address first so nobody can attach an inbox they don't own.
+// =====================
+export const requestEmailAdd = asyncHandler(async (req, res) => {
+  const email = String(req.body.email).trim().toLowerCase();
+  const user = await User.findById(req.user._id);
+
+  if (!isPlaceholderEmail(user.email)) {
+    throw new ApiError(400, 'Your account already has an email address.');
+  }
+  if (isPlaceholderEmail(email)) {
+    throw new ApiError(400, 'Please enter a valid email');
+  }
+
+  // Never merge accounts silently - if the email belongs to someone, say so.
+  const taken = await User.findOne({ email, _id: { $ne: user._id } });
+  if (taken) {
+    throw new ApiError(400, 'Email already registered');
+  }
+
+  const code = generateOTP();
+  user.pendingEmail = { email, code, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
+  await user.save({ validateBeforeSave: false });
+
+  const emailSent = await sendEmail({
+    to: email,
+    subject: 'Verify your email address',
+    html: getOtpEmailTemplate(code, process.env.CLIENT_NAME),
+  });
+
+  res.json(new ApiResponse(
+    200,
+    { emailSent },
+    emailSent
+      ? `We sent a 6-digit code to ${email}.`
+      : 'We could not send the email right now. Please tap Resend in a minute.'
+  ));
+});
+
+// =====================
+// @route  POST /api/users/email/verify
+// @access Private
+// =====================
+export const verifyEmailAdd = asyncHandler(async (req, res) => {
+  const { otp } = req.body;
+  const user = await User.findById(req.user._id);
+  const pending = user.pendingEmail;
+
+  if (!pending?.email || !pending?.code) {
+    throw new ApiError(400, 'No email verification in progress. Please request a new code.');
+  }
+  if (pending.code !== otp) {
+    throw new ApiError(400, 'Invalid OTP');
+  }
+  if (new Date() > pending.expiresAt) {
+    throw new ApiError(400, 'Code has expired. Please request a new one.');
+  }
+
+  // Someone may have registered this email while the code was pending.
+  const taken = await User.findOne({ email: pending.email, _id: { $ne: user._id } });
+  if (taken) {
+    throw new ApiError(400, 'Email already registered');
+  }
+
+  user.email = pending.email;
+  user.pendingEmail = undefined;
+  user.isVerified = true; // they just proved ownership of this inbox
+
+  try {
+    await user.save();
+  } catch (err) {
+    if (err?.code === 11000) throw new ApiError(400, 'Email already registered');
+    throw err;
+  }
+
+  const out = user.toJSON();
+  out.hasRealEmail = true;
+  res.json(new ApiResponse(200, { user: out }, 'Email added successfully'));
 });

@@ -7,6 +7,8 @@ const userService = {
   }),
   changePassword: (data)   => api.put("/users/change-password", data),
   deleteAccount:  (data)   => api.delete("/users/account", { data }),
+  requestEmail:   (data)   => api.post("/users/email/request", data),
+  verifyEmail:    (data)   => api.post("/users/email/verify", data),
 };
 
 export default userService;

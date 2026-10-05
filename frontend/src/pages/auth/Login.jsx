@@ -11,9 +11,15 @@ import Button from "../../components/ui/Button";
 import authService from "../../services/auth.service";
 import useCartStore from "../../store/cartStore";
 import useAuthStore from "../../store/authStore";
+import { parseIdentifier } from "../../utils/identity";
 
 const schema = z.object({
-  email:    z.string().email("Please enter a valid email"),
+  // One box for both: "you@example.com" or a 10-digit mobile number
+  identifier: z
+    .string()
+    .trim()
+    .min(1, "Enter your email or mobile number")
+    .refine((v) => parseIdentifier(v).type !== "invalid", "Enter a valid email or 10-digit mobile number"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
 
@@ -34,7 +40,8 @@ export default function Login() {
 
   const onSubmit = async (data) => {
     try {
-      const res = await authService.login(data);
+      const id = parseIdentifier(data.identifier); // { type: "email" | "phone", value }
+      const res = await authService.login({ [id.type]: id.value, password: data.password });
       const u = res.data.data.user;
       login(u, res.data.data.accessToken);
       // Merge guest cart AFTER login so access token is set
@@ -100,12 +107,13 @@ export default function Login() {
       {mode === "password" ? (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
           <Input
-            label="Email"
-            type="email"
-            placeholder="you@example.com"
+            label="Email or mobile number"
+            type="text"
+            autoComplete="username"
+            placeholder="you@example.com or 9876543210"
             prefix={<Mail size={16} />}
-            error={errors.email?.message}
-            {...register("email")}
+            error={errors.identifier?.message}
+            {...register("identifier")}
           />
 
           <Input
