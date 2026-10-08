@@ -1,50 +1,10 @@
-import nodemailer from 'nodemailer';
-import { isPlaceholderEmail } from './identity.js';
+import { sendMail } from '../services/messaging.service.js';
 
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    // Port 465 (implicit TLS, what 'service: gmail' shorthand uses) was
-    // timing out — likely filtered on Render's network. Port 587 with
-    // STARTTLS is the more commonly-open submission port for cloud hosts.
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // STARTTLS — upgrades the connection after connecting
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_PASS, // Gmail App Password
-    },
-    // Render's outbound IPv6 route to Gmail's SMTP servers is unreachable
-    // (ENETUNREACH on 2404:6800:...:465), so force IPv4 for the connection.
-    family: 4,
-    // Agar Gmail SMTP unreachable/slow hai (galat App Password, blocked
-    // outbound port, etc.), ye fail-fast karta hai instead of hanging
-    // indefinitely and blocking whichever request called sendEmail().
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
-  });
-};
-
+// Provider (console / smtp / ...) is chosen by EMAIL_PROVIDER - see messaging.service.js.
+// Returns true/false (callers only care whether it was delivered).
 export const sendEmail = async ({ to, subject, html }) => {
-  // Phone-only accounts carry a fake placeholder email - nothing to deliver.
-  if (isPlaceholderEmail(to)) {
-    console.log('📧 Skipped email to placeholder address (phone-only account)');
-    return false;
-  }
-  try {
-    const transporter = createTransporter();
-    const info = await transporter.sendMail({
-      from: `"${process.env.CLIENT_NAME}" <${process.env.GMAIL_USER}>`,
-      to,
-      subject,
-      html,
-    });
-    console.log(`📧 Email sent: ${info.messageId}`);
-    return true;
-  } catch (error) {
-    console.error('❌ Email error:', error.message);
-    return false;
-  }
+  const result = await sendMail({ to, subject, html });
+  return result.success;
 };
 
 // Email templates

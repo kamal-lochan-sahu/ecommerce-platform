@@ -8,6 +8,7 @@ import { connectCloudinary } from './config/cloudinary.js';
 import { getRazorpay } from './config/razorpay.js';
 import { getStripe } from './config/stripe.js';
 import { startCronJobs } from './jobs/index.js';
+import { logMessagingStatus } from './services/messaging.service.js';
 
 // Render's containers don't have outbound IPv6 routing, but Node 17+ can
 // still resolve hostnames (like Gmail's SMTP server) to an IPv6 address
@@ -24,6 +25,7 @@ const startServer = async () => {
     await connectDB();
     connectRedis();
     connectCloudinary();
+    logMessagingStatus();
 
     if (process.env.RAZORPAY_ENABLED === 'true') {
       getRazorpay();

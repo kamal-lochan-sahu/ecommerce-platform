@@ -1,6 +1,5 @@
 import logger from '../utils/logger.js';
-import { isPlaceholderEmail } from '../utils/identity.js';
-import nodemailer from "nodemailer";
+import { sendMail } from "./messaging.service.js";
 import handlebars from "handlebars";
 import juice from "juice";
 import fs from "fs";
@@ -8,30 +7,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// ─── Transporter ─────────────────────────────────────────────
-const createTransporter = () => {
-  if (process.env.EMAIL_PROVIDER === "gmail") {
-    return nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD, // App password use karo
-      },
-    });
-  }
-
-  // Default: SMTP (Mailtrap dev / SendGrid prod)
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.mailtrap.io",
-    port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === "true",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
-};
 
 // ─── Template Compiler ───────────────────────────────────────
 const compileTemplate = (templateName, data) => {
@@ -391,26 +366,15 @@ const inlineTemplates = {
 
 // ─── Main Send Function ───────────────────────────────────────
 const sendEmail = async ({ to, subject, template, data, html, text }) => {
-  // Phone-only accounts carry a fake placeholder email - never try to deliver.
-  const recipients = (Array.isArray(to) ? to : [to]).filter((addr) => !isPlaceholderEmail(addr));
-  if (recipients.length === 0) return false;
-  to = recipients;
   try {
-    const transporter = createTransporter();
-
     const emailHtml = html || compileTemplate(template, data);
-
-    const mailOptions = {
-      from: `"${process.env.EMAIL_FROM_NAME || "MyShop"}" <${process.env.EMAIL_FROM || "noreply@myshop.com"}>`,
-      to: Array.isArray(to) ? to.join(", ") : to,
-      subject,
-      html: emailHtml,
-      text: text || emailHtml.replace(/<[^>]*>/g, ""), // HTML se plain text
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-    logger.info(`Email sent to ${to}: ${info.messageId}`);
-    return { success: true, messageId: info.messageId };
+    // Provider (console / smtp / ...) is chosen by EMAIL_PROVIDER - see messaging.service.js
+    const result = await sendMail({ to, subject, html: emailHtml, text });
+    if (!result.success) {
+      if (!result.skipped) logger.error(`Email send failed: ${result.error}`);
+      return { success: false, error: result.error };
+    }
+    return { success: true, messageId: result.messageId };
   } catch (error) {
     logger.error("Email send failed:", error.message);
     return { success: false, error: error.message };

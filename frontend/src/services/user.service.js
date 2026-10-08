@@ -9,6 +9,8 @@ const userService = {
   deleteAccount:  (data)   => api.delete("/users/account", { data }),
   requestEmail:   (data)   => api.post("/users/email/request", data),
   verifyEmail:    (data)   => api.post("/users/email/verify", data),
+  requestPhone:   (data)   => api.post("/users/phone/request", data),
+  verifyPhone:    (data)   => api.post("/users/phone/verify", data),
 };
 
 export default userService;

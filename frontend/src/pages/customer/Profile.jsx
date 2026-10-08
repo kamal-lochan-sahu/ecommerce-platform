@@ -7,6 +7,7 @@ import userService from '../../services/user.service'
 import Skeleton from '../../components/ui/Skeleton'
 import Modal from '../../components/ui/Modal'
 import AddEmailForm from '../../components/profile/AddEmailForm'
+import PhoneSection from '../../components/profile/PhoneSection'
 import { displayEmail, isPlaceholderEmail } from '../../utils/identity'
 
 export default function Profile() {
@@ -29,8 +30,7 @@ export default function Profile() {
   // react-query v5 removed useQuery's onSuccess, so derive the form instead:
   // typed value wins, otherwise the loaded profile, otherwise the auth store.
   const profileForm = {
-    name:  profileEdits.name  ?? profile?.name  ?? user?.name  ?? '',
-    phone: profileEdits.phone ?? profile?.phone ?? user?.phone ?? '',
+    name: profileEdits.name ?? profile?.name ?? user?.name ?? '',
   }
 
   // hasPassword comes from the backend; false for phone-OTP-only accounts
@@ -41,7 +41,6 @@ export default function Profile() {
       // updateProfile sends multipart/form-data (avatar lives on this same endpoint)
       const form = new FormData()
       if (data.name) form.append('name', data.name)
-      if (data.phone) form.append('phone', data.phone)
       return userService.updateProfile(form)
     },
     onSuccess: (r) => {
@@ -179,15 +178,10 @@ export default function Profile() {
                 />
               </div>
             )}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Phone</label>
-              <input
-                value={profileForm.phone}
-                onChange={(e) => setProfileEdits(p => ({ ...p, phone: e.target.value }))}
-                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none text-sm transition"
-                placeholder="9876543210 (10 digits)"
-              />
-            </div>
+            <PhoneSection
+              phone={profile?.phone ?? user?.phone}
+              verified={profile?.isPhoneVerified ?? user?.isPhoneVerified}
+            />
             <button
               onClick={() => updateMutation.mutate(profileForm)}
               disabled={updateMutation.isPending}

@@ -1,33 +1,13 @@
-import twilio from "twilio";
-
-const client =
-  process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN
-    ? twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
-    : null;
+import { sendSms } from "./messaging.service.js";
 
 // ─── Base SMS Sender ──────────────────────────────────────────
+// Provider (console / twilio / ...) is chosen by SMS_PROVIDER - see messaging.service.js
 const sendSMS = async (to, message) => {
-  if (!client) {
-    console.warn("⚠️ Twilio not configured. SMS skipped.");
-    return { success: false, reason: "Twilio not configured" };
-  }
-
-  try {
-    // Indian numbers: +91XXXXXXXXXX format
-    const formattedTo = to.startsWith("+") ? to : `+91${to}`;
-
-    const result = await client.messages.create({
-      body: message,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: formattedTo,
-    });
-
-    console.log(`✅ SMS sent to ${formattedTo}: ${result.sid}`);
-    return { success: true, sid: result.sid };
-  } catch (error) {
-    console.error("❌ SMS send failed:", error.message);
-    return { success: false, error: error.message };
-  }
+  const result = await sendSms({ to, body: message });
+  // keep the shape older callers expect
+  return result.success
+    ? { success: true, sid: result.messageId }
+    : { success: false, reason: result.error, error: result.error };
 };
 
 // ─── SMS Templates ────────────────────────────────────────────

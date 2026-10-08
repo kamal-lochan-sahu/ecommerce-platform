@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 import { User } from '../models/index.js';
 import { generateTokenPair, verifyRefreshToken } from '../utils/jwt.js';
-import { sendEmail, getOtpEmailTemplate, getWelcomeEmailTemplate, getPasswordResetTemplate } from '../utils/email.js';
-import { sendOtpSMS } from '../services/sms.service.js';
+import { sendEmail, getWelcomeEmailTemplate, getPasswordResetTemplate } from '../utils/email.js';
+import { issueOtp, consumeOtp } from '../services/otp.service.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
@@ -10,9 +10,6 @@ import logger from '../utils/logger.js';
 import { placeholderEmailFor } from '../utils/identity.js';
 
 // Helper — OTP generate karo (6 digits)
-const generateOTP = () => {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-};
 
 // Helper — emails are stored lowercase/trimmed by the User schema, so every
 // lookup must normalise the same way or "Kamal@Gmail.com" never matches.
@@ -67,7 +64,8 @@ export const register = asyncHandler(async (req, res) => {
   const existingUser = await User.findOne({
     $or: [
       { email },
-      ...(phone ? [{ phone }] : []),
+      // an unverified number proves nothing - only a verified owner blocks it
+      ...(phone ? [{ phone, isPhoneVerified: true }] : []),
     ],
   });
 
@@ -78,34 +76,20 @@ export const register = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Phone number already registered');
   }
 
-  // OTP generate karo for email verification
-  const otp = generateOTP();
-  const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
-
   // User banao
-  const user = await User.create({
-    name,
-    email,
-    phone,
-    password,
-    otp: { code: otp, expiresAt: otpExpiresAt },
-  });
+  const user = await User.create({ name, email, phone, password });
 
-  // Welcome + OTP email — fire-and-forget, non-blocking. Registration
-  // shouldn't hang or fail just because Gmail SMTP is slow/unreachable;
-  // the OTP is already saved to the user doc above, so the verify-otp
-  // flow works regardless of whether this email actually lands.
+  // Welcome email + verification code - fire-and-forget, non-blocking. Registration
+  // must not hang or fail just because the mail server is slow/unreachable; if the
+  // email does not arrive the user taps "Resend" on the verify screen.
   sendEmail({
     to: email,
     subject: `Welcome to ${process.env.CLIENT_NAME}!`,
     html: getWelcomeEmailTemplate(name, process.env.CLIENT_NAME),
   }).catch((err) => logger.error('Welcome email failed', err));
 
-  sendEmail({
-    to: email,
-    subject: 'Verify your email',
-    html: getOtpEmailTemplate(otp, process.env.CLIENT_NAME),
-  }).catch((err) => logger.error('OTP email failed', err));
+  issueOtp({ purpose: 'email_verify', subject: String(user._id), target: email, throwOnFailure: false })
+    .catch((err) => logger.error('Verification OTP failed', err));
 
   await sendTokenResponse(res, user, 201, 'Registration successful! Please verify your email.');
 });
@@ -122,7 +106,7 @@ export const login = asyncHandler(async (req, res) => {
   const user = await User.findOne({
     $or: [
       ...(email ? [{ email }] : []),
-      ...(phone ? [{ phone }] : []),
+      ...(phone ? [{ phone, isPhoneVerified: true }] : []),
     ],
   }).select('+password +refreshToken');
 
@@ -209,39 +193,10 @@ export const logout = asyncHandler(async (req, res) => {
 export const sendOtp = asyncHandler(async (req, res) => {
   const { phone } = req.body;
 
-  // OTP generate
-  const otp = generateOTP();
-  const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
-  // User exists? Update karo, nahi toh naya banao (phone-first registration)
-  let user = await User.findOne({ phone });
-
-  if (user) {
-    user.otp = { code: otp, expiresAt: otpExpiresAt };
-    await user.save({ validateBeforeSave: false });
-  } else {
-    // User model requires `email` (unique) — a brand-new phone-only user
-    // has none yet, so give it a unique placeholder. This keeps every
-    // other part of the app that assumes user.email exists (order
-    // emails, invoices, notifications) working without needing to make
-    // email optional schema-wide. The user can add a real email later
-    // from their profile.
-    user = await User.create({
-      phone,
-      name: `User${phone.slice(-4)}`, // temp name
-      email: placeholderEmailFor(phone), // placeholder — not a real inbox
-      otp: { code: otp, expiresAt: otpExpiresAt },
-    });
-  }
-
-  // Development mein console pe dikhao (Twilio configured na ho tab bhi
-  // testing chal sake)
-  logger.debug(`📱 OTP for ${phone}: [REDACTED in production]`);
-
-  // SMS bhejo — fire-and-forget, same non-blocking pattern jo email sends
-  // ke liye use hota hai. Twilio env vars missing hain toh sendOtpSMS khud
-  // gracefully skip kar deta hai (sms.service.js), request hang nahi hoga.
-  sendOtpSMS(phone, otp).catch((err) => logger.error('OTP SMS failed', err));
+  // No account is created here any more. Creating users before the number is
+  // proven let anyone spam junk accounts and squat other people's numbers.
+  // The account (if new) is created in verifyOtp, after the OTP is correct.
+  await issueOtp({ purpose: 'login', subject: phone, target: phone });
 
   res.json(new ApiResponse(200, null, `OTP sent to ${phone}`));
 });
@@ -253,31 +208,38 @@ export const sendOtp = asyncHandler(async (req, res) => {
 export const verifyOtp = asyncHandler(async (req, res) => {
   const { phone, otp } = req.body;
 
-  const user = await User.findOne({ phone });
+  await consumeOtp({ purpose: 'login', subject: phone, otp });
 
-  if (!user) {
-    throw new ApiError(404, 'User not found');
+  // Only the VERIFIED owner of a number can log in with it.
+  const findOwner = () => User.findOne({ phone, isPhoneVerified: true });
+  let user = await findOwner();
+
+  if (user) {
+    if (!user.isActive) {
+      throw new ApiError(403, 'Your account has been deactivated. Contact support.');
+    }
+    user.lastLogin = new Date();
+  } else {
+    // First time this number is proven -> create the account (phone-first signup).
+    // The schema needs a unique email, so use a placeholder the user can replace
+    // with a real one from their profile.
+    try {
+      user = await User.create({
+        phone,
+        isPhoneVerified: true,
+        phoneVerifiedAt: new Date(),
+        name: `User${phone.slice(-4)}`, // temp name
+        email: placeholderEmailFor(phone),
+        isVerified: true, // phone-only accounts have no inbox to verify
+        lastLogin: new Date(),
+      });
+    } catch (err) {
+      // Two parallel verifications for the same new number: the loser logs in too.
+      if (err?.code !== 11000) throw err;
+      user = await findOwner();
+      if (!user) throw err;
+    }
   }
-
-  if (!user.isActive) {
-    throw new ApiError(403, 'Your account has been deactivated. Contact support.');
-  }
-
-  // OTP check
-  if (!user.otp?.code || user.otp.code !== otp) {
-    throw new ApiError(400, 'Invalid OTP');
-  }
-
-  // Expired?
-  if (new Date() > user.otp.expiresAt) {
-    throw new ApiError(400, 'OTP has expired. Please request a new one.');
-  }
-
-  // OTP clear karo + verify karo
-  user.otp = undefined;
-  user.isVerified = true;
-  user.lastLogin = new Date();
-  await user.save({ validateBeforeSave: false });
 
   await sendTokenResponse(res, user, 200, 'OTP verified successfully');
 });
@@ -362,15 +324,7 @@ export const resendVerification = asyncHandler(async (req, res) => {
     return res.json(new ApiResponse(200, null, 'Email already verified'));
   }
 
-  const otp = generateOTP();
-  user.otp = { code: otp, expiresAt: new Date(Date.now() + 10 * 60 * 1000) };
-  await user.save({ validateBeforeSave: false });
-
-  sendEmail({
-    to: user.email,
-    subject: 'Verify your email',
-    html: getOtpEmailTemplate(otp, process.env.CLIENT_NAME),
-  }).catch((err) => logger.error('Resend verification email failed', err));
+  await issueOtp({ purpose: 'email_verify', subject: String(user._id), target: user.email });
 
   res.json(new ApiResponse(200, null, 'A new verification code has been sent to your email.'));
 });
@@ -397,16 +351,9 @@ export const verifyEmail = asyncHandler(async (req, res) => {
     return res.json(new ApiResponse(200, null, 'Email already verified'));
   }
 
-  if (!user.otp?.code || user.otp.code !== otp) {
-    throw new ApiError(400, 'Invalid OTP');
-  }
-
-  if (new Date() > user.otp.expiresAt) {
-    throw new ApiError(400, 'OTP expired. Request a new one.');
-  }
+  await consumeOtp({ purpose: 'email_verify', subject: String(user._id), otp });
 
   user.isVerified = true;
-  user.otp = undefined;
   await user.save({ validateBeforeSave: false });
 
   res.json(new ApiResponse(200, null, 'Email verified successfully'));

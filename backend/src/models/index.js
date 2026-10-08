@@ -13,3 +13,4 @@ export { default as Banner } from './banner.model.js';
 export { default as Notification } from './notification.model.js';
 export { default as LoyaltyPoints } from './loyaltyPoints.model.js';
 export { default as Settings } from './settings.model.js';
+export { default as Otp } from './otp.model.js';

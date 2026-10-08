@@ -52,3 +52,17 @@ export const verifyEmailSchema = Joi.object({
     'any.required': 'Code is required',
   }),
 });
+
+export const requestPhoneSchema = Joi.object({
+  phone: Joi.string().pattern(/^[6-9]\d{9}$/).required().messages({
+    'string.pattern.base': 'Please enter a valid Indian phone number',
+    'any.required': 'Phone is required',
+  }),
+});
+
+export const verifyPhoneSchema = Joi.object({
+  otp: Joi.string().length(6).required().messages({
+    'string.length': 'OTP must be 6 digits',
+    'any.required': 'OTP is required',
+  }),
+});

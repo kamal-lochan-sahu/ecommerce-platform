@@ -28,11 +28,10 @@ export default function AddEmailForm() {
     }
     setBusy(true);
     try {
-      const res = await userService.requestEmail({ email: parsed.value });
+      await userService.requestEmail({ email: parsed.value });
       setEmail(parsed.value);
       setStep("code");
-      if (res.data.data?.emailSent === false) toast.error(res.data.message);
-      else toast.success("Code sent! Check your inbox.");
+      toast.success("Code sent! Check your inbox.");
     } catch (err) {
       toast.error(err.response?.data?.message || "Could not send the code. Try again.");
     } finally {

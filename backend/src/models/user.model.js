@@ -16,12 +16,16 @@ const userSchema = new mongoose.Schema({
     trim: true,
     match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
   },
+  // NOT unique by itself: anyone can type any number into a form, so an unverified
+  // number proves nothing and must never block (or capture) the real owner. Only a
+  // VERIFIED number is unique - see the partial index below.
   phone: {
     type: String,
-    unique: true,
-    sparse: true, // null values pe unique apply nahi hoga
     match: [/^[6-9]\d{9}$/, 'Please enter a valid Indian phone number'],
   },
+  isPhoneVerified: { type: Boolean, default: false },
+  phoneVerifiedAt: Date,
+  deletedAt: Date, // set when the customer deletes their own account
   password: {
     type: String,
     minlength: [6, 'Password must be at least 6 characters'],
@@ -52,14 +56,6 @@ const userSchema = new mongoose.Schema({
     code: String,
     expiresAt: Date,
   },
-  // A phone-only user adding a real email: held here until they prove they own
-  // it with a code, then moved to `email`. Separate from `otp` on purpose -
-  // `otp` is also used by password-reset and phone login and would collide.
-  pendingEmail: {
-    email: { type: String, lowercase: true, trim: true },
-    code: String,
-    expiresAt: Date,
-  },
   refreshToken: {
     type: String,
     select: false,
@@ -72,6 +68,12 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Password hash — save se pehle
+// One VERIFIED owner per phone number. Unverified duplicates are allowed.
+userSchema.index(
+  { phone: 1 },
+  { unique: true, partialFilterExpression: { isPhoneVerified: true }, name: 'phone_verified_unique' }
+);
+
 userSchema.pre('save', async function () {
   if (!this.isModified('password')) return;
   this.password = await bcrypt.hash(this.password, 12);
@@ -88,7 +90,6 @@ userSchema.methods.toJSON = function () {
   delete obj.password;
   delete obj.refreshToken;
   delete obj.otp;
-  delete obj.pendingEmail;
   return obj;
 };
 
