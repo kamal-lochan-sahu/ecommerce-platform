@@ -21,7 +21,7 @@ const NAV = [
 ]
 
 export default function AdminSidebar({ isOpen, onClose }) {
-  const { logout, user } = useAuthStore()
+  const { signOut, user } = useAuthStore()
   const navigate = useNavigate()
 
   const handleLogout = async () => {
@@ -30,7 +30,7 @@ export default function AdminSidebar({ isOpen, onClose }) {
     } catch {
       // Server-side logout failing shouldn't block local logout — ignore
     }
-    logout()
+    signOut()
     navigate('/login')
     toast.success('Logged out')
   }

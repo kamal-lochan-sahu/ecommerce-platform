@@ -11,7 +11,7 @@ import PhoneSection from '../../components/profile/PhoneSection'
 import { displayEmail, isPlaceholderEmail } from '../../utils/identity'
 
 export default function Profile() {
-  const { user, updateUser, logout } = useAuthStore()
+  const { user, updateUser, signOut } = useAuthStore()
   const qc = useQueryClient()
   const fileRef = useRef()
   const [showOldPw, setShowOldPw] = useState(false)
@@ -77,7 +77,7 @@ export default function Profile() {
 
   const deleteMutation = useMutation({
     mutationFn: () => userService.deleteAccount({ password: deletePassword }),
-    onSuccess: () => { logout(); toast.success('Account deleted') },
+    onSuccess: () => { signOut(); toast.success('Account deleted') },
     onError: (e) => toast.error(e?.response?.data?.message || 'Could not delete account'),
   })
 

@@ -5,6 +5,7 @@ import { Toaster } from "react-hot-toast";
 import { applyTheme } from "./config";
 import { refreshAccessToken } from "./services/api";
 import { isChunkLoadError, reloadOnceForStaleChunk } from "./utils/chunkReload";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import useAuthStore from "./store/authStore";
 import useCartStore from "./store/cartStore";
 import useWishlistStore from "./store/wishlistStore";
@@ -87,6 +88,14 @@ class ErrorBoundary extends Component {
             <p className="text-gray-500 mb-6 text-sm">
               An unexpected error occurred. Please refresh the page.
             </p>
+            {this.state.error && (
+              <details className="text-left text-xs text-gray-400 mb-6">
+                <summary className="cursor-pointer text-center">Technical details</summary>
+                <pre className="mt-2 whitespace-pre-wrap break-words">
+                  {String(this.state.error?.message ?? this.state.error)}
+                </pre>
+              </details>
+            )}
             <button
               onClick={() => { this.setState({ hasError: false }); window.location.href = "/"; }}
               className="bg-primary text-white px-6 py-3 rounded-xl font-semibold hover:bg-primary-600 transition-colors"
@@ -100,14 +109,6 @@ class ErrorBoundary extends Component {
     return this.props.children;
   }
 }
-
-const ProtectedRoute = ({ children }) => {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const location = useLocation();
-  return isAuthenticated
-    ? children
-    : <Navigate to="/login" state={{ from: location }} replace />;
-};
 
 const AdminRoute = ({ children }) => {
   const { isAuthenticated, user } = useAuthStore();

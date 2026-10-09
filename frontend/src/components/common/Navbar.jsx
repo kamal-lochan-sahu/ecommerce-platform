@@ -15,7 +15,7 @@ import { displayEmail } from "../../utils/identity";
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, signOut } = useAuthStore();
   const { totalItems, toggleCart } = useCartStore();
   const { items: wishlistItems } = useWishlistStore();
   const { theme, toggleTheme, searchOpen, toggleSearch, closeSearch } = useUiStore();
@@ -28,7 +28,7 @@ export default function Navbar() {
     } catch {
       // Server-side logout failing shouldn't block local logout — ignore
     }
-    logout();
+    signOut();
     setUserMenuOpen(false);
     navigate("/");
   };
