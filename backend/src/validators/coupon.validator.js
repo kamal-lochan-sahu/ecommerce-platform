@@ -9,9 +9,17 @@ export const createCouponSchema = Joi.object({
     'any.required': 'Coupon type is required',
     'any.only': 'Type must be percentage or fixed',
   }),
-  value: Joi.number().min(1).required().messages({
-    'any.required': 'Discount value is required',
-  }),
+  // Percentage coupon 100% se zyada nahi ho sakta (warna order total negative ho jaata)
+  value: Joi.number().min(1).required()
+    .when('type', {
+      is: 'percentage',
+      then: Joi.number().max(100).messages({
+        'number.max': 'Percentage discount cannot be more than 100',
+      }),
+    })
+    .messages({
+      'any.required': 'Discount value is required',
+    }),
   minOrderAmount: Joi.number().min(0).default(0),
   maxDiscount: Joi.number().min(0).optional().allow(null),
   usageLimit: Joi.number().min(1).optional().allow(null),

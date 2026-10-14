@@ -9,6 +9,12 @@ import { getRazorpay } from '../config/razorpay.js';
 import { getStripe } from '../config/stripe.js';
 import { getPagination, getPaginationMeta } from '../utils/pagination.js';
 import { sendEmail } from '../utils/email.js';
+import {
+  cancelOrderAndRestore,
+  markOrderPaid,
+  flagLatePayment,
+  sendConfirmationEmailFor,
+} from '../services/orderLifecycle.service.js';
 
 // =====================
 // Helper — coupon validate karo
@@ -70,6 +76,15 @@ export const createOrder = asyncHandler(async (req, res) => {
   }
   if (paymentMethod === 'cod' && process.env.COD_ENABLED !== 'true') {
     throw new ApiError(400, 'Cash on delivery is not available');
+  }
+  // COD mein paisa delivery pe milta hai — fake/prank orders rokne ke liye
+  // verified phone zaroori hai (online payment mein payment khud deterrent hai).
+  if (paymentMethod === 'cod' && !req.user.isPhoneVerified) {
+    throw new ApiError(
+      403,
+      'Please verify your phone number in your Profile to place a Cash on Delivery order',
+      ['PHONE_NOT_VERIFIED']
+    );
   }
 
   // Cart fetch karo
@@ -256,8 +271,9 @@ export const createOrder = asyncHandler(async (req, res) => {
     link: `/orders/${order._id}`,
   });
 
-  // COD — directly confirm karo
+  // COD — directly confirm karo (online orders ki email payment confirm hone pe jaati hai)
   if (paymentMethod === 'cod') {
+    sendConfirmationEmailFor(order);
     return res.status(201).json(
       new ApiResponse(201, { order }, 'Order placed successfully')
     );
@@ -354,37 +370,26 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
     .digest('hex');
 
   if (expectedSignature !== razorpay_signature) {
-    // Payment failed — order update karo
-    await Order.findByIdAndUpdate(orderId, {
-      paymentStatus: 'failed',
-      orderStatus: 'cancelled',
-      $push: {
-        statusHistory: { status: 'cancelled', message: 'Payment verification failed' },
-      },
+    // Sirf UNPAID order cancel hoga (stock bhi wapas) — agar webhook ne order pehle hi
+    // paid mark kar diya hai to ek bad signature use cancel nahi kar sakta.
+    await cancelOrderAndRestore(orderId, {
+      allowedFrom: ['placed'],
+      onlyIfUnpaid: true,
+      markPaymentFailed: true,
+      reason: 'Payment verification failed',
     });
 
     await Transaction.findOneAndUpdate(
-      { gatewayOrderId: razorpay_order_id },
+      { gatewayOrderId: razorpay_order_id, status: { $ne: 'success' } },
       { status: 'failed' }
     );
 
     throw new ApiError(400, 'Payment verification failed');
   }
 
-  // Payment success — order update karo
-  const order = await Order.findByIdAndUpdate(
-    orderId,
-    {
-      paymentStatus: 'paid',
-      orderStatus: 'confirmed',
-      $push: {
-        statusHistory: { status: 'confirmed', message: 'Payment received successfully' },
-      },
-    },
-    { new: true }
-  );
+  // Payment success — atomic claim (webhook ke saath race safe, idempotent)
+  const { status, order } = await markOrderPaid(orderId, 'Payment received successfully');
 
-  // Transaction update karo
   await Transaction.findOneAndUpdate(
     { gatewayOrderId: razorpay_order_id },
     {
@@ -394,14 +399,14 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
     }
   );
 
-  // Notification
-  await Notification.create({
-    userId: order.userId,
-    title: 'Payment Successful! ✅',
-    message: `Payment for order ${order.orderNumber} confirmed.`,
-    type: 'payment',
-    link: `/orders/${order._id}`,
-  });
+  if (status === 'cancelled') {
+    // Order pehle hi cancel (e.g. stale-order cron) — paisa mil gaya, refund chahiye
+    await flagLatePayment(orderId, razorpay_payment_id);
+    throw new ApiError(
+      409,
+      'This order was cancelled before your payment completed. Your payment will be refunded — please contact support if it is not.'
+    );
+  }
 
   res.json(new ApiResponse(200, { order }, 'Payment verified successfully'));
 });
@@ -454,47 +459,19 @@ export const getOrderById = asyncHandler(async (req, res) => {
 export const cancelOrder = asyncHandler(async (req, res) => {
   const { reason } = req.body;
 
-  const order = await Order.findOne({
-    _id: req.params.id,
+  // Sirf placed/confirmed cancel ho sakta hai. Stock + totalSold + coupon
+  // sab shared helper wapas karta hai (admin cancel / gateway failure bhi wahi use karte hain).
+  const { cancelled } = await cancelOrderAndRestore(req.params.id, {
     userId: req.user._id,
+    allowedFrom: ['placed', 'confirmed'],
+    reason: reason || 'Cancelled by customer',
   });
 
-  if (!order) throw new ApiError(404, 'Order not found');
-
-  // Sirf placed/confirmed cancel ho sakta hai
-  if (!['placed', 'confirmed'].includes(order.orderStatus)) {
+  if (!cancelled) {
+    const order = await Order.findOne({ _id: req.params.id, userId: req.user._id });
+    if (!order) throw new ApiError(404, 'Order not found');
     throw new ApiError(400, `Cannot cancel order in "${order.orderStatus}" status`);
   }
-
-  // Stock wapas karo — variant wale item ka stock ProductVariant pe wapas
-  // jana chahiye (wahi se order ke time kata tha), Product.stock pe nahi.
-  // totalSold hamesha Product pe hi decrement hota hai (variant purchases bhi
-  // ab createOrder mein Product.totalSold increment karte hain, isliye symmetric hai).
-  for (const item of order.items) {
-    if (item.variant) {
-      await ProductVariant.findByIdAndUpdate(item.variant, {
-        $inc: { stock: item.quantity },
-      });
-      await Product.findByIdAndUpdate(item.product, {
-        $inc: { totalSold: -item.quantity },
-      });
-    } else {
-      await Product.findByIdAndUpdate(item.product, {
-        $inc: { stock: item.quantity, totalSold: -item.quantity },
-      });
-    }
-  }
-
-  await Order.findByIdAndUpdate(order._id, {
-    orderStatus: 'cancelled',
-    cancelReason: reason || 'Cancelled by customer',
-    $push: {
-      statusHistory: {
-        status: 'cancelled',
-        message: reason || 'Cancelled by customer',
-      },
-    },
-  });
 
   res.json(new ApiResponse(200, null, 'Order cancelled successfully'));
 });
@@ -536,6 +513,25 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
 
   const order = await Order.findById(req.params.id);
   if (!order) throw new ApiError(404, 'Order not found');
+
+  // Cancelled order wapas zinda nahi hota — stock already release ho chuka hai,
+  // status badalne se stock phir se galat ho jaata.
+  if (order.orderStatus === 'cancelled') {
+    throw new ApiError(400, 'This order is cancelled and cannot be changed');
+  }
+
+  // Cancel karna = shared helper (stock + totalSold + coupon wapas, notification)
+  if (status === 'cancelled') {
+    const { cancelled, order: cancelledOrder } = await cancelOrderAndRestore(order._id, {
+      allowedFrom: ['placed', 'confirmed', 'processing', 'shipped'],
+      reason: message || 'Cancelled by admin',
+      notify: true,
+    });
+    if (!cancelled) {
+      throw new ApiError(400, `Cannot cancel an order in "${order.orderStatus}" status`);
+    }
+    return res.json(new ApiResponse(200, { order: cancelledOrder }, 'Order cancelled and stock restored'));
+  }
 
   const updateData = {
     orderStatus: status,
@@ -664,16 +660,10 @@ export const stripeWebhook = asyncHandler(async (req, res) => {
       const session = event.data.object;
       const orderId = session.metadata.orderId;
 
-      await Order.findByIdAndUpdate(orderId, {
-        paymentStatus: 'paid',
-        orderStatus: 'confirmed',
-        $push: {
-          statusHistory: {
-            status: 'confirmed',
-            message: 'Payment received via Stripe',
-          },
-        },
-      });
+      const { status } = await markOrderPaid(orderId, 'Payment received via Stripe');
+      if (status === 'cancelled') {
+        await flagLatePayment(orderId, session.payment_intent);
+      }
 
       await Transaction.findOneAndUpdate(
         { gatewayOrderId: session.id },
@@ -691,16 +681,18 @@ export const stripeWebhook = asyncHandler(async (req, res) => {
       const session = event.data.object;
       const orderId = session.metadata.orderId;
 
-      await Order.findByIdAndUpdate(orderId, {
-        paymentStatus: 'failed',
-        orderStatus: 'cancelled',
-        $push: {
-          statusHistory: {
-            status: 'cancelled',
-            message: 'Stripe session expired',
-          },
-        },
+      await cancelOrderAndRestore(orderId, {
+        allowedFrom: ['placed'],
+        onlyIfUnpaid: true,
+        markPaymentFailed: true,
+        reason: 'Stripe session expired',
+        notify: true,
       });
+
+      await Transaction.findOneAndUpdate(
+        { gatewayOrderId: session.id, status: { $ne: 'success' } },
+        { status: 'failed' }
+      );
 
       logger.warn(`Stripe session expired: ${orderId}`);
       break;
@@ -710,6 +702,99 @@ export const stripeWebhook = asyncHandler(async (req, res) => {
       logger.warn(`Unhandled Stripe event: ${event.type}`);
   }
 
+  res.json({ received: true });
+});
+
+
+// =====================
+// @route  POST /api/orders/payments/razorpay/webhook
+// @access Public (Razorpay server -> our server; signature se authenticate)
+//
+// Safety net: customer ne pay kar diya par browser band ho gaya / net chala gaya,
+// to /verify kabhi call nahi hota. Razorpay khud yahan batata hai.
+// RAZORPAY_WEBHOOK_SECRET set na ho to ye route band rehta hai (503).
+// Raw body zaroori hai (signature raw bytes pe bani hoti hai) — app.js mein
+// express.json() se PEHLE register hai.
+// =====================
+export const razorpayWebhook = asyncHandler(async (req, res) => {
+  const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+  if (!secret) {
+    logger.warn('Razorpay webhook received but RAZORPAY_WEBHOOK_SECRET is not set — ignoring');
+    return res.status(503).json({ success: false, message: 'Webhook not configured' });
+  }
+
+  const signature = req.headers['x-razorpay-signature'];
+  const rawBody = Buffer.isBuffer(req.body) ? req.body : null;
+  if (!signature || !rawBody) {
+    return res.status(400).json({ success: false, message: 'Invalid webhook request' });
+  }
+
+  const expected = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+  const given = Buffer.from(String(signature), 'utf8');
+  const wanted = Buffer.from(expected, 'utf8');
+  if (given.length !== wanted.length || !crypto.timingSafeEqual(given, wanted)) {
+    logger.warn('Razorpay webhook signature mismatch');
+    return res.status(400).json({ success: false, message: 'Invalid signature' });
+  }
+
+  let event;
+  try {
+    event = JSON.parse(rawBody.toString('utf8'));
+  } catch {
+    return res.status(400).json({ success: false, message: 'Invalid JSON' });
+  }
+
+  const payment = event?.payload?.payment?.entity;
+
+  switch (event.event) {
+    case 'payment.captured':
+    case 'order.paid': {
+      const razorpayOrderId = payment?.order_id || event?.payload?.order?.entity?.id;
+      if (!payment || !razorpayOrderId) break;
+
+      const transaction = await Transaction.findOne({ gatewayOrderId: razorpayOrderId, gateway: 'razorpay' });
+      if (!transaction) {
+        logger.warn(`Razorpay webhook: no transaction for ${razorpayOrderId}`);
+        break;
+      }
+
+      const order = await Order.findById(transaction.order);
+      if (!order) break;
+
+      // Paisa jitna order ka total hai utna hi aaya? (galat amount pe order confirm nahi karte)
+      if (Number(payment.amount) !== Math.round(order.pricing.total * 100) || payment.currency !== 'INR') {
+        logger.error(
+          `Razorpay webhook amount mismatch for order ${order._id}: got ${payment.amount} ${payment.currency}, expected ${order.pricing.total * 100} INR`
+        );
+        break;
+      }
+
+      const { status } = await markOrderPaid(order._id, 'Payment received (confirmed by Razorpay)');
+      if (status === 'cancelled') {
+        await flagLatePayment(order._id, payment.id);
+      }
+
+      await Transaction.findByIdAndUpdate(transaction._id, {
+        gatewayPaymentId: payment.id,
+        status: 'success',
+      });
+
+      logger.info(`Razorpay webhook processed (${status}): order ${order._id}`);
+      break;
+    }
+
+    case 'payment.failed':
+      // Razorpay checkout mein customer usi order pe dobara try kar sakta hai,
+      // isliye order cancel nahi karte — sirf log.
+      logger.info(`Razorpay payment failed for gateway order ${payment?.order_id}`);
+      break;
+
+    default:
+      logger.info(`Unhandled Razorpay event: ${event.event}`);
+  }
+
+  // 200 hamesha (recognised/ignored events pe) taaki Razorpay bekaar retry na kare;
+  // unexpected error pe asyncHandler 500 deta hai aur Razorpay retry karta hai.
   res.json({ received: true });
 });
 

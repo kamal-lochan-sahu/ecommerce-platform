@@ -12,6 +12,7 @@ import { validate } from '../middleware/validate.middleware.js';
 import {
   addToCartSchema,
   updateCartSchema,
+  removeFromCartSchema,
 } from '../validators/cart.validator.js';
 
 const router = Router();
@@ -20,7 +21,7 @@ const router = Router();
 router.get('/', optionalAuth, getCart);
 router.post('/add', optionalAuth, validate(addToCartSchema), addToCart);
 router.put('/update', optionalAuth, validate(updateCartSchema), updateCartItem);
-router.delete('/remove', optionalAuth, removeFromCart);
+router.delete('/remove', optionalAuth, validate(removeFromCartSchema), removeFromCart);
 router.delete('/clear', optionalAuth, clearCart);
 
 // Logged-in only

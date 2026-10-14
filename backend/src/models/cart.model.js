@@ -35,6 +35,12 @@ const cartSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  // Abandoned-cart reminder kab gaya. Cart badalne (updatedAt badhne) ke baad
+  // dobara reminder eligible ho jaata hai — dekho abandonedCart.job.js
+  reminderSentAt: {
+    type: Date,
+    default: null,
+  },
 }, { timestamps: true, toJSON: { virtuals: true } });
 
 // Virtual — total amount

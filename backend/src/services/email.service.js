@@ -59,7 +59,7 @@ const inlineTemplates = {
           
           <div class="order-box">
             <div style="margin-bottom:16px">
-              <strong>Order ID:</strong> #${data.orderId} &nbsp;
+              <strong>Order No:</strong> ${data.orderNumber} &nbsp;
               <span class="status-badge">Confirmed</span>
             </div>
             <div><strong>Order Date:</strong> ${data.orderDate}</div>
@@ -73,7 +73,7 @@ const inlineTemplates = {
             <div class="item-row">
               <div>
                 <strong>${item.name}</strong><br>
-                <small style="color:#666">Qty: ${item.quantity} | Size: ${item.size || "N/A"}</small>
+                <small style="color:#666">Qty: ${item.quantity}</small>
               </div>
               <div>₹${(item.price * item.quantity).toLocaleString()}</div>
             </div>
@@ -85,13 +85,15 @@ const inlineTemplates = {
             <div class="item-row"><div>Subtotal</div><div>₹${data.subtotal?.toLocaleString()}</div></div>
             ${data.discount > 0 ? `<div class="item-row" style="color:#28a745"><div>Discount (${data.couponCode || ""})</div><div>-₹${data.discount?.toLocaleString()}</div></div>` : ""}
             <div class="item-row"><div>Delivery</div><div>${data.deliveryCharge === 0 ? "FREE" : "₹" + data.deliveryCharge}</div></div>
-            <div class="total-row"><div>Total Paid</div><div>₹${data.totalAmount?.toLocaleString()}</div></div>
+            ${data.tax > 0 ? `<div class="item-row"><div>Tax</div><div>₹${data.tax?.toLocaleString()}</div></div>` : ""}
+            <div class="total-row"><div>${data.totalLabel}</div><div>₹${data.totalAmount?.toLocaleString()}</div></div>
           </div>
 
           <div class="order-box" style="margin-top:24px">
             <strong>📍 Delivery Address</strong><br>
             <div style="margin-top:8px; color:#555; line-height:1.6">
-              ${data.shippingAddress?.street}, ${data.shippingAddress?.city}<br>
+              ${data.shippingAddress?.fullName || ""}${data.shippingAddress?.phone ? " · " + data.shippingAddress.phone : ""}<br>
+              ${[data.shippingAddress?.addressLine1, data.shippingAddress?.addressLine2].filter(Boolean).join(", ")}, ${data.shippingAddress?.city}<br>
               ${data.shippingAddress?.state} - ${data.shippingAddress?.pincode}
             </div>
           </div>
@@ -102,7 +104,7 @@ const inlineTemplates = {
         </div>
         <div class="footer">
           <p>Questions? Reply to this email or contact us at ${process.env.SUPPORT_EMAIL || "support@myshop.com"}</p>
-          <p style="margin-top:8px">© ${new Date().getFullYear()} MyShop. All rights reserved.</p>
+          <p style="margin-top:8px">© ${new Date().getFullYear()} ${data.brandName}. All rights reserved.</p>
         </div>
       </div>
     </body>
@@ -383,31 +385,38 @@ const sendEmail = async ({ to, subject, template, data, html, text }) => {
 
 // ─── Specific Email Senders ───────────────────────────────────
 export const sendOrderConfirmationEmail = async (order, user) => {
+  const brandName = process.env.CLIENT_NAME || "Luxora";
+  const pricing = order.pricing || {};
+  const isCod = order.paymentMethod === "cod";
+
+  // Order schema ke asli fields: items[].name (snapshot), pricing.*, orderNumber, expectedDelivery
   const items = order.items.map((item) => ({
-    name: item.product?.name || "Product",
+    name: item.name || "Product",
     quantity: item.quantity,
     price: item.price,
-    size: item.size,
-    image: item.product?.images?.[0],
   }));
 
   return sendEmail({
     to: user.email,
-    subject: `✅ Order Confirmed — #${order._id.toString().slice(-8).toUpperCase()} | MyShop`,
+    subject: `✅ Order Confirmed — ${order.orderNumber} | ${brandName}`,
     template: "orderConfirmation",
     data: {
+      brandName,
       customerName: user.name,
-      orderId: order._id.toString().slice(-8).toUpperCase(),
+      orderId: order._id.toString(), // tracking link ke liye (/orders/:id)
+      orderNumber: order.orderNumber, // customer ko dikhane ke liye
       orderDate: new Date(order.createdAt).toLocaleDateString("en-IN"),
       estimatedDelivery: new Date(
-        Date.now() + 5 * 24 * 60 * 60 * 1000
+        order.expectedDelivery || Date.now() + 5 * 24 * 60 * 60 * 1000
       ).toLocaleDateString("en-IN"),
       items,
-      subtotal: order.subtotal,
-      discount: order.discount || 0,
+      subtotal: pricing.subtotal,
+      discount: pricing.couponDiscount || 0,
       couponCode: order.couponCode,
-      deliveryCharge: order.deliveryCharge || 0,
-      totalAmount: order.totalAmount,
+      deliveryCharge: pricing.shippingCharge || 0,
+      tax: pricing.tax || 0,
+      totalAmount: pricing.total,
+      totalLabel: isCod ? "Total to Pay on Delivery" : "Total Paid",
       shippingAddress: order.shippingAddress,
     },
   });
@@ -447,9 +456,8 @@ export const sendOrderDeliveredEmail = async (order, user) => {
 };
 
 export const sendAbandonedCartEmail = async (user, cart) => {
-  // Auto-generate 10% coupon for abandoned cart
-  const discountCode = `CART${user._id.toString().slice(-4).toUpperCase()}`;
-
+  // NOTE: pehle yahan ek nakli code (CARTxxxx) jaata tha jo database mein exist hi nahi karta tha —
+  // customer ko 'invalid coupon' milta. Jab tak real auto-coupon nahi banta, email mein koi code nahi jaata.
   return sendEmail({
     to: user.email,
     subject: `🛒 You left something in your cart! Complete your order`,
@@ -466,8 +474,6 @@ export const sendAbandonedCartEmail = async (user, cart) => {
         (sum, item) => sum + (item.product?.price || 0) * item.quantity,
         0
       ),
-      discountCode,
-      discountPercent: 10,
     },
   });
 };

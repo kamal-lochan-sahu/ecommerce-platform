@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -319,6 +319,13 @@ export default function Checkout() {
                   </label>
                 ))}
               </div>
+              {payment === "cod" && user?.isPhoneVerified === false && (
+                <div className="mb-6 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                  Cash on Delivery needs a verified phone number.{" "}
+                  <Link to="/profile" className="font-semibold underline">Verify it in your Profile</Link>
+                  {" "}or choose an online payment method.
+                </div>
+              )}
               <div className="flex gap-3">
                 <button onClick={() => setStep(0)} className="btn-ghost px-6 py-3 border border-gray-200">← Back</button>
                 <button onClick={() => { setStep(2); window.scrollTo({ top: 0, behavior: "smooth" }); }}

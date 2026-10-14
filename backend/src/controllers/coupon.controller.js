@@ -34,6 +34,16 @@ export const getAllCoupons = asyncHandler(async (req, res) => {
 // @access Admin
 // =====================
 export const updateCoupon = asyncHandler(async (req, res) => {
+  // Update schema mein `type` nahi aata (type badalna allowed nahi), isliye percentage
+  // wala 100 cap yahin stored type dekh ke lagate hain.
+  if (req.body.value !== undefined) {
+    const existing = await Coupon.findById(req.params.id).select('type');
+    if (!existing) throw new ApiError(404, 'Coupon not found');
+    if (existing.type === 'percentage' && Number(req.body.value) > 100) {
+      throw new ApiError(400, 'Percentage discount cannot be more than 100');
+    }
+  }
+
   const coupon = await Coupon.findByIdAndUpdate(
     req.params.id,
     req.body,

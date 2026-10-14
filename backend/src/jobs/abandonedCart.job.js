@@ -20,14 +20,20 @@ const abandonedCartJob = cron.schedule(
       const abandonedCarts = await Cart.find({
         updatedAt: { $lte: oneHourAgo, $gte: twentyFourHoursAgo },
         "items.0": { $exists: true }, // Non-empty carts
-        reminderSentAt: { $exists: false }, // Reminder already nahi bheja
+        // Guest carts (userId null) ko email nahi ja sakti.
+        userId: { $ne: null },
+        // Reminder nahi gaya, YA gaya tha par uske baad cart phir badla (naya session)
+        $or: [
+          { reminderSentAt: null },
+          { $expr: { $lt: ["$reminderSentAt", "$updatedAt"] } },
+        ],
       })
         .populate({
           path: "items.product",
           select: "name price images isActive",
         })
         .populate({
-          path: "user",
+          path: "userId", // Cart model mein field ka naam userId hai ("user" nahi)
           select: "name email marketingEmails",
         })
         .lean();
@@ -40,23 +46,27 @@ const abandonedCartJob = cron.schedule(
       for (const cart of abandonedCarts) {
         try {
           // User check — exist karta hai? email marketing allow hai?
-          if (!cart.user || !cart.user.email) continue;
-          if (cart.user.marketingEmails === false) continue;
+          const user = cart.userId;
+          if (!user || !user.email) continue;
+          if (user.marketingEmails === false) continue;
 
           // Active products filter karo
           const activeItems = cart.items.filter((item) => item.product?.isActive);
           if (activeItems.length === 0) continue;
 
           // Email bhejo
-          const result = await sendAbandonedCartEmail(cart.user, {
+          const result = await sendAbandonedCartEmail(user, {
             items: activeItems,
           });
 
           if (result.success) {
             // Mark as reminded
-            await Cart.findByIdAndUpdate(cart._id, {
-              reminderSentAt: new Date(),
-            });
+            // timestamps:false — warna updatedAt badh jaata aur cart dobara "badla hua" lagta
+            await Cart.updateOne(
+              { _id: cart._id },
+              { $set: { reminderSentAt: new Date() } },
+              { timestamps: false }
+            );
             emailsSent++;
           }
 

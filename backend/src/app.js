@@ -33,9 +33,10 @@ const limiter = rateLimit({
 });
 app.use('/api', limiter);
 
-// ===== Stripe Webhook — JSON se PEHLE (raw body chahiye) =====
-import { stripeWebhook } from './controllers/order.controller.js';
+// ===== Payment Webhooks (Stripe + Razorpay) — JSON se PEHLE (raw body chahiye) =====
+import { stripeWebhook, razorpayWebhook } from './controllers/order.controller.js';
 app.post('/api/orders/payments/stripe/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
+app.post('/api/orders/payments/razorpay/webhook', express.raw({ type: 'application/json' }), razorpayWebhook);
 
 // ===== Body Parsers =====
 app.use(express.json({ limit: '10mb' }));

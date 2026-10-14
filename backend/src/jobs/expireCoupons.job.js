@@ -28,8 +28,9 @@ const expireCouponsJob = cron.schedule(
       const usageLimitResult = await Coupon.updateMany(
         {
           isActive: true,
-          $expr: { $gte: ["$usedCount", "$maxUses"] },
-          maxUses: { $gt: 0 },
+          // Coupon model ka field usageLimit hai (maxUses nahi); null = unlimited
+          $expr: { $gte: ["$usedCount", "$usageLimit"] },
+          usageLimit: { $gt: 0 },
         },
         {
           $set: { isActive: false },
