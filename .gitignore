@@ -61,3 +61,7 @@ scratch/
 banner.jpg
 playwright_test_report.md
 result.txt
+
+# Test artifacts from Antigravity runs (root level only)
+/report.md
+/*.png
