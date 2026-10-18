@@ -1,6 +1,7 @@
 import { test, mock, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import express from 'express';
 
 // ───────── In-memory fakes (real MongoDB transactions need a replica set,
 // so these tests check OUR logic: who restores stock, who is allowed to cancel, idempotency) ─────────
@@ -81,6 +82,8 @@ mock.module('../src/utils/email.js', { namedExports: { sendEmail: async () => ({
 const L = await import('../src/services/orderLifecycle.service.js');
 const { razorpayWebhook } = await import('../src/controllers/order.controller.js');
 const { cancelStaleOrders } = await import('../src/jobs/staleOrders.job.js');
+const { cancelOrder } = await import('../src/controllers/order.controller.js');
+const { ensureBody } = await import('../src/middleware/ensureBody.middleware.js');
 
 const tick = () => new Promise((r) => setImmediate(r));
 const mkOrder = (over = {}) => ({
@@ -301,4 +304,41 @@ test('stale job cancels ONLY old unpaid online orders (never COD, never fresh, n
   assert.equal(db.orders.get('stale').paymentStatus, 'failed');
   assert.deepEqual(db.products.get('p2'), { stock: 6, totalSold: 0 });
   for (const id of ['cod', 'fresh', 'paid']) assert.notEqual(db.orders.get(id).orderStatus, 'cancelled', id);
+});
+
+// ───────── Express 5: request WITHOUT a body (the real frontend sends PUT /orders/:id/cancel with no body) ─────────
+const startApp = async ({ withFix }) => {
+  const app = express();
+  app.use(express.json());
+  if (withFix) app.use(ensureBody);
+  app.use((req, res, next) => { req.user = { _id: 'u1' }; next(); });
+  app.put('/orders/:id/cancel', cancelOrder);
+  app.use((err, req, res, next) => res.status(500).json({ message: err.message })); // eslint-disable-line no-unused-vars
+  return new Promise((resolve) => { const server = app.listen(0, () => resolve(server)); });
+};
+
+test('customer cancel with NO request body works (real Express app + ensureBody) and restores stock', async () => {
+  const server = await startApp({ withFix: true });
+  try {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}/orders/o1/cancel`, { method: 'PUT' });
+    assert.equal(res.status, 200);
+    assert.equal(db.orders.get('o1').orderStatus, 'cancelled');
+    assert.equal(db.products.get('p1').stock, 10);
+  } finally { server.close(); }
+});
+
+test('control: WITHOUT ensureBody the same request crashes with 500 (this is the bug the live test caught)', async () => {
+  const server = await startApp({ withFix: false });
+  try {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}/orders/o1/cancel`, { method: 'PUT' });
+    assert.equal(res.status, 500);
+    assert.equal(db.orders.get('o1').orderStatus, 'placed');
+  } finally { server.close(); }
+});
+
+test('ensureBody leaves an existing body alone and fills a missing one', () => {
+  const a = { body: { x: 1 } }; ensureBody(a, {}, () => {});
+  const b = {}; ensureBody(b, {}, () => {});
+  assert.deepEqual(a.body, { x: 1 });
+  assert.deepEqual(b.body, {});
 });

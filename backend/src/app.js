@@ -35,12 +35,14 @@ app.use('/api', limiter);
 
 // ===== Payment Webhooks (Stripe + Razorpay) — JSON se PEHLE (raw body chahiye) =====
 import { stripeWebhook, razorpayWebhook } from './controllers/order.controller.js';
+import { ensureBody } from './middleware/ensureBody.middleware.js';
 app.post('/api/orders/payments/stripe/webhook', express.raw({ type: 'application/json' }), stripeWebhook);
 app.post('/api/orders/payments/razorpay/webhook', express.raw({ type: 'application/json' }), razorpayWebhook);
 
 // ===== Body Parsers =====
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(ensureBody); // Express 5: bina-body request pe req.body undefined hota hai -> handler crash
 app.use(cookieParser());
 
 // ===== Logger (dev only) =====
