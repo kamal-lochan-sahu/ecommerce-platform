@@ -28,7 +28,9 @@ export default function AddProduct() {
   const handleSubmit = (e) => {
     e.preventDefault()
     const fd = new FormData()
-    Object.entries(form).forEach(([k,v])=>{ if(v) fd.append(k,v) })
+    // tags neeche alag se JSON banakar jaate hain. Yahan bhi bhejte to wo DO baar jaate aur
+    // backend mein kachra save hota (["silk, festive", "[\"silk\",\"festive\"]"]).
+    Object.entries(form).forEach(([k,v])=>{ if(k==='tags') return; if(v) fd.append(k,v) })
     images.forEach(img=>fd.append('images',img))
     const filteredSpecs = specs.filter(s=>s.key&&s.value)
     filteredSpecs.forEach((s,i) => { fd.append(`specifications[${i}][key]`, s.key); fd.append(`specifications[${i}][value]`, s.value) })

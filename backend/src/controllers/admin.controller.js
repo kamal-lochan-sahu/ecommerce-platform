@@ -74,9 +74,12 @@ export const getDashboard = asyncHandler(async (req, res) => {
       .populate("userId", "name email")
       .select("orderNumber orderStatus paymentStatus createdAt pricing"),
 
-    // 8. Low stock products (stock <= threshold, default 10)
-    Product.find({ stock: { $lte: 10 }, isActive: true })
-      .select("name stock sku images")
+    // 8. Low stock products (stock <= product ka apna lowStockThreshold, default 10)
+    Product.find({
+      isActive: true,
+      $expr: { $lte: ["$stock", { $ifNull: ["$lowStockThreshold", 10] }] },
+    })
+      .select("name stock sku images lowStockThreshold")
       .sort({ stock: 1 })
       .limit(10),
 
@@ -334,15 +337,46 @@ export const getAllCustomers = asyncHandler(async (req, res) => {
   const sortMap = {
     createdAt: { createdAt: -1 },
     name: { name: 1 },
-    orders: { totalOrders: -1 },
+    orders: { ordersCount: -1, createdAt: -1 },
   };
 
+  // Aggregation, kyunki har customer ke saath ordersCount/totalSpent chahiye
+  // (list ka "Orders" column aur sort-by-orders isi par chalta hai).
+  // NOTE: aggregate() Mongoose ke `select: false` aur toJSON ko bypass karta hai,
+  // isliye sensitive fields neeche $project mein khud hataye hain.
   const [customers, total] = await Promise.all([
-    User.find(filter)
-      .select("-password -refreshToken -__v")
-      .sort(sortMap[sort] || { createdAt: -1 })
-      .skip(skip)
-      .limit(limit),
+    User.aggregate([
+      { $match: filter },
+      {
+        $lookup: {
+          from: "orders",
+          let: { uid: "$_id" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$userId", "$$uid"] } } },
+            {
+              $group: {
+                _id: null,
+                ordersCount: { $sum: 1 },
+                totalSpent: {
+                  $sum: { $cond: [{ $eq: ["$paymentStatus", "paid"] }, "$pricing.total", 0] },
+                },
+              },
+            },
+          ],
+          as: "orderStats",
+        },
+      },
+      {
+        $addFields: {
+          ordersCount: { $ifNull: [{ $arrayElemAt: ["$orderStats.ordersCount", 0] }, 0] },
+          totalSpent: { $ifNull: [{ $arrayElemAt: ["$orderStats.totalSpent", 0] }, 0] },
+        },
+      },
+      { $sort: sortMap[sort] || sortMap.createdAt },
+      { $skip: skip },
+      { $limit: limit },
+      { $project: { password: 0, refreshToken: 0, otp: 0, googleId: 0, orderStats: 0, __v: 0 } },
+    ]),
     User.countDocuments(filter),
   ]);
 

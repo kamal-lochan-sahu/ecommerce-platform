@@ -6,7 +6,7 @@ import AdminLayout from '../../components/admin/AdminLayout'
 import StatsCard from '../../components/admin/StatsCard'
 import Skeleton from '../../components/ui/Skeleton'
 
-const STATUS_COLORS = { pending:'#f59e0b', processing:'#6366f1', shipped:'#3b82f6', delivered:'#10b981', cancelled:'#ef4444' }
+const STATUS_COLORS = { pending:'#f59e0b', placed:'#eab308', confirmed:'#0ea5e9', processing:'#6366f1', shipped:'#3b82f6', delivered:'#10b981', cancelled:'#ef4444', returned:'#f97316' }
 
 export default function Dashboard() {
   const { data, isLoading } = useQuery({
@@ -17,7 +17,7 @@ export default function Dashboard() {
   const stats = data || {}
   const revenueByMonth = Array.isArray(data?.revenueByMonth) ? data?.revenueByMonth : []
   const ordersByStatus = data?.ordersByStatus
-    ? Object.entries(data.ordersByStatus).map(([status, count]) => ({ status, count }))
+    ? Object.entries(data.ordersByStatus).filter(([, count]) => count > 0).map(([status, count]) => ({ status, count }))
     : []
   const recentOrders = Array.isArray(data?.recentOrders) ? data.recentOrders : []
   const lowStock = Array.isArray(data?.lowStockProducts) ? data.lowStockProducts : []
@@ -85,15 +85,15 @@ export default function Dashboard() {
                 <div key={o._id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                   <div>
                     <p className="text-sm font-medium text-gray-800 font-mono">#{o.orderNumber}</p>
-                    <p className="text-xs text-gray-400">{o.user?.name}</p>
+                    <p className="text-xs text-gray-400">{o.userId?.name}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-900">₹{o.totalAmount?.toLocaleString('en-IN')}</p>
+                    <p className="text-sm font-semibold text-gray-900">₹{o.pricing?.total?.toLocaleString('en-IN')}</p>
                     <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      o.status==='delivered'?'bg-green-100 text-green-700':
-                      o.status==='cancelled'?'bg-red-100 text-red-700':
+                      o.orderStatus==='delivered'?'bg-green-100 text-green-700':
+                      o.orderStatus==='cancelled'?'bg-red-100 text-red-700':
                       'bg-indigo-100 text-indigo-700'
-                    }`}>{o.status}</span>
+                    }`}>{o.orderStatus}</span>
                   </div>
                 </div>
               ))}
@@ -117,10 +117,10 @@ export default function Dashboard() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-800 truncate">{p.name}</p>
                     <div className="w-full bg-gray-100 rounded-full h-1.5 mt-1">
-                      <div className="bg-amber-500 h-1.5 rounded-full" style={{width:`${Math.min((p.stock/10)*100,100)}%`}}/>
+                      <div className="bg-amber-500 h-1.5 rounded-full" style={{width:`${Math.min((p.stock/(p.lowStockThreshold||10))*100,100)}%`}}/>
                     </div>
                   </div>
-                  <span className={`text-xs font-bold px-2 py-1 rounded-lg ${p.stock<=5?'bg-red-100 text-red-600':'bg-amber-100 text-amber-700'}`}>{p.stock} left</span>
+                  <span className={`text-xs font-bold px-2 py-1 rounded-lg ${p.stock<=Math.floor((p.lowStockThreshold||10)/2)?'bg-red-100 text-red-600':'bg-amber-100 text-amber-700'}`}>{p.stock} left</span>
                 </div>
               ))}
             </div>

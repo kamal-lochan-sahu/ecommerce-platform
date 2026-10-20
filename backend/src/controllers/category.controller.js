@@ -1,4 +1,4 @@
-import { Category } from '../models/index.js';
+import { Category, Product } from '../models/index.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
@@ -153,6 +153,13 @@ export const deleteCategory = asyncHandler(async (req, res) => {
   const childCount = await Category.countDocuments({ parent: req.params.id });
   if (childCount > 0) {
     throw new ApiError(400, `Cannot delete — ${childCount} subcategories exist`);
+  }
+
+  // Products hain? Delete karne par ve category ke bina orphan ho jaate hain
+  // (admin list mein "—", storefront filter mein gayab).
+  const productCount = await Product.countDocuments({ category: req.params.id });
+  if (productCount > 0) {
+    throw new ApiError(400, `Cannot delete — ${productCount} product${productCount > 1 ? 's use' : ' uses'} this category. Move or delete them first`);
   }
 
   await category.deleteOne();

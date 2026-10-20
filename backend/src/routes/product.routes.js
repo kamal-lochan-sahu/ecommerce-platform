@@ -12,6 +12,7 @@ import {
 import { protect, adminOnly } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
 import { upload } from '../middleware/upload.middleware.js';
+import { parseJsonFields } from '../middleware/parseJsonFields.middleware.js';
 import {
   createProductSchema,
   updateProductSchema,
@@ -27,8 +28,8 @@ router.get('/:slug', getProductBySlug);
 router.get('/', getProducts);
 
 // Admin only
-router.post('/', protect, adminOnly, upload.array('images', 10), validate(createProductSchema), createProduct);
-router.put('/:id', protect, adminOnly, upload.array('images', 10), validate(updateProductSchema), updateProduct);
+router.post('/', protect, adminOnly, upload.array('images', 10), parseJsonFields('tags', 'specifications', 'dimensions', 'meta'), validate(createProductSchema), createProduct);
+router.put('/:id', protect, adminOnly, upload.array('images', 10), parseJsonFields('tags', 'specifications', 'dimensions', 'meta'), validate(updateProductSchema), updateProduct);
 router.delete('/:id', protect, adminOnly, deleteProduct);
 
 export default router;

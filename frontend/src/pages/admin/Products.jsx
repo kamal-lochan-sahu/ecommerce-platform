@@ -35,8 +35,8 @@ export default function Products() {
     { key:'category', label:'Category', render:(v)=><span className="text-gray-500 text-xs">{v?.name||'—'}</span> },
     { key:'price', label:'Price', render:(v,row)=>(
       <div>
-        <p className="font-semibold">₹{(row.salePrice||v)?.toLocaleString('en-IN')}</p>
-        {row.salePrice && row.salePrice < v && <p className="text-xs text-gray-400 line-through">₹{v?.toLocaleString('en-IN')}</p>}
+        <p className="font-semibold">₹{v?.toLocaleString('en-IN')}</p>
+        {row.comparePrice > v && <p className="text-xs text-gray-400 line-through">₹{row.comparePrice?.toLocaleString('en-IN')}</p>}
       </div>
     )},
     { key:'stock', label:'Stock', render:(v)=><span className={`font-medium ${v<=5?'text-red-600':v<=20?'text-amber-600':'text-green-600'}`}>{v}</span> },
