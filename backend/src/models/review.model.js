@@ -35,6 +35,16 @@ const reviewSchema = new mongoose.Schema({
     type: Boolean,
     default: false, // naya review admin-approve hone tak public listing/rating mein nahi aata
   },
+  // Pending aur rejected mein farq: dono mein isApproved false hota hai, isliye alag flag chahiye
+  isRejected: {
+    type: Boolean,
+    default: false,
+  },
+  rejectionReason: {
+    type: String,
+    default: '',
+    maxlength: 200,
+  },
   helpfulCount: {
     type: Number,
     default: 0,

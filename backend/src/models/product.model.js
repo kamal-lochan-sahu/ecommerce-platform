@@ -72,6 +72,12 @@ const productSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  // Admin ne "delete" kiya = deletedAt set (isActive bhi false). Admin list se hat jaata hai,
+  // jabki sirf "inactive" (hide) wala product admin list mein dikhta hai aur wapas on ho sakta hai.
+  deletedAt: {
+    type: Date,
+    default: null,
+  },
   isFeatured: {
     type: Boolean,
     default: false,

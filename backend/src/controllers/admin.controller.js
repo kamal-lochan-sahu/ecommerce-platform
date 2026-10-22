@@ -2,20 +2,22 @@ import { Order, Product, User, Review, Settings } from "../models/index.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
+import { REVENUE_MATCH, REFUND_DUE_FILTER, FINAL_STATUSES } from "../utils/orderRules.js";
+import {
+  STORE_TIMEZONE,
+  startOfDayInTz,
+  endOfDayInTz,
+  startOfMonthInTz,
+} from "../utils/timezone.js";
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
+// "Aaj"/"is mahine" store ke timezone (STORE_TIMEZONE, default Asia/Kolkata) mein.
+// Server UTC par chalta hai, to bina is ke raat 12 se subah 5:30 tak ke orders pichle din mein jaate.
+const startOfDay = (date = new Date()) => startOfDayInTz(date);
+const endOfDay = (date = new Date()) => endOfDayInTz(date);
 
-const startOfDay = (date = new Date()) => {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  return d;
-};
-
-const endOfDay = (date = new Date()) => {
-  const d = new Date(date);
-  d.setHours(23, 59, 59, 999);
-  return d;
-};
+// $year/$month/... ko bhi store ke timezone mein chalane ke liye
+const inTz = (field) => ({ date: field, timezone: STORE_TIMEZONE });
 
 // ─── GET /api/admin/dashboard ─────────────────────────────────────────────────
 
@@ -35,10 +37,13 @@ export const getDashboard = asyncHandler(async (req, res) => {
     topProducts,
     ordersByStatusAgg,
     revenueByMonthAgg,
+    pendingReviews,
+    refundsDue,
+    outOfStock,
   ] = await Promise.all([
-    // 1. Total revenue (paid orders only)
+    // 1. Total revenue (paid, cancel/return nahi hue orders - cancelled order refund ke liye hai, kamai nahi)
     Order.aggregate([
-      { $match: { paymentStatus: "paid" } },
+      { $match: REVENUE_MATCH },
       { $group: { _id: null, total: { $sum: "$pricing.total" } } },
     ]),
 
@@ -55,7 +60,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
     Order.aggregate([
       {
         $match: {
-          paymentStatus: "paid",
+          ...REVENUE_MATCH,
           createdAt: { $gte: startOfDay(today), $lte: endOfDay(today) },
         },
       },
@@ -98,17 +103,15 @@ export const getDashboard = asyncHandler(async (req, res) => {
     Order.aggregate([
       {
         $match: {
-          paymentStatus: "paid",
-          createdAt: {
-            $gte: new Date(new Date().setMonth(today.getMonth() - 5, 1)),
-          },
+          ...REVENUE_MATCH,
+          createdAt: { $gte: startOfMonthInTz(today, 5) },
         },
       },
       {
         $group: {
           _id: {
-            year: { $year: "$createdAt" },
-            month: { $month: "$createdAt" },
+            year: { $year: inTz("$createdAt") },
+            month: { $month: inTz("$createdAt") },
           },
           revenue: { $sum: "$pricing.total" },
           orders: { $sum: 1 },
@@ -116,6 +119,11 @@ export const getDashboard = asyncHandler(async (req, res) => {
       },
       { $sort: { "_id.year": 1, "_id.month": 1 } },
     ]),
+
+    // 12. Kaam baaki: approve hone wale reviews, refund baaki orders, out-of-stock products
+    Review.countDocuments({ isApproved: { $ne: true }, isRejected: { $ne: true } }),
+    Order.countDocuments(REFUND_DUE_FILTER),
+    Product.countDocuments({ isActive: true, deletedAt: null, stock: { $lte: 0 } }),
   ]);
 
   // Format ordersByStatus into a plain object
@@ -154,6 +162,9 @@ export const getDashboard = asyncHandler(async (req, res) => {
       topProducts,
       ordersByStatus,
       revenueByMonth,
+      pendingReviews,
+      refundsDue,
+      outOfStock,
     }, "Dashboard data fetched")
   );
 });
@@ -164,33 +175,33 @@ export const getDashboard = asyncHandler(async (req, res) => {
 export const getSalesAnalytics = asyncHandler(async (req, res) => {
   const { period = "monthly", from, to } = req.query;
 
-  const fromDate = from ? new Date(from) : new Date(new Date().setMonth(new Date().getMonth() - 11, 1));
+  const fromDate = from ? startOfDay(new Date(from)) : startOfMonthInTz(new Date(), 11);
   const toDate = to ? endOfDay(new Date(to)) : endOfDay(new Date());
 
   let groupBy;
   if (period === "daily") {
     groupBy = {
-      year: { $year: "$createdAt" },
-      month: { $month: "$createdAt" },
-      day: { $dayOfMonth: "$createdAt" },
+      year: { $year: inTz("$createdAt") },
+      month: { $month: inTz("$createdAt") },
+      day: { $dayOfMonth: inTz("$createdAt") },
     };
   } else if (period === "weekly") {
     groupBy = {
-      year: { $year: "$createdAt" },
-      week: { $isoWeek: "$createdAt" },
+      year: { $isoWeekYear: inTz("$createdAt") },
+      week: { $isoWeek: inTz("$createdAt") },
     };
   } else {
     // monthly (default)
     groupBy = {
-      year: { $year: "$createdAt" },
-      month: { $month: "$createdAt" },
+      year: { $year: inTz("$createdAt") },
+      month: { $month: inTz("$createdAt") },
     };
   }
 
   const data = await Order.aggregate([
     {
       $match: {
-        paymentStatus: "paid",
+        ...REVENUE_MATCH,
         createdAt: { $gte: fromDate, $lte: toDate },
       },
     },
@@ -237,7 +248,7 @@ export const getProductAnalytics = asyncHandler(async (req, res) => {
 
   // Top selling products from Order items
   const topProducts = await Order.aggregate([
-    { $match: { paymentStatus: "paid" } },
+    { $match: REVENUE_MATCH },
     { $unwind: "$items" },
     {
       $group: {
@@ -328,10 +339,8 @@ export const getAllCustomers = asyncHandler(async (req, res) => {
   if (status === "active") filter.isActive = true;
   if (status === "inactive") filter.isActive = false;
   if (search) {
-    filter.$or = [
-      { name: { $regex: search, $options: "i" } },
-      { email: { $regex: search, $options: "i" } },
-    ];
+    const rx = new RegExp(escapeRegex(String(search).trim().slice(0, 60)), "i");
+    filter.$or = [{ name: rx }, { email: rx }, { phone: rx }];
   }
 
   const sortMap = {
@@ -357,8 +366,18 @@ export const getAllCustomers = asyncHandler(async (req, res) => {
               $group: {
                 _id: null,
                 ordersCount: { $sum: 1 },
+                // Sirf paid aur cancel/return na hue orders (refund hua paisa "spent" nahi)
                 totalSpent: {
-                  $sum: { $cond: [{ $eq: ["$paymentStatus", "paid"] }, "$pricing.total", 0] },
+                  $sum: {
+                    $cond: [
+                      { $and: [
+                        { $eq: ["$paymentStatus", "paid"] },
+                        { $not: [{ $in: ["$orderStatus", FINAL_STATUSES] }] },
+                      ] },
+                      "$pricing.total",
+                      0,
+                    ],
+                  },
                 },
               },
             },
@@ -409,7 +428,16 @@ export const getCustomerById = asyncHandler(async (req, res) => {
         _id: null,
         totalOrders: { $sum: 1 },
         totalSpent: {
-          $sum: { $cond: [{ $eq: ["$paymentStatus", "paid"] }, "$pricing.total", 0] },
+          $sum: {
+            $cond: [
+              { $and: [
+                { $eq: ["$paymentStatus", "paid"] },
+                { $not: [{ $in: ["$orderStatus", FINAL_STATUSES] }] },
+              ] },
+              "$pricing.total",
+              0,
+            ],
+          },
         },
         lastOrderAt: { $max: "$createdAt" },
       },
@@ -439,9 +467,11 @@ export const updateCustomerStatus = asyncHandler(async (req, res) => {
     throw new ApiError(400, "isActive (boolean) required");
   }
 
+  // Block karte waqt login session bhi khatam (protect already isActive dekhta hai,
+  // ye refresh token se naya access token milne ka raasta band karta hai)
   const customer = await User.findOneAndUpdate(
     { _id: req.params.id, role: "customer" },
-    { isActive },
+    isActive ? { isActive } : { isActive, refreshToken: null },
     { new: true }
   ).select("-password -refreshToken");
 
@@ -461,11 +491,11 @@ export const getAllReviews = asyncHandler(async (req, res) => {
   const skip = (page - 1) * limit;
   const statusParam = req.query.status || "pending";
 
-  // Map status param to isApproved field
+  // pending = abhi kisi ne dekha nahi; rejected = admin ne reject kiya (isRejected)
   const filter = {};
   if (statusParam === "approved") filter.isApproved = true;
-  else if (statusParam === "pending") filter.isApproved = { $ne: true };
-  else if (statusParam === "rejected") filter.isApproved = false;
+  else if (statusParam === "pending") Object.assign(filter, { isApproved: { $ne: true }, isRejected: { $ne: true } });
+  else if (statusParam === "rejected") filter.isRejected = true;
 
   const [reviews, total] = await Promise.all([
     Review.find(filter)
@@ -490,7 +520,7 @@ export const getAllReviews = asyncHandler(async (req, res) => {
 export const approveReview = asyncHandler(async (req, res) => {
   const review = await Review.findByIdAndUpdate(
     req.params.id,
-    { isApproved: true },
+    { isApproved: true, isRejected: false, rejectionReason: "" },
     { new: true }
   );
 
@@ -509,11 +539,14 @@ export const rejectReview = asyncHandler(async (req, res) => {
 
   const review = await Review.findByIdAndUpdate(
     req.params.id,
-    { isApproved: false, rejectionReason: reason || "" },
+    { isApproved: false, isRejected: true, rejectionReason: String(reason || "").slice(0, 200) },
     { new: true }
   );
 
   if (!review) throw new ApiError(404, "Review not found");
+
+  // Pehle approved review ko hatane par product ki rating bhi wapas theek honi chahiye
+  await recalcProductRating(review.product);
 
   return res.status(200).json(new ApiResponse(200, review, "Review rejected"));
 });
@@ -562,6 +595,9 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
     deliveryFee: settings.deliveryFee,
     freeDeliveryAbove: settings.freeDeliveryAbove,
     currency: settings.currency,
+    storeName: settings.storeName,
+    // Storefront ye dekhkar "store maintenance mein hai" banner dikhata hai
+    maintenanceMode: !!settings.maintenanceMode,
   }, "Public settings fetched"));
 });
 
@@ -584,6 +620,38 @@ export const updateSettings = asyncHandler(async (req, res) => {
   for (const key of ALLOWED_SETTINGS_FIELDS) {
     if (req.body[key] !== undefined) updates[key] = req.body[key];
   }
+
+  // Validation: galat value (tax -5%, khaali delivery fee) seedha order pricing bigaad deti hai
+  const numberRules = {
+    deliveryFee: [0, 100000],
+    freeDeliveryAbove: [0, 10000000],
+    taxRate: [0, 100],
+  };
+  for (const [key, [min, max]] of Object.entries(numberRules)) {
+    if (updates[key] === undefined) continue;
+    const n = Number(updates[key]);
+    if (String(updates[key]).trim() === "" || !Number.isFinite(n) || n < min || n > max) {
+      throw new ApiError(400, `${key} must be a number between ${min} and ${max}`);
+    }
+    updates[key] = n;
+  }
+  if (updates.storeName !== undefined) {
+    updates.storeName = String(updates.storeName).trim().slice(0, 80);
+    if (!updates.storeName) throw new ApiError(400, "Store name cannot be empty");
+  }
+  if (updates.storeEmail !== undefined) {
+    updates.storeEmail = String(updates.storeEmail).trim();
+    if (updates.storeEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(updates.storeEmail)) {
+      throw new ApiError(400, "Store email is not a valid email address");
+    }
+  }
+  if (updates.storePhone !== undefined) updates.storePhone = String(updates.storePhone).trim().slice(0, 20);
+  if (updates.storeAddress !== undefined) updates.storeAddress = String(updates.storeAddress).trim().slice(0, 200);
+  if (updates.currency !== undefined) {
+    updates.currency = String(updates.currency).trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(updates.currency)) throw new ApiError(400, "Currency must be a 3-letter code like INR");
+  }
+  if (updates.maintenanceMode !== undefined) updates.maintenanceMode = updates.maintenanceMode === true || updates.maintenanceMode === "true";
 
   if (Object.keys(updates).length === 0) {
     throw new ApiError(400, "No valid settings fields provided");

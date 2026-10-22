@@ -32,7 +32,7 @@ export default function Modal({ isOpen, onClose, title, children, size = "md", h
       />
       {/* Modal Box */}
       <div className={clsx(
-        "relative w-full bg-white rounded-2xl shadow-xl z-10",
+        "relative w-full bg-white rounded-2xl shadow-xl z-10 max-h-[90vh] overflow-y-auto",
         "animate-in fade-in zoom-in-95 duration-200",
         sizes[size]
       )}>

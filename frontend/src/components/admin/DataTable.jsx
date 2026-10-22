@@ -2,7 +2,9 @@ import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import Skeleton from '../ui/Skeleton'
 
-export default function DataTable({ columns, data=[], isLoading, searchable=true, actions, emptyText='No data found' }) {
+// paginate=false: server-side pagination wale pages (Orders/Products...) apni pagination khud dikhate hain,
+// DataTable ko sirf diye gaye rows dikhane hain (warna 10-10 par dobara kaat deta).
+export default function DataTable({ columns, data=[], isLoading, searchable=true, paginate=true, actions, emptyText='No data found' }) {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const PER_PAGE = 10
@@ -12,7 +14,7 @@ export default function DataTable({ columns, data=[], isLoading, searchable=true
     : data
 
   const total = Math.ceil(filtered.length / PER_PAGE)
-  const paged = filtered.slice((page-1)*PER_PAGE, page*PER_PAGE)
+  const paged = paginate ? filtered.slice((page-1)*PER_PAGE, page*PER_PAGE) : filtered
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -55,7 +57,7 @@ export default function DataTable({ columns, data=[], isLoading, searchable=true
           </tbody>
         </table>
       </div>
-      {total > 1 && (
+      {paginate && total > 1 && (
         <div className="flex items-center justify-between px-4 py-3 border-t border-gray-100">
           <p className="text-xs text-gray-500">{filtered.length} results</p>
           <div className="flex items-center gap-2">

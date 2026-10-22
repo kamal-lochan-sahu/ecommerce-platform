@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 import api from '../../services/api'
 import AdminLayout from '../../components/admin/AdminLayout'
 
-const EMPTY = { name:'', description:'', comparePrice:'', price:'', stock:'', category:'', brand:'', sku:'', tags:'' }
+const EMPTY = { name:'', description:'', comparePrice:'', price:'', stock:'', lowStockThreshold:'10', category:'', brand:'', sku:'', tags:'' }
 
 export default function AddProduct() {
   const navigate = useNavigate()
@@ -27,6 +27,8 @@ export default function AddProduct() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    // Bina photo ka product storefront par toota hua dikhta hai
+    if (images.length === 0) { toast.error('Add at least one product image'); return }
     const fd = new FormData()
     // tags neeche alag se JSON banakar jaate hain. Yahan bhi bhejte to wo DO baar jaate aur
     // backend mein kachra save hota (["silk, festive", "[\"silk\",\"festive\"]"]).
@@ -89,11 +91,11 @@ export default function AddProduct() {
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              {[['sku','SKU'],['tags','Tags (comma separated)']].map(([k,l])=>(
+            <div className="grid grid-cols-3 gap-4">
+              {[['sku','SKU'],['tags','Tags (comma separated)'],['lowStockThreshold','Low-stock alert at (units)','number']].map(([k,l,t='text'])=>(
                 <div key={k}>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">{l}</label>
-                  <input value={form[k]} onChange={f(k)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-400 outline-none text-sm"/>
+                  <input type={t} min={t==='number'?'0':undefined} value={form[k]} onChange={f(k)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-400 outline-none text-sm"/>
                 </div>
               ))}
             </div>

@@ -7,6 +7,7 @@ import {
   updateProduct,
   deleteProduct,
   getFeaturedProducts,
+  getAdminProducts,
   searchProducts,
 } from '../controllers/product.controller.js';
 import { protect, adminOnly } from '../middleware/auth.middleware.js';
@@ -23,13 +24,14 @@ const router = Router();
 // Public — specific routes pehle, dynamic baad mein
 router.get('/featured', getFeaturedProducts);
 router.get('/search', searchProducts);
+router.get('/admin/list', protect, adminOnly, getAdminProducts);
 router.get('/id/:id', protect, adminOnly, getProductById);
 router.get('/:slug', getProductBySlug);
 router.get('/', getProducts);
 
 // Admin only
-router.post('/', protect, adminOnly, upload.array('images', 10), parseJsonFields('tags', 'specifications', 'dimensions', 'meta'), validate(createProductSchema), createProduct);
-router.put('/:id', protect, adminOnly, upload.array('images', 10), parseJsonFields('tags', 'specifications', 'dimensions', 'meta'), validate(updateProductSchema), updateProduct);
+router.post('/', protect, adminOnly, upload.array('images', 10), parseJsonFields('tags', 'specifications', 'dimensions', 'meta', 'removeImages'), validate(createProductSchema), createProduct);
+router.put('/:id', protect, adminOnly, upload.array('images', 10), parseJsonFields('tags', 'specifications', 'dimensions', 'meta', 'removeImages'), validate(updateProductSchema), updateProduct);
 router.delete('/:id', protect, adminOnly, deleteProduct);
 
 export default router;

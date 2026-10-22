@@ -1,44 +1,47 @@
 import { useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Save, Store, Globe, Loader } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import AdminLayout from '../../components/admin/AdminLayout'
+import Skeleton from '../../components/ui/Skeleton'
 
-const DEFAULT_SETTINGS = {
-  storeName: 'Luxora',
-  storeEmail: '',
-  storePhone: '',
-  storeAddress: '',
-  currency: 'INR',
-  deliveryFee: '49',
-  freeDeliveryAbove: '499',
-  taxRate: '18',
-  maintenanceMode: false,
-}
+const FIELDS = ['storeName','storeEmail','storePhone','storeAddress','currency','deliveryFee','freeDeliveryAbove','taxRate','maintenanceMode']
 
 export default function Settings() {
-  const [form, setForm] = useState(DEFAULT_SETTINGS)
+  const qc = useQueryClient()
+  // Form = server ki saved settings + jo admin ne abhi badla (edits).
+  // TanStack Query v5 mein useQuery ka onSuccess nahi chalta; pehle yahi wajah thi ki form hamesha
+  // default values (delivery 49, tax 18...) se khulta tha aur Save dabane par asli settings default se
+  // overwrite ho jaati thi. Ab form tab tak khulta hi nahi jab tak asli settings load na ho jaayein.
+  const [edits, setEdits] = useState({})
 
-  const { isLoading: loadingSettings } = useQuery({
+  const { data: saved, isLoading, isError, refetch } = useQuery({
     queryKey: ['admin-settings'],
     queryFn: () => api.get('/admin/settings').then(r => r.data?.data?.settings),
-    onSuccess: (data) => { if (data) setForm(prev => ({ ...prev, ...data })); },
   })
+
+  const form = { ...(saved || {}), ...edits }
 
   const mutation = useMutation({
     mutationFn: (d) => api.put('/admin/settings', d),
-    onSuccess: () => toast.success('Settings saved!'),
-    onError: (err) => {
-      const msg = err?.response?.data?.message || 'Failed to save settings'
-      toast.error(msg)
+    onSuccess: () => {
+      setEdits({})
+      qc.invalidateQueries({ queryKey: ['admin-settings'] })
+      qc.invalidateQueries({ queryKey: ['public-settings-maintenance'] })
+      toast.success('Settings saved!')
     },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Failed to save settings'),
   })
 
-  const f = (k) => (e) => setForm(p => ({
-    ...p,
-    [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value
-  }))
+  const set = (k, v) => setEdits(p => ({ ...p, [k]: v }))
+  const dirty = Object.keys(edits).length > 0
+
+  const save = () => {
+    const payload = {}
+    FIELDS.forEach(k => { if (form[k] !== undefined) payload[k] = form[k] })
+    mutation.mutate(payload)
+  }
 
   const SECTIONS = [
     { icon: Store, title: 'Store Information', fields: [
@@ -48,12 +51,24 @@ export default function Settings() {
       { key: 'storeAddress', label: 'Store Address' },
     ]},
     { icon: Globe, title: 'Commerce Settings', fields: [
-      { key: 'currency',         label: 'Currency' },
-      { key: 'deliveryFee',      label: 'Delivery Fee (₹)',       type: 'number' },
-      { key: 'freeDeliveryAbove',label: 'Free Delivery Above (₹)', type: 'number' },
-      { key: 'taxRate',          label: 'Tax Rate (%)',           type: 'number' },
+      { key: 'currency',          label: 'Currency (3-letter code)' },
+      { key: 'deliveryFee',       label: 'Delivery Fee (₹)',        type: 'number' },
+      { key: 'freeDeliveryAbove', label: 'Free Delivery Above (₹)', type: 'number' },
+      { key: 'taxRate',           label: 'Tax Rate (%)',            type: 'number' },
     ]},
   ]
+
+  if (isLoading) return <AdminLayout title="Settings"><div className="max-w-2xl space-y-4">{[...Array(3)].map((_,i)=><Skeleton key={i} className="h-40 rounded-2xl"/>)}</div></AdminLayout>
+
+  if (isError || !saved) return (
+    <AdminLayout title="Settings">
+      <div className="max-w-2xl bg-white rounded-2xl border border-red-100 p-6 text-sm">
+        <p className="text-red-600 font-medium mb-1">Could not load the current settings.</p>
+        <p className="text-gray-500 mb-4">Saving is disabled so your existing settings are not overwritten.</p>
+        <button onClick={()=>refetch()} className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-medium hover:bg-indigo-700">Try again</button>
+      </div>
+    </AdminLayout>
+  )
 
   return (
     <AdminLayout title="Settings">
@@ -70,8 +85,9 @@ export default function Settings() {
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
                   <input
                     type={type}
-                    value={form[key]}
-                    onChange={f(key)}
+                    min={type === 'number' ? '0' : undefined}
+                    value={form[key] ?? ''}
+                    onChange={(e) => set(key, e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-400 outline-none text-sm"
                   />
                 </div>
@@ -85,24 +101,24 @@ export default function Settings() {
           <label className="flex items-center gap-3 cursor-pointer">
             <div
               className={`w-11 h-6 rounded-full transition-colors relative ${form.maintenanceMode ? 'bg-amber-500' : 'bg-gray-200'}`}
-              onClick={() => setForm(p => ({ ...p, maintenanceMode: !p.maintenanceMode }))}
+              onClick={() => set('maintenanceMode', !form.maintenanceMode)}
             >
               <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${form.maintenanceMode ? 'translate-x-6' : 'translate-x-1'}`} />
             </div>
             <div>
               <p className="text-sm font-medium text-gray-800">Maintenance Mode</p>
-              <p className="text-xs text-gray-500">Disable store for customers</p>
+              <p className="text-xs text-gray-500">Shows a notice on the store and pauses new orders. Customers can still browse; this admin panel keeps working.</p>
             </div>
           </label>
         </div>
 
         <button
-          onClick={() => mutation.mutate(form)}
-          disabled={mutation.isPending || loadingSettings}
-          className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-60"
+          onClick={save}
+          disabled={mutation.isPending || !dirty}
+          className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50"
         >
           {mutation.isPending ? <Loader size={16} className="animate-spin" /> : <Save size={16} />}
-          {mutation.isPending ? 'Saving...' : 'Save All Settings'}
+          {mutation.isPending ? 'Saving...' : dirty ? 'Save Settings' : 'No changes to save'}
         </button>
       </div>
     </AdminLayout>

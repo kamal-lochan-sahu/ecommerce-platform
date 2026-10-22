@@ -10,7 +10,7 @@ import { updateProductSchema, createProductSchema } from '../src/validators/prod
 // Real multer + parseJsonFields + Joi, same order as product.routes.js.
 // Admin AddProduct/EditProduct forms multipart FormData bhejte hain, isliye yahi shape test karte hain.
 const app = express();
-const chain = (schema) => [upload.array('images', 10), parseJsonFields('tags', 'specifications', 'dimensions', 'meta'), validate(schema)];
+const chain = (schema) => [upload.array('images', 10), parseJsonFields('tags', 'specifications', 'dimensions', 'meta', 'removeImages'), validate(schema)];
 app.post('/create', ...chain(createProductSchema), (req, res) => res.json({ body: req.body }));
 app.put('/update', ...chain(updateProductSchema), (req, res) => res.json({ body: req.body }));
 app.use((err, req, res, next) => res.status(err.statusCode || 500).json({ message: err.message }));
@@ -88,4 +88,18 @@ test('empty-string JSON field is treated as not sent', async () => {
   const r = await send('PUT', '/update', [['tags', '']]);
   assert.equal(r.status, 200);
   assert.equal(r.json.body.tags, undefined);
+});
+
+test('update: removeImages (JSON array of URLs) arrives as an array and passes validation', async () => {
+  const r = await send('PUT', '/update', [
+    ['removeImages', JSON.stringify(['https://cdn.example/a.jpg', 'https://cdn.example/b.jpg'])],
+    ['lowStockThreshold', '4'],
+  ]);
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  assert.deepEqual(r.json.body.removeImages, ['https://cdn.example/a.jpg', 'https://cdn.example/b.jpg']);
+});
+
+test('create: removeImages is not a create-time field', async () => {
+  const r = await send('POST', '/create', [...base_, ['removeImages', '["x"]']]);
+  assert.equal(r.status, 400);
 });

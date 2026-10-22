@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 import { TrendingUp, ShoppingBag, Users, Package } from 'lucide-react'
@@ -6,7 +7,17 @@ import AdminLayout from '../../components/admin/AdminLayout'
 import StatsCard from '../../components/admin/StatsCard'
 import Skeleton from '../../components/ui/Skeleton'
 
+// period -> backend ka period param + kitne din peeche se dikhana hai (monthly = backend ka default 12 mahine)
+const PERIODS = {
+  daily:   { label: 'Last 30 days',  api: 'daily',   days: 29 },
+  weekly:  { label: 'Last 12 weeks', api: 'weekly',  days: 83 },
+  monthly: { label: 'Last 12 months', api: 'monthly', days: null },
+}
+
 export default function Analytics() {
+  const [period, setPeriod] = useState('monthly')
+  const cfg = PERIODS[period]
+
   // Backend ke 3 alag endpoints hain, har ek ka apna shape:
   //  /admin/dashboard           -> totals (totalRevenue, totalOrders, totalCustomers)
   //  /admin/analytics/sales     -> time series { data: [{ label, revenue, orders, avgOrderValue }] }
@@ -16,8 +27,12 @@ export default function Analytics() {
     queryFn: () => api.get('/admin/dashboard').then(r => r.data?.data || {}),
   })
   const salesQ = useQuery({
-    queryKey: ['admin-analytics-sales'],
-    queryFn: () => api.get('/admin/analytics/sales').then(r => r.data?.data || {}),
+    queryKey: ['admin-analytics-sales', period],
+    queryFn: () => {
+      const params = { period: cfg.api }
+      if (cfg.days !== null) params.from = new Date(Date.now() - cfg.days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      return api.get('/admin/analytics/sales', { params }).then(r => r.data?.data || {})
+    },
   })
   const productsQ = useQuery({
     queryKey: ['admin-analytics-products'],
@@ -28,24 +43,33 @@ export default function Analytics() {
   const series = Array.isArray(salesQ.data?.data) ? salesQ.data.data : []
   const topProducts = Array.isArray(productsQ.data?.topProducts) ? productsQ.data.topProducts : []
 
-  // Avg order value = paid revenue / paid orders (isi series se, taaki dono ek hi basis par hon)
+  // Cards chune hue period ki series se banate hain (revenue = paid aur cancel/return na hue orders),
+  // taaki cards aur charts ek hi hisaab dikhayein. Customers poore store ke active customers hain.
   const seriesRevenue = series.reduce((sum, d) => sum + (d.revenue || 0), 0)
   const seriesOrders = series.reduce((sum, d) => sum + (d.orders || 0), 0)
   const stats = {
-    totalRevenue: totalsQ.data?.totalRevenue || 0,
-    totalOrders: totalsQ.data?.totalOrders || 0,
+    revenue: Math.round(seriesRevenue),
+    orders: seriesOrders,
     totalCustomers: totalsQ.data?.totalCustomers || 0,
     avgOrderValue: seriesOrders ? Math.round(seriesRevenue / seriesOrders) : 0,
   }
 
   return (
     <AdminLayout title="Analytics">
+      <div className="flex gap-2 mb-5">
+        {Object.entries(PERIODS).map(([key, p]) => (
+          <button key={key} onClick={() => setPeriod(key)}
+            className={`px-4 py-1.5 rounded-full text-xs font-medium transition-all ${period===key?'bg-indigo-600 text-white':'bg-white border border-gray-200 text-gray-600 hover:border-indigo-400'}`}>
+            {p.label}
+          </button>
+        ))}
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         {isLoading ? [...Array(4)].map((_,i)=><Skeleton key={i} className="h-28 rounded-2xl"/>) : (
           <>
-            <StatsCard title="Total Revenue" value={stats.totalRevenue||0} icon={TrendingUp} color="indigo" prefix="₹"/>
-            <StatsCard title="Total Orders" value={stats.totalOrders||0} icon={ShoppingBag} color="amber"/>
-            <StatsCard title="Total Customers" value={stats.totalCustomers||0} icon={Users} color="green"/>
+            <StatsCard title={`Revenue · ${cfg.label}`} value={stats.revenue||0} icon={TrendingUp} color="indigo" prefix="₹"/>
+            <StatsCard title={`Paid orders · ${cfg.label}`} value={stats.orders||0} icon={ShoppingBag} color="amber"/>
+            <StatsCard title="Active Customers (all time)" value={stats.totalCustomers||0} icon={Users} color="green"/>
             <StatsCard title="Avg Order Value" value={stats.avgOrderValue||0} icon={Package} color="purple" prefix="₹"/>
           </>
         )}
@@ -53,7 +77,7 @@ export default function Analytics() {
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <h3 className="font-semibold text-gray-900 mb-4">Revenue by Month</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">Revenue · {cfg.label}</h3>
           {isLoading ? <Skeleton className="h-48"/> : (
             <ResponsiveContainer width="100%" height={200}>
               <AreaChart data={series}>
@@ -69,7 +93,7 @@ export default function Analytics() {
         </div>
 
         <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-          <h3 className="font-semibold text-gray-900 mb-4">Orders Trend</h3>
+          <h3 className="font-semibold text-gray-900 mb-4">Paid orders · {cfg.label}</h3>
           {isLoading ? <Skeleton className="h-48"/> : (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={series}>
@@ -85,7 +109,7 @@ export default function Analytics() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-        <h3 className="font-semibold text-gray-900 mb-4">Top Selling Products</h3>
+        <h3 className="font-semibold text-gray-900 mb-4">Top Selling Products (all time)</h3>
         {isLoading ? <Skeleton className="h-40"/> : topProducts.length===0 ? (
           <p className="text-sm text-gray-400 text-center py-8">No data yet</p>
         ) : (

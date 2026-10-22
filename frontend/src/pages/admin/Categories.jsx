@@ -37,7 +37,7 @@ export default function Categories() {
       qc.invalidateQueries({ queryKey: ['categories'] })
       toast.success('Deleted')
     },
-    onError: () => toast.error('Cannot delete — products exist in this category'),
+    onError: (e) => toast.error(e?.response?.data?.message || 'Could not delete category'),
   })
 
   const allCategories = data || []

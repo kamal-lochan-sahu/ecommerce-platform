@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { ShoppingBag, Users, Package, TrendingUp, AlertTriangle, Clock } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { ShoppingBag, Users, Package, TrendingUp, AlertTriangle, Clock, RotateCcw, Star, PackageX } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 import api from '../../services/api'
 import AdminLayout from '../../components/admin/AdminLayout'
@@ -28,13 +29,40 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
         {isLoading ? [...Array(4)].map((_,i)=><Skeleton key={i} className="h-28 rounded-2xl"/>) : (
           <>
-            <StatsCard title="Total Revenue" value={stats.totalRevenue||0} icon={TrendingUp} color="indigo" prefix="₹" change={stats.revenueChange}/>
+            <StatsCard title="Net Revenue (excl. cancelled/returned)" value={stats.totalRevenue||0} icon={TrendingUp} color="indigo" prefix="₹" change={stats.revenueChange}/>
             <StatsCard title="Total Orders" value={stats.totalOrders||0} icon={ShoppingBag} color="amber" change={stats.ordersChange}/>
-            <StatsCard title="Customers" value={stats.totalCustomers||0} icon={Users} color="green" change={stats.customersChange}/>
-            <StatsCard title="Products" value={stats.totalProducts||0} icon={Package} color="purple"/>
+            <StatsCard title="Active Customers" value={stats.totalCustomers||0} icon={Users} color="green" change={stats.customersChange}/>
+            <StatsCard title="Active Products" value={stats.totalProducts||0} icon={Package} color="purple"/>
           </>
         )}
       </div>
+
+      {/* Kaam baaki: owner ko sabse pehle yahi dekhna hota hai */}
+      {!isLoading && (
+        <div className="mb-6">
+          <div className="flex items-baseline justify-between mb-3 flex-wrap gap-1">
+            <h3 className="font-semibold text-gray-900">Needs your attention</h3>
+            <p className="text-xs text-gray-500">Today: ₹{(stats.revenueToday||0).toLocaleString('en-IN')} revenue · {stats.ordersToday||0} orders</p>
+          </div>
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+            {[
+              { to:'/admin/orders?status=placed', icon:ShoppingBag, count:data?.ordersByStatus?.placed||0, label:'New orders to confirm', tone:'indigo' },
+              { to:'/admin/orders?refundDue=true', icon:RotateCcw, count:stats.refundsDue||0, label:'Refunds to send', tone:'red' },
+              { to:'/admin/reviews', icon:Star, count:stats.pendingReviews||0, label:'Reviews to moderate', tone:'amber' },
+              { to:'/admin/products?stock=out', icon:PackageX, count:stats.outOfStock||0, label:'Products out of stock', tone:'red' },
+            ].map(({ to, icon:Icon, count, label, tone })=>(
+              <Link key={label} to={to}
+                className={`flex items-center gap-3 rounded-2xl border p-4 transition-all hover:shadow-md ${count>0 ? (tone==='red' ? 'bg-red-50 border-red-200' : tone==='amber' ? 'bg-amber-50 border-amber-200' : 'bg-indigo-50 border-indigo-200') : 'bg-white border-gray-100'}`}>
+                <Icon size={20} className={count>0 ? (tone==='red' ? 'text-red-500' : tone==='amber' ? 'text-amber-500' : 'text-indigo-500') : 'text-gray-300'}/>
+                <div>
+                  <p className={`text-xl font-black ${count>0 ? 'text-gray-900' : 'text-gray-300'}`}>{count}</p>
+                  <p className="text-xs text-gray-500">{label}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
         {/* Revenue Chart */}

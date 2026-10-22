@@ -9,6 +9,7 @@ import {
   stripeWebhook,
   getAllOrders,
   updateOrderStatus,
+  markOrderRefunded,
   getInvoicePDF,
 } from '../controllers/order.controller.js';
 import { protect, adminOnly } from '../middleware/auth.middleware.js';
@@ -16,6 +17,7 @@ import { validate } from '../middleware/validate.middleware.js';
 import {
   createOrderSchema,
   updateOrderStatusSchema,
+  refundOrderSchema,
 } from '../validators/order.validator.js';
 import express from 'express';
 
@@ -42,6 +44,7 @@ router.post('/payments/stripe/create-session', createStripeSession);
 // Admin routes — /:id se PEHLE define karo
 router.get('/admin/all', adminOnly, getAllOrders);
 router.put('/admin/:id/status', adminOnly, validate(updateOrderStatusSchema), updateOrderStatus);
+router.put('/admin/:id/refund', adminOnly, validate(refundOrderSchema), markOrderRefunded);
 
 // Wildcard /:id routes — SABSE LAST mein
 router.get('/:id', getOrderById);

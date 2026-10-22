@@ -31,7 +31,7 @@ export const createProductSchema = Joi.object({
   }).optional(),
 });
 
-export const updateProductSchema = createProductSchema.fork(
-  ['name', 'description', 'category', 'price'],
-  (schema) => schema.optional()
-);
+export const updateProductSchema = createProductSchema
+  .fork(['name', 'description', 'category', 'price'], (schema) => schema.optional())
+  // Admin ne jin purani images ko hatana hai unke URLs
+  .keys({ removeImages: Joi.array().items(Joi.string()).optional() });

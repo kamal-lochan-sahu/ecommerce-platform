@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Product, ProductVariant, Category } from '../models/index.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
@@ -5,6 +6,7 @@ import asyncHandler from '../utils/asyncHandler.js';
 import { generateUniqueProductSlug } from '../utils/slug.js';
 import { uploadToCloudinary } from '../utils/cloudinary.js';
 import { getPagination, getPaginationMeta } from '../utils/pagination.js';
+import { escapeRegex } from '../utils/escapeRegex.js';
 
 // =====================
 // @route  POST /api/products
@@ -39,6 +41,10 @@ export const createProduct = asyncHandler(async (req, res) => {
       uploadToCloudinary(file.buffer, 'products', `${slug}_${index}`)
     );
     images = await Promise.all(uploadPromises);
+  }
+  // Bina photo ka product storefront par toota hua dikhta hai (edit mein bhi yahi rule hai)
+  if (images.length === 0) {
+    throw new ApiError(400, 'A product needs at least one image');
   }
 
   const product = await Product.create({
@@ -185,7 +191,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) throw new ApiError(404, 'Product not found');
 
-  const { name, ...updateData } = req.body;
+  const { name, removeImages, ...updateData } = req.body;
 
   // Name change? New slug generate karo
   if (name && name !== product.name) {
@@ -193,18 +199,27 @@ export const updateProduct = asyncHandler(async (req, res) => {
     updateData.slug = await generateUniqueProductSlug(name, product._id);
   }
 
-  // New images upload
-  if (req.files && req.files.length > 0) {
-    const slug = updateData.slug || product.slug;
-    const uploadPromises = req.files.map((file, index) =>
-      uploadToCloudinary(
-        file.buffer,
-        'products',
-        `${slug}_${Date.now()}_${index}`
-      )
-    );
-    const newImages = await Promise.all(uploadPromises);
-    updateData.images = [...(product.images || []), ...newImages];
+  // Purani images hatana (sirf wahi URLs jo is product ki hain) + naye upload judna
+  const removeSet = new Set(Array.isArray(removeImages) ? removeImages : []);
+  const keptImages = (product.images || []).filter((img) => !removeSet.has(img));
+  const hasNewFiles = req.files && req.files.length > 0;
+
+  if (removeSet.size > 0 || hasNewFiles) {
+    let newImages = [];
+    if (hasNewFiles) {
+      const slug = updateData.slug || product.slug;
+      newImages = await Promise.all(
+        req.files.map((file, index) =>
+          uploadToCloudinary(file.buffer, 'products', `${slug}_${Date.now()}_${index}`)
+        )
+      );
+    }
+    const finalImages = [...keptImages, ...newImages];
+    // Bina photo ka product storefront par toota hua dikhta hai
+    if (finalImages.length === 0) {
+      throw new ApiError(400, 'A product needs at least one image');
+    }
+    updateData.images = finalImages;
   }
 
   const updated = await Product.findByIdAndUpdate(
@@ -224,10 +239,93 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) throw new ApiError(404, 'Product not found');
 
-  // Soft delete
-  await Product.findByIdAndUpdate(req.params.id, { isActive: false });
+  // Soft delete: order history mein is product ka reference rehta hai, isliye record nahi mitate.
+  // deletedAt admin list se hata deta hai; isActive false storefront se.
+  await Product.findByIdAndUpdate(req.params.id, { isActive: false, deletedAt: new Date() });
 
   res.json(new ApiResponse(200, null, 'Product deleted'));
+});
+
+// =====================
+// @route  GET /api/products/admin/list
+// @access Admin
+// Public /products sirf active products deta hai, isliye admin list alag hai:
+// inactive (hide kiye hue) products bhi dikhte hain taaki wapas on ho sakein.
+// Query: search, category, status=all|active|inactive, stock=in|low|out, sort, page, limit
+// =====================
+export const getAdminProducts = asyncHandler(async (req, res) => {
+  const { page, limit, skip } = getPagination(req.query);
+  const { category, status = 'all', stock, sort = 'newest' } = req.query;
+  const search = String(req.query.search || '').trim().slice(0, 60);
+
+  const filter = { deletedAt: null }; // deleted (archived) products admin ko nahi dikhte
+
+  if (status === 'active') filter.isActive = true;
+  if (status === 'inactive') filter.isActive = false;
+
+  if (category && mongoose.isValidObjectId(category)) filter.category = category;
+
+  if (search) {
+    const rx = new RegExp(escapeRegex(search), 'i');
+    filter.$or = [{ name: rx }, { sku: rx }, { brand: rx }];
+  }
+
+  // Stock filters. low = apne lowStockThreshold ke andar par 0 se upar
+  const and = [];
+  if (stock === 'out') and.push({ stock: { $lte: 0 } });
+  if (stock === 'in') and.push({ stock: { $gt: 0 } });
+  if (stock === 'low') {
+    and.push({ stock: { $gt: 0 } });
+    and.push({ $expr: { $lte: ['$stock', { $ifNull: ['$lowStockThreshold', 10] }] } });
+  }
+  if (and.length) filter.$and = and;
+
+  const sortMap = {
+    newest: { createdAt: -1 },
+    name: { name: 1 },
+    price_asc: { price: 1 },
+    price_desc: { price: -1 },
+    stock_asc: { stock: 1 },
+  };
+
+  const [products, total, summary] = await Promise.all([
+    Product.find(filter)
+      .populate('category', 'name')
+      .sort(sortMap[sort] || sortMap.newest)
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Product.countDocuments(filter),
+    // Header ke counts: poore catalog ke (current filter se alag)
+    Product.aggregate([
+      { $match: { deletedAt: null } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          active: { $sum: { $cond: ['$isActive', 1, 0] } },
+          inactive: { $sum: { $cond: ['$isActive', 0, 1] } },
+          outOfStock: { $sum: { $cond: [{ $lte: ['$stock', 0] }, 1, 0] } },
+          lowStock: {
+            $sum: {
+              $cond: [
+                { $and: [
+                  { $gt: ['$stock', 0] },
+                  { $lte: ['$stock', { $ifNull: ['$lowStockThreshold', 10] }] },
+                ] }, 1, 0,
+              ],
+            },
+          },
+        },
+      },
+    ]),
+  ]);
+
+  res.json(new ApiResponse(200, {
+    products,
+    summary: summary[0] || { total: 0, active: 0, inactive: 0, outOfStock: 0, lowStock: 0 },
+    pagination: getPaginationMeta(total, page, limit),
+  }, 'Admin products fetched'));
 });
 
 // =====================

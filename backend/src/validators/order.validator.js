@@ -19,8 +19,13 @@ export const updateOrderStatusSchema = Joi.object({
   status: Joi.string()
     .valid('confirmed', 'processing', 'shipped', 'delivered', 'cancelled', 'returned')
     .required(),
-  message: Joi.string().optional().allow(''),
-  trackingNumber: Joi.string().optional().allow(''),
-  courier: Joi.string().optional().allow(''),
-  trackingUrl: Joi.string().optional().allow(''),
+  message: Joi.string().max(200).optional().allow(''),
+  trackingNumber: Joi.string().max(60).optional().allow(''),
+  courier: Joi.string().max(60).optional().allow(''),
+  trackingUrl: Joi.string().uri({ scheme: ['http', 'https'] }).max(300).optional().allow('')
+    .messages({ 'string.uri': 'Tracking link must be a valid http(s) URL' }),
+});
+
+export const refundOrderSchema = Joi.object({
+  reference: Joi.string().max(100).optional().allow(''),
 });

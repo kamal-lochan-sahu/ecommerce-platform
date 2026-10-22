@@ -1,23 +1,40 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Eye, UserCheck, UserX } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { Eye, UserCheck, UserX, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
 import AdminLayout from '../../components/admin/AdminLayout'
 import DataTable from '../../components/admin/DataTable'
 import Modal from '../../components/ui/Modal'
+import Pagination from '../../components/ui/Pagination'
+
+function useDebounced(value, ms = 400) {
+  const [v, setV] = useState(value)
+  useEffect(() => { const t = setTimeout(() => setV(value), ms); return () => clearTimeout(t) }, [value, ms])
+  return v
+}
 
 export default function Customers() {
   const qc = useQueryClient()
   const [selected, setSelected] = useState(null)
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
+  const [sort, setSort] = useState('createdAt')
+  const debouncedSearch = useDebounced(search.trim())
 
-  // Backend default 20 customers deta hai; Orders page ki tarah yahan bhi limit:100
+  // Search, status filter, sort aur pagination server par hote hain, taaki hazaaron customers
+  // hone par bhi sab milein (pehle sirf pehle 20-100 hi dikhte the).
   const { data, isLoading } = useQuery({
-    queryKey: ['admin-customers'],
-    queryFn: () => api.get('/admin/customers', { params:{ limit:100 } }).then(r => ({
+    queryKey: ['admin-customers', { page, debouncedSearch, status, sort }],
+    queryFn: () => api.get('/admin/customers', {
+      params: { page, limit: 20, search: debouncedSearch || undefined, status: status || undefined, sort },
+    }).then(r => ({
       customers: r.data?.data?.customers || [],
       total: r.data?.data?.pagination?.total || 0,
+      totalPages: r.data?.data?.pagination?.totalPages || 1,
     })),
+    placeholderData: keepPreviousData,
   })
   const customers = data?.customers || []
 
@@ -57,20 +74,39 @@ export default function Customers() {
 
   return (
     <AdminLayout title="Customers">
-      <div className="mb-4">
-        <p className="text-sm text-gray-500">{data?.total || 0} total customers</p>
+      <div className="flex gap-3 flex-wrap items-center mb-4">
+        <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 w-full sm:w-72">
+          <Search size={15} className="text-gray-400 flex-shrink-0"/>
+          <input value={search} onChange={e=>{ setSearch(e.target.value); setPage(1) }} placeholder="Search name, email or phone"
+            className="bg-transparent text-sm outline-none flex-1 text-gray-700"/>
+        </div>
+        <select value={status} onChange={e=>{ setStatus(e.target.value); setPage(1) }} className="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white outline-none">
+          <option value="">All customers</option>
+          <option value="active">Active</option>
+          <option value="inactive">Blocked</option>
+        </select>
+        <select value={sort} onChange={e=>{ setSort(e.target.value); setPage(1) }} className="px-3 py-2 rounded-xl border border-gray-200 text-sm bg-white outline-none">
+          <option value="createdAt">Newest first</option>
+          <option value="name">Name A–Z</option>
+          <option value="orders">Most orders</option>
+        </select>
+        <p className="text-sm text-gray-500 sm:ml-auto">{data?.total || 0} customers</p>
       </div>
-      <DataTable columns={columns} data={customers} isLoading={isLoading} emptyText="No customers found"
+      <DataTable columns={columns} data={customers} isLoading={isLoading} searchable={false} paginate={false} emptyText={debouncedSearch ? 'No customers match your search' : 'No customers found'}
         actions={(row)=>(
           <div className="flex gap-1">
             <button onClick={()=>setSelected(row)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600"><Eye size={15}/></button>
-            <button onClick={()=>toggleMutation.mutate({id:row._id,active:!row.isActive})}
+            <button title={row.isActive ? 'Block customer' : 'Unblock customer'} onClick={()=>{
+                if (row.isActive && !confirm(`Block ${row.name}?\n\nThey will be signed out and will not be able to log in or place orders until you unblock them.`)) return
+                toggleMutation.mutate({id:row._id,active:!row.isActive})
+              }}
               className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${row.isActive?'hover:bg-red-50 text-gray-400 hover:text-red-500':'hover:bg-green-50 text-gray-400 hover:text-green-600'}`}>
               {row.isActive?<UserX size={15}/>:<UserCheck size={15}/>}
             </button>
           </div>
         )}
       />
+      <Pagination page={page} totalPages={data?.totalPages || 1} onPageChange={setPage}/>
       <Modal isOpen={!!selected} onClose={()=>setSelected(null)} title="Customer Detail">
         {selected && (
           <div className="p-4 space-y-3">

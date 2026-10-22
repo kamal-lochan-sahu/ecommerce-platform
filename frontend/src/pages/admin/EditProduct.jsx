@@ -7,7 +7,7 @@ import api from '../../services/api'
 import AdminLayout from '../../components/admin/AdminLayout'
 import Skeleton from '../../components/ui/Skeleton'
 
-const EMPTY = { name:'', description:'', comparePrice:'', price:'', stock:'', category:'', brand:'', sku:'', tags:'' }
+const EMPTY = { name:'', description:'', comparePrice:'', price:'', stock:'', lowStockThreshold:'10', category:'', brand:'', sku:'', tags:'' }
 
 // Edit form AddProduct ke same fields rakhta hai. Backend PUT /products/:id multipart leta hai
 // (naye images ke liye), isliye yahan bhi FormData bhejte hain.
@@ -17,6 +17,7 @@ export default function EditProduct() {
   const qc = useQueryClient()
   const [form, setForm] = useState(EMPTY)
   const [newImages, setNewImages] = useState([])
+  const [removedImages, setRemovedImages] = useState([]) // purani images jo save par hat jaayengi
   const [specs, setSpecs] = useState([{key:'',value:''}])
   const initializedFor = useRef(null)
 
@@ -44,6 +45,7 @@ export default function EditProduct() {
       comparePrice: product.comparePrice ? String(product.comparePrice) : '',
       price: product.price ?? '',
       stock: product.stock ?? '',
+      lowStockThreshold: product.lowStockThreshold ?? 10,
       category: product.category?._id || product.category || '',
       brand: product.brand || '',
       sku: product.sku || '',
@@ -66,6 +68,8 @@ export default function EditProduct() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    const remaining = (product.images || []).filter(src => !removedImages.includes(src)).length + newImages.length
+    if (remaining === 0) { toast.error('A product needs at least one image'); return }
     const fd = new FormData()
     fd.append('name', form.name)
     fd.append('description', form.description)
@@ -74,12 +78,14 @@ export default function EditProduct() {
     fd.append('price', form.price)
     fd.append('comparePrice', form.comparePrice || '0')  // khaali = MRP hata diya
     fd.append('stock', form.stock)
+    fd.append('lowStockThreshold', form.lowStockThreshold === '' ? '10' : form.lowStockThreshold)
     if (form.sku) fd.append('sku', form.sku)  // sku unique+sparse hai, '' bhejna duplicate de sakta hai
     // tags/specifications hamesha bhejte hain (khaali array bhi), taaki admin unhe saaf kar sake.
     // Backend ka parseJsonFields inhe wapas array banata hai.
     const tagsArr = form.tags.split(',').map(t=>t.trim()).filter(Boolean)
     fd.append('tags', JSON.stringify(tagsArr))
     fd.append('specifications', JSON.stringify(specs.filter(s=>s.key&&s.value)))
+    if (removedImages.length) fd.append('removeImages', JSON.stringify(removedImages))
     newImages.forEach(img=>fd.append('images',img))
     mutation.mutate(fd)
   }
@@ -144,11 +150,11 @@ export default function EditProduct() {
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              {[['sku','SKU'],['tags','Tags (comma separated)']].map(([k,l])=>(
+            <div className="grid grid-cols-3 gap-4">
+              {[['sku','SKU'],['tags','Tags (comma separated)'],['lowStockThreshold','Low-stock alert at (units)','number']].map(([k,l,t='text'])=>(
                 <div key={k}>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">{l}</label>
-                  <input value={form[k]} onChange={f(k)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-400 outline-none text-sm"/>
+                  <input type={t} min={t==='number'?'0':undefined} value={form[k]} onChange={f(k)} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-400 outline-none text-sm"/>
                 </div>
               ))}
             </div>
@@ -159,11 +165,21 @@ export default function EditProduct() {
             <h3 className="font-semibold text-gray-900 mb-4">Product Images</h3>
             {product.images?.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs text-gray-500 mb-2">Current images (naye upload inke saath jud jaate hain)</p>
+                <p className="text-xs text-gray-500 mb-2">Current images — click the X to remove one (applies when you save). New uploads are added to these.</p>
                 <div className="flex flex-wrap gap-2">
-                  {product.images.map((src,i)=>(
-                    <img key={i} src={src} alt="" className="w-16 h-16 object-cover rounded-xl border border-gray-100"/>
-                  ))}
+                  {product.images.map((src,i)=>{
+                    const removed = removedImages.includes(src)
+                    return (
+                      <div key={i} className="relative">
+                        <img src={src} alt="" className={`w-16 h-16 object-cover rounded-xl border border-gray-100 ${removed ? 'opacity-30 grayscale' : ''}`}/>
+                        <button type="button" title={removed ? 'Keep this image' : 'Remove this image'}
+                          onClick={()=>setRemovedImages(p=>removed ? p.filter(x=>x!==src) : [...p,src])}
+                          className={`absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ${removed ? 'bg-gray-500' : 'bg-red-500'}`}>
+                          {removed ? <Plus size={10} className="text-white"/> : <X size={10} className="text-white"/>}
+                        </button>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}

@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import crypto from 'crypto';
-import { Order, Cart, Product, ProductVariant, Address, Coupon, Transaction, LoyaltyPoints, Notification, Settings } from '../models/index.js';
+import { Order, Cart, Product, ProductVariant, Address, Coupon, Transaction, LoyaltyPoints, Notification, Settings, User } from '../models/index.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
@@ -9,6 +9,8 @@ import { getRazorpay } from '../config/razorpay.js';
 import { getStripe } from '../config/stripe.js';
 import { getPagination, getPaginationMeta } from '../utils/pagination.js';
 import { sendEmail } from '../utils/email.js';
+import { escapeRegex } from '../utils/escapeRegex.js';
+import { allowedNextStatuses, checkTransition, isRefundDue, REFUND_DUE_FILTER } from '../utils/orderRules.js';
 import {
   cancelOrderAndRestore,
   markOrderPaid,
@@ -66,6 +68,13 @@ const validateCoupon = async (code, userId, subtotal) => {
 export const createOrder = asyncHandler(async (req, res) => {
   const { addressId, paymentMethod, couponCode, notes } = req.body;
   const userId = req.user._id;
+
+  // Maintenance mode: admin ne store band kiya hai to naye orders nahi lete
+  // (Settings page ka toggle sach mein kaam kare, sirf dikhawa na ho).
+  const storeState = await Settings.getSingleton();
+  if (storeState.maintenanceMode) {
+    throw new ApiError(503, 'The store is under maintenance and not taking new orders right now. Please try again shortly');
+  }
 
   // Payment method enabled check
   if (paymentMethod === 'razorpay' && process.env.RAZORPAY_ENABLED !== 'true') {
@@ -482,30 +491,58 @@ export const cancelOrder = asyncHandler(async (req, res) => {
 // =====================
 export const getAllOrders = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
-  const { status, paymentStatus, search } = req.query;
+  const { status, paymentStatus, paymentMethod, refundDue } = req.query;
+  const search = String(req.query.search || '').trim().slice(0, 60);
 
   const filter = {};
   if (status) filter.orderStatus = status;
   if (paymentStatus) filter.paymentStatus = paymentStatus;
-  if (search) filter.orderNumber = { $regex: search, $options: 'i' };
+  if (paymentMethod) filter.paymentMethod = paymentMethod;
+  if (refundDue === 'true') Object.assign(filter, REFUND_DUE_FILTER);
 
-  const [orders, total] = await Promise.all([
+  // Search: order number YA customer ka naam/email/phone
+  if (search) {
+    const rx = new RegExp(escapeRegex(search), 'i');
+    const users = await User.find({ $or: [{ name: rx }, { email: rx }, { phone: rx }] })
+      .select('_id')
+      .limit(100)
+      .lean();
+    filter.$or = [{ orderNumber: rx }, { userId: { $in: users.map((u) => u._id) } }];
+  }
+
+  const [orders, total, statusAgg, refundDueCount] = await Promise.all([
     Order.find(filter)
       .populate('userId', 'name email phone')
+      .populate('items.variant', 'name sku')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit),
+      .limit(limit)
+      .lean(),
     Order.countDocuments(filter),
+    // Filter chips ke badges: poore store ke counts (current filter se alag)
+    Order.aggregate([{ $group: { _id: '$orderStatus', count: { $sum: 1 } } }]),
+    Order.countDocuments(REFUND_DUE_FILTER),
   ]);
 
+  // UI ko wahi rules milte hain jo updateOrderStatus lagata hai
+  const withRules = orders.map((o) => ({
+    ...o,
+    allowedNext: allowedNextStatuses(o),
+    refundDue: isRefundDue(o),
+  }));
+
+  const statusCounts = Object.fromEntries(statusAgg.map((x) => [x._id, x.count]));
+
   res.json(new ApiResponse(200, {
-    orders,
+    orders: withRules,
+    statusCounts,
+    refundDueCount,
     pagination: getPaginationMeta(total, page, limit),
   }, 'All orders fetched'));
 });
 
 // =====================
-// @route  PUT /api/admin/orders/:id/status
+// @route  PUT /api/orders/admin/:id/status
 // @access Admin
 // =====================
 export const updateOrderStatus = asyncHandler(async (req, res) => {
@@ -514,11 +551,9 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   const order = await Order.findById(req.params.id);
   if (!order) throw new ApiError(404, 'Order not found');
 
-  // Cancelled order wapas zinda nahi hota — stock already release ho chuka hai,
-  // status badalne se stock phir se galat ho jaata.
-  if (order.orderStatus === 'cancelled') {
-    throw new ApiError(400, 'This order is cancelled and cannot be changed');
-  }
+  // Business rules: sirf aage badho, cancelled/returned final, unpaid online order ship nahi hota
+  const check = checkTransition(order, status);
+  if (!check.ok) throw new ApiError(400, check.message);
 
   // Cancel karna = shared helper (stock + totalSold + coupon wapas, notification)
   if (status === 'cancelled') {
@@ -533,37 +568,84 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     return res.json(new ApiResponse(200, { order: cancelledOrder }, 'Order cancelled and stock restored'));
   }
 
-  const updateData = {
-    orderStatus: status,
-    $push: {
-      statusHistory: {
-        status,
-        message: message || `Order ${status}`,
-      },
-    },
-  };
+  const set = { orderStatus: status };
 
   if (status === 'delivered') {
-    updateData.deliveredAt = new Date();
-    updateData.paymentStatus = 'paid';
+    set.deliveredAt = new Date();
+    // COD mein paisa delivery par milta hai. Online order pehle se paid hota hai
+    // (unpaid online order yahan tak aa hi nahi sakta - checkTransition rok deta hai).
+    if (order.paymentMethod === 'cod') set.paymentStatus = 'paid';
   }
 
-  if (trackingNumber) {
-    updateData.tracking = { trackingNumber, courier, trackingUrl };
-  }
+  // Tracking: sirf jo diya gaya wahi badlo (purana tracking na mite)
+  if (trackingNumber) set['tracking.trackingNumber'] = trackingNumber.trim();
+  if (courier) set['tracking.courier'] = courier.trim();
+  if (trackingUrl) set['tracking.trackingUrl'] = trackingUrl.trim();
 
-  const updated = await Order.findByIdAndUpdate(order._id, updateData, { new: true });
+  const updated = await Order.findByIdAndUpdate(
+    order._id,
+    {
+      $set: set,
+      $push: { statusHistory: { status, message: message || `Order ${status}` } },
+    },
+    { new: true }
+  );
 
-  // Customer ko notification bhejo
+  // Customer ko notification bhejo (shipped par tracking ke saath)
+  const trackingNote = status === 'shipped' && trackingNumber
+    ? ` Tracking: ${courier ? `${courier} ` : ''}${trackingNumber}`
+    : '';
   await Notification.create({
     userId: order.userId,
     title: `Order ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-    message: message || `Your order ${order.orderNumber} is ${status}`,
+    message: message || `Your order ${order.orderNumber} is ${status}.${trackingNote}`,
     type: 'order',
     link: `/orders/${order._id}`,
   });
 
   res.json(new ApiResponse(200, { order: updated }, 'Order status updated'));
+});
+
+// =====================
+// @route  PUT /api/orders/admin/:id/refund
+// @access Admin
+// Cancel/return hue paid order ka paisa gateway dashboard se wapas karne ke baad
+// yahan "refund done" mark karte hain, taaki refund ki list saaf rahe.
+// =====================
+export const markOrderRefunded = asyncHandler(async (req, res) => {
+  const { reference } = req.body;
+
+  const order = await Order.findById(req.params.id);
+  if (!order) throw new ApiError(404, 'Order not found');
+  if (!isRefundDue(order)) {
+    throw new ApiError(400, 'No refund is due for this order');
+  }
+
+  // Filter mein REFUND_DUE_FILTER: do admin ek saath dabayein to ek hi baar lagega
+  const updated = await Order.findOneAndUpdate(
+    { _id: order._id, ...REFUND_DUE_FILTER },
+    {
+      $set: { paymentStatus: 'refunded' },
+      $push: {
+        statusHistory: {
+          status: 'refunded',
+          message: `Refund completed${reference ? ` (ref: ${reference.trim()})` : ''}`,
+        },
+      },
+    },
+    { new: true }
+  );
+  if (!updated) throw new ApiError(400, 'This refund was already marked as done');
+
+  await Notification.create({
+    userId: order.userId,
+    title: 'Refund processed',
+    message: `Your refund for order ${order.orderNumber} has been processed. It can take a few days to show in your account.`,
+    type: 'order',
+    link: `/orders/${order._id}`,
+  });
+
+  res.json(new ApiResponse(200, { order: updated }, 'Refund marked as done'));
 });
 
 // =====================
