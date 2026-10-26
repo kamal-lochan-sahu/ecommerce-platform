@@ -527,7 +527,7 @@ export const approveReview = asyncHandler(async (req, res) => {
   if (!review) throw new ApiError(404, "Review not found");
 
   // Recalculate product average rating
-  await recalcProductRating(review.product);
+  await Review.updateProductRating(review.product);
 
   return res.status(200).json(new ApiResponse(200, review, "Review approved"));
 });
@@ -546,7 +546,7 @@ export const rejectReview = asyncHandler(async (req, res) => {
   if (!review) throw new ApiError(404, "Review not found");
 
   // Pehle approved review ko hatane par product ki rating bhi wapas theek honi chahiye
-  await recalcProductRating(review.product);
+  await Review.updateProductRating(review.product);
 
   return res.status(200).json(new ApiResponse(200, review, "Review rejected"));
 });
@@ -667,22 +667,3 @@ export const updateSettings = asyncHandler(async (req, res) => {
 
 // ─── Internal helper ──────────────────────────────────────────────────────────
 
-async function recalcProductRating(productId) {
-  const result = await Review.aggregate([
-    { $match: { product: productId, isApproved: true } },
-    {
-      $group: {
-        _id: null,
-        avgRating: { $avg: "$rating" },
-        totalReviews: { $sum: 1 },
-      },
-    },
-  ]);
-
-  if (result.length > 0) {
-    await Product.findByIdAndUpdate(productId, {
-      "ratings.average": parseFloat(result[0].avgRating.toFixed(1)),
-      "ratings.count": result[0].totalReviews,
-    });
-  }
-}

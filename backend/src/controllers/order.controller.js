@@ -10,6 +10,7 @@ import { getStripe } from '../config/stripe.js';
 import { getPagination, getPaginationMeta } from '../utils/pagination.js';
 import { sendEmail } from '../utils/email.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
+import { notifyOrderEventInBackground } from '../services/orderNotifications.service.js';
 import { allowedNextStatuses, checkTransition, isRefundDue, REFUND_DUE_FILTER } from '../utils/orderRules.js';
 import {
   cancelOrderAndRestore,
@@ -565,6 +566,8 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     if (!cancelled) {
       throw new ApiError(400, `Cannot cancel an order in "${order.orderStatus}" status`);
     }
+    // Email + SMS (in-app notification helper ne already bhej di). Response ko nahi rokta.
+    notifyOrderEventInBackground('cancelled', cancelledOrder, { reason: message });
     return res.json(new ApiResponse(200, { order: cancelledOrder }, 'Order cancelled and stock restored'));
   }
 
@@ -602,6 +605,11 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     type: 'order',
     link: `/orders/${order._id}`,
   });
+
+  // Email + SMS: shipped (tracking ke saath), delivered, returned
+  if (['shipped', 'delivered', 'returned'].includes(status)) {
+    notifyOrderEventInBackground(status, updated);
+  }
 
   res.json(new ApiResponse(200, { order: updated }, 'Order status updated'));
 });
@@ -644,6 +652,7 @@ export const markOrderRefunded = asyncHandler(async (req, res) => {
     type: 'order',
     link: `/orders/${order._id}`,
   });
+  notifyOrderEventInBackground('refunded', updated, { reference });
 
   res.json(new ApiResponse(200, { order: updated }, 'Refund marked as done'));
 });

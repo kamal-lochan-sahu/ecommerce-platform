@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 // Admin order controllers (status rules, tracking, COD delivery, refund, list search)
 // against tiny in-memory fakes - checks OUR logic, no MongoDB needed.
 const db = { orders: new Map() };
-const sent = { notifications: [], cancelCalls: [], lastFind: null };
+const sent = { notifications: [], cancelCalls: [], lastFind: null, events: [] };
 const clone = (o) => (o ? structuredClone(o) : o);
 
 const applyUpdate = (doc, update) => {
@@ -52,6 +52,9 @@ mock.module('../src/services/orderLifecycle.service.js', {
     markOrderPaid: async () => {}, flagLatePayment: async () => {}, sendConfirmationEmailFor: async () => {},
   },
 });
+mock.module('../src/services/orderNotifications.service.js', {
+  namedExports: { notifyOrderEventInBackground: (event, order, extra) => { sent.events.push({ event, orderId: order?._id, extra }); } },
+});
 mock.module('../src/utils/logger.js', { defaultExport: { info() {}, warn() {}, error() {} } });
 mock.module('../src/config/razorpay.js', { namedExports: { getRazorpay: () => ({}) } });
 mock.module('../src/config/stripe.js', { namedExports: { getStripe: () => ({}) } });
@@ -71,7 +74,7 @@ const call = async (handler, { body = {}, params = { id: 'o1' }, query = {} } = 
 };
 
 beforeEach(() => {
-  db.orders.clear(); sent.notifications.length = 0; sent.cancelCalls.length = 0; sent.lastFind = null;
+  db.orders.clear(); sent.notifications.length = 0; sent.cancelCalls.length = 0; sent.lastFind = null; sent.events.length = 0;
   db.orders.set('o1', mkOrder());
 });
 
@@ -179,4 +182,32 @@ test('order list search: matches order number OR the customer, and user text can
   assert.ok(f.$or[0].orderNumber instanceof RegExp);
   assert.equal(f.$or[0].orderNumber.source, 'a\\.b\\(');
   assert.deepEqual(f.$or[1].userId.$in, ['u9']);
+});
+
+test('email + SMS events: shipped, delivered and returned are sent; confirmed/processing stay in-app only', async () => {
+  await call(updateOrderStatus, { body: { status: 'confirmed' } });
+  await call(updateOrderStatus, { body: { status: 'processing' } });
+  assert.deepEqual(sent.events, []);
+
+  await call(updateOrderStatus, { body: { status: 'shipped', courier: 'Delhivery', trackingNumber: 'DL1' } });
+  await call(updateOrderStatus, { body: { status: 'delivered' } });
+  await call(updateOrderStatus, { body: { status: 'returned' } });
+  assert.deepEqual(sent.events.map((e) => e.event), ['shipped', 'delivered', 'returned']);
+});
+
+test('refused changes send nothing (no email/SMS for an update that did not happen)', async () => {
+  db.orders.get('o1').orderStatus = 'delivered';
+  await call(updateOrderStatus, { body: { status: 'processing' } });
+  assert.deepEqual(sent.events, []);
+});
+
+test('admin cancel sends the cancelled event with the admin reason', async () => {
+  await call(updateOrderStatus, { body: { status: 'cancelled', message: 'Item damaged in warehouse' } });
+  assert.deepEqual(sent.events, [{ event: 'cancelled', orderId: 'o1', extra: { reason: 'Item damaged in warehouse' } }]);
+});
+
+test('marking a refund done sends the refunded event with the reference', async () => {
+  db.orders.set('o1', mkOrder({ paymentMethod: 'razorpay', paymentStatus: 'paid', orderStatus: 'cancelled' }));
+  await call(markOrderRefunded, { body: { reference: 'rfnd_9' } });
+  assert.deepEqual(sent.events.map((e) => [e.event, e.extra.reference]), [['refunded', 'rfnd_9']]);
 });

@@ -101,6 +101,12 @@ export const updateReview = asyncHandler(async (req, res) => {
   if (title !== undefined) review.title = title;
   if (comment !== undefined) review.comment = comment;
 
+  // Approved review badalne par dobara moderation: warna koi achha review approve karwakar
+  // use baad mein spam/gaali se badal sakta tha, aur admin ko pata bhi nahi chalta.
+  review.isApproved = false;
+  review.isRejected = false;
+  review.rejectionReason = '';
+
   await review.save();
   await Review.updateProductRating(review.product);
 

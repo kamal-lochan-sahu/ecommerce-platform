@@ -46,8 +46,8 @@ export default function Settings() {
   const SECTIONS = [
     { icon: Store, title: 'Store Information', fields: [
       { key: 'storeName',    label: 'Store Name' },
-      { key: 'storeEmail',   label: 'Store Email',   type: 'email' },
-      { key: 'storePhone',   label: 'Store Phone' },
+      { key: 'storeEmail',   label: 'Support Email (shown in customer emails)', type: 'email' },
+      { key: 'storePhone',   label: 'Support Phone (shown in customer emails)' },
       { key: 'storeAddress', label: 'Store Address' },
     ]},
     { icon: Globe, title: 'Commerce Settings', fields: [

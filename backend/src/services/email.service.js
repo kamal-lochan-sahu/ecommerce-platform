@@ -1,5 +1,6 @@
 import logger from '../utils/logger.js';
 import { sendMail } from "./messaging.service.js";
+import { getBrand } from "./brand.service.js";
 import handlebars from "handlebars";
 import juice from "juice";
 import fs from "fs";
@@ -103,7 +104,7 @@ const inlineTemplates = {
           </div>
         </div>
         <div class="footer">
-          <p>Questions? Reply to this email or contact us at ${process.env.SUPPORT_EMAIL || "support@myshop.com"}</p>
+          <p>${data.supportEmail ? `Questions? Reply to this email or contact us at ${data.supportEmail}` : "Questions? Just reply to this email."}</p>
           <p style="margin-top:8px">© ${new Date().getFullYear()} ${data.brandName}. All rights reserved.</p>
         </div>
       </div>
@@ -357,7 +358,7 @@ const inlineTemplates = {
           </div>
         </div>
         <div class="footer">
-          <p>This is an automated alert from MyShop Admin</p>
+          <p>This is an automated alert from ${data.brandName || "your store"} Admin</p>
           <p>Sent at: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} IST</p>
         </div>
       </div>
@@ -385,7 +386,9 @@ const sendEmail = async ({ to, subject, template, data, html, text }) => {
 
 // ─── Specific Email Senders ───────────────────────────────────
 export const sendOrderConfirmationEmail = async (order, user) => {
-  const brandName = process.env.CLIENT_NAME || "Luxora";
+  // Naam aur support email Admin -> Settings se (white-label), nakli myshop.com default nahi
+  const brand = await getBrand();
+  const brandName = brand.name;
   const pricing = order.pricing || {};
   const isCod = order.paymentMethod === "cod";
 
@@ -402,6 +405,7 @@ export const sendOrderConfirmationEmail = async (order, user) => {
     template: "orderConfirmation",
     data: {
       brandName,
+      supportEmail: brand.supportEmail,
       customerName: user.name,
       orderId: order._id.toString(), // tracking link ke liye (/orders/:id)
       orderNumber: order.orderNumber, // customer ko dikhane ke liye
@@ -411,7 +415,7 @@ export const sendOrderConfirmationEmail = async (order, user) => {
       ).toLocaleDateString("en-IN"),
       items,
       subtotal: pricing.subtotal,
-      discount: pricing.couponDiscount || 0,
+      discount: pricing.discount || 0, // asli field pricing.discount hai (couponDiscount kabhi tha hi nahi)
       couponCode: order.couponCode,
       deliveryCharge: pricing.shippingCharge || 0,
       tax: pricing.tax || 0,
@@ -482,13 +486,22 @@ export const sendLowStockAlertEmail = async (products) => {
   const criticalProducts = products.filter((p) => p.stock === 0);
   const warningProducts = products.filter((p) => p.stock > 0);
 
+  // Pehle fallback "admin@myshop.com" tha: wo kisi aur ka asli domain hai, stock ki jaankari wahan chali jaati.
+  const brand = await getBrand();
+  const to = process.env.ADMIN_EMAIL || brand.supportEmail;
+  if (!to) {
+    logger.warn("Low stock alert not sent: set ADMIN_EMAIL or the store email in Admin → Settings");
+    return false;
+  }
+
   return sendEmail({
-    to: process.env.ADMIN_EMAIL || "admin@myshop.com",
+    to,
     subject: `⚠️ Low Stock Alert — ${products.length} products need attention`,
     template: "lowStockAlert",
     data: {
       products: [...criticalProducts, ...warningProducts],
       criticalCount: criticalProducts.length,
+      brandName: brand.name,
     },
   });
 };
