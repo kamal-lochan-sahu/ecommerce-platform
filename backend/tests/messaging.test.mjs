@@ -68,6 +68,12 @@ test('SMTP: sends with the right from/to/subject/text and surfaces failure witho
   assert.equal(r.success, false); assert.match(r.error, /SMTP down/);
 });
 
+test('email plain-text part: inline tags do not leave gaps and HTML entities are decoded', async () => {
+  process.env.SMTP_HOST = 'smtp.example.com'; process.env.SMTP_PORT = '2525'; process.env.SMTP_USER = 'u'; process.env.SMTP_PASS = 'p';
+  await M.sendMail({ to: 'a@x.com', subject: 'Hi', html: '<p>Hi <strong>Krishna</strong>, thanks!</p><div>Order&nbsp;No: A &amp; B</div>' });
+  assert.equal(mailSent.at(-1).text, 'Hi Krishna, thanks! Order No: A & B');
+});
+
 test('SMTP: legacy Gmail settings map to smtp.gmail.com:587', async () => {
   process.env.GMAIL_USER = 'shop@gmail.com'; process.env.GMAIL_PASS = 'apppass'; process.env.CLIENT_NAME = 'Luxora';
   const r = await M.sendMail({ to: 'a@x.com', subject: 's', html: 'h' });

@@ -47,7 +47,7 @@ export const updateCoupon = asyncHandler(async (req, res) => {
   const coupon = await Coupon.findByIdAndUpdate(
     req.params.id,
     req.body,
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   if (!coupon) throw new ApiError(404, 'Coupon not found');

@@ -94,7 +94,7 @@ export const issueOtp = async ({ purpose, subject, target, throwOnFailure = true
         purgeAt: new Date(now + SEND_WINDOW_MS),
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 
   const delivered = await deliver(channel, target, code);
@@ -119,7 +119,7 @@ export const issueOtp = async ({ purpose, subject, target, throwOnFailure = true
 // issued for is returned. Every failure throws an ApiError.
 export const consumeOtp = async ({ purpose, subject, otp }) => {
   // Count the attempt FIRST and atomically, so parallel guesses cannot dodge the limit.
-  const doc = await Otp.findOneAndUpdate({ purpose, subject }, { $inc: { attempts: 1 } }, { new: true });
+  const doc = await Otp.findOneAndUpdate({ purpose, subject }, { $inc: { attempts: 1 } }, { returnDocument: 'after' });
 
   if (!doc) {
     throw new ApiError(400, 'OTP expired or not requested. Please request a new one.');

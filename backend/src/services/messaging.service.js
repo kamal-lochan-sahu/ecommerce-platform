@@ -137,7 +137,16 @@ const fromAddress = () => {
   return `"${name}" <${addr}>`;
 };
 
-const stripTags = (html = '') => String(html).replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+const ENTITIES = { '&nbsp;': ' ', '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'" };
+// HTML -> plain text (email ka text/plain hissa). Block tags par space, inline tags (<b>, <strong>) bina space ke,
+// taaki "<strong>Krishna</strong>," "Krishna," bane, "Krishna ," nahi. Entities decode (&nbsp; kachra nahi dikhna chahiye).
+const stripTags = (html = '') => String(html)
+  .replace(/<style[\s\S]*?<\/style>/gi, '')
+  .replace(/<(?:br|\/p|\/div|\/h[1-6]|\/li|\/tr|\/td|\/th|\/table)\b[^>]*>/gi, ' ')
+  .replace(/<[^>]*>/g, '')
+  .replace(/&(?:nbsp|amp|lt|gt|quot|#39);/g, (e) => ENTITIES[e])
+  .replace(/\s+/g, ' ')
+  .trim();
 
 // Returns { success, provider, messageId?, skipped?, error? } - never throws.
 export const sendMail = async ({ to, subject, html, text }) => {

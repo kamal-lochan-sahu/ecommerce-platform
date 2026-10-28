@@ -6,7 +6,7 @@ import express from 'express';
 // ───────── In-memory fakes (real MongoDB transactions need a replica set,
 // so these tests check OUR logic: who restores stock, who is allowed to cancel, idempotency) ─────────
 const db = { orders: new Map(), products: new Map(), variants: new Map(), coupons: new Map(), transactions: new Map() };
-const sent = { emails: [], notifications: [] };
+const sent = { emails: [], notifications: [], sms: [] };
 
 const isObj = (c) => c && typeof c === 'object' && !(c instanceof Date) && !Array.isArray(c);
 const matchVal = (v, c) => {
@@ -74,6 +74,9 @@ mock.module('../src/models/index.js', {
 mock.module('../src/services/email.service.js', {
   namedExports: { sendOrderConfirmationEmail: async (order) => { sent.emails.push(order.orderNumber); } },
 });
+mock.module('../src/services/orderNotifications.service.js', {
+  namedExports: { notifyOrderEventInBackground: (event, order) => { sent.sms.push([event, order.orderNumber]); } },
+});
 mock.module('../src/utils/logger.js', { defaultExport: { info() {}, warn() {}, error() {} } });
 mock.module('../src/config/razorpay.js', { namedExports: { getRazorpay: () => ({}) } });
 mock.module('../src/config/stripe.js', { namedExports: { getStripe: () => ({}) } });
@@ -95,7 +98,7 @@ const mkOrder = (over = {}) => ({
 
 beforeEach(() => {
   for (const m of Object.values(db)) m.clear();
-  sent.emails.length = 0; sent.notifications.length = 0;
+  sent.emails.length = 0; sent.notifications.length = 0; sent.sms.length = 0;
   db.products.set('p1', { stock: 8, totalSold: 2 });
   db.orders.set('o1', mkOrder());
   delete process.env.RAZORPAY_WEBHOOK_SECRET; delete process.env.STALE_ORDER_MINUTES;
@@ -192,6 +195,7 @@ test('markOrderPaid: placed -> confirmed+paid, one notification, one email', asy
   assert.equal(db.orders.get('o1').paymentStatus, 'paid');
   assert.equal(sent.notifications.length, 1);
   assert.deepEqual(sent.emails, ['ORD-1']);
+  assert.deepEqual(sent.sms, [['placed', 'ORD-1']], 'confirmation SMS goes out exactly once, with the email');
 });
 
 test('markOrderPaid twice (verify + webhook race) is idempotent: no duplicate email/notification', async () => {
@@ -201,6 +205,7 @@ test('markOrderPaid twice (verify + webhook race) is idempotent: no duplicate em
   assert.equal(second.status, 'already_paid');
   assert.equal(sent.notifications.length, 1);
   assert.equal(sent.emails.length, 1);
+  assert.equal(sent.sms.length, 1, 'no duplicate confirmation SMS either');
 });
 
 test('markOrderPaid on a CANCELLED order does not revive it; flagLatePayment marks refund needed', async () => {

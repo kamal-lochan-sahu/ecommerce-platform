@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { Order, Product, ProductVariant, Coupon, Notification, User } from '../models/index.js';
 import logger from '../utils/logger.js';
 import { sendOrderConfirmationEmail } from './email.service.js';
+import { notifyOrderEventInBackground } from './orderNotifications.service.js';
 
 // ─────────────────────────────────────────────────────────────
 // Order lifecycle — ONE place for "cancel an order" and "mark an
@@ -100,7 +101,7 @@ export const cancelOrderAndRestore = async (orderId, opts) => {
   let result = { cancelled: false, order: null };
   try {
     await session.withTransaction(async () => {
-      const order = await Order.findOneAndUpdate(filter, update, { new: true, session });
+      const order = await Order.findOneAndUpdate(filter, update, { returnDocument: 'after', session });
       if (!order) {
         result = { cancelled: false, order: null };
         return;
@@ -138,6 +139,8 @@ export const sendConfirmationEmailFor = (order) => {
     .select('name email')
     .then((user) => (user ? sendOrderConfirmationEmail(order, user) : null))
     .catch((err) => logger.error(`Order confirmation email failed for ${order._id}: ${err.message}`));
+  // Confirmation SMS (COD: order lagte hi, online: payment milte hi - dono yahin se guzarte hain)
+  notifyOrderEventInBackground('placed', order);
 };
 
 // ─────────────────────────────────────────────────────────────
@@ -159,7 +162,7 @@ export const markOrderPaid = async (orderId, message = 'Payment received success
   let order = await Order.findOneAndUpdate(
     { _id: orderId, orderStatus: 'placed', paymentStatus: { $nin: ['paid', 'refunded'] } },
     { paymentStatus: 'paid', orderStatus: 'confirmed', $push: push },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   // Edge: order aage badh chuka (e.g. admin ne processing kar diya) par unpaid — status mat chhedo, sirf paid mark karo
@@ -167,7 +170,7 @@ export const markOrderPaid = async (orderId, message = 'Payment received success
     order = await Order.findOneAndUpdate(
       { _id: orderId, orderStatus: { $nin: ['placed', 'cancelled'] }, paymentStatus: { $nin: ['paid', 'refunded'] } },
       { paymentStatus: 'paid', $push: { statusHistory: { status: 'paid', message } } },
-      { new: true }
+      { returnDocument: 'after' }
     );
   }
 
@@ -211,7 +214,7 @@ export const flagLatePayment = async (orderId, paymentId) => {
         },
       },
     },
-    { new: true }
+    { returnDocument: 'after' }
   );
   logger.error(`REFUND NEEDED: payment ${paymentId || '(unknown)'} received for cancelled order ${orderId}`);
   return order;

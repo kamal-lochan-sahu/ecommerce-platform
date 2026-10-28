@@ -185,7 +185,7 @@ export const createOrder = asyncHandler(async (req, res) => {
           const updated = await ProductVariant.findOneAndUpdate(
             { _id: item.variant._id, stock: { $gte: item.quantity } },
             { $inc: { stock: -item.quantity } },
-            { session, new: true }
+            { session, returnDocument: 'after' }
           );
           if (!updated) {
             throw new ApiError(400, `"${item.product.name}" ─ not enough stock left`);
@@ -203,7 +203,7 @@ export const createOrder = asyncHandler(async (req, res) => {
           const updated = await Product.findOneAndUpdate(
             { _id: item.product._id, stock: { $gte: item.quantity } },
             { $inc: { stock: -item.quantity, totalSold: item.quantity } },
-            { session, new: true }
+            { session, returnDocument: 'after' }
           );
           if (!updated) {
             throw new ApiError(400, `"${item.product.name}" ─ not enough stock left`);
@@ -591,7 +591,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
       $set: set,
       $push: { statusHistory: { status, message: message || `Order ${status}` } },
     },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   // Customer ko notification bhejo (shipped par tracking ke saath)
@@ -641,7 +641,7 @@ export const markOrderRefunded = asyncHandler(async (req, res) => {
         },
       },
     },
-    { new: true }
+    { returnDocument: 'after' }
   );
   if (!updated) throw new ApiError(400, 'This refund was already marked as done');
 

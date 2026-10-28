@@ -472,7 +472,7 @@ export const updateCustomerStatus = asyncHandler(async (req, res) => {
   const customer = await User.findOneAndUpdate(
     { _id: req.params.id, role: "customer" },
     isActive ? { isActive } : { isActive, refreshToken: null },
-    { new: true }
+    { returnDocument: 'after' }
   ).select("-password -refreshToken");
 
   if (!customer) throw new ApiError(404, "Customer not found");
@@ -521,7 +521,7 @@ export const approveReview = asyncHandler(async (req, res) => {
   const review = await Review.findByIdAndUpdate(
     req.params.id,
     { isApproved: true, isRejected: false, rejectionReason: "" },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!review) throw new ApiError(404, "Review not found");
@@ -540,7 +540,7 @@ export const rejectReview = asyncHandler(async (req, res) => {
   const review = await Review.findByIdAndUpdate(
     req.params.id,
     { isApproved: false, isRejected: true, rejectionReason: String(reason || "").slice(0, 200) },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!review) throw new ApiError(404, "Review not found");
@@ -659,7 +659,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
 
   const existing = await Settings.findOne();
   const settings = existing
-    ? await Settings.findByIdAndUpdate(existing._id, updates, { new: true, runValidators: true })
+    ? await Settings.findByIdAndUpdate(existing._id, updates, { returnDocument: 'after', runValidators: true })
     : await Settings.create(updates);
 
   return res.status(200).json(new ApiResponse(200, { settings }, "Settings updated"));

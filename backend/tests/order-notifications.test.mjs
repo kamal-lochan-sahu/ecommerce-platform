@@ -57,7 +57,7 @@ test('shipped: email + SMS carry courier, tracking and the CLIENT brand (white-l
 test('COD shipment tells the customer how much cash to keep ready', async () => {
   await notifyOrderEvent('shipped', mkOrder({ paymentMethod: 'cod', paymentStatus: 'pending' }));
   assert.match(out.mail[0].html, /keep ₹1,180 ready/);
-  assert.match(out.sms[0].body, /Pay ₹1,180 on delivery/);
+  assert.match(out.sms[0].body, /Pay Rs\.1,180 on delivery/);
 });
 
 test('shipped without tracking info still works and links to the order page', async () => {
@@ -77,7 +77,7 @@ test('cancelled: paid order promises a refund, unpaid order says nothing was cha
   await notifyOrderEvent('cancelled', mkOrder(), { reason: 'Out of stock' });
   assert.match(out.mail[0].html, /Out of stock/);
   assert.match(out.mail[0].html, /refund ₹1,180/);
-  assert.match(out.sms[0].body, /refund of ₹1,180 is being processed/);
+  assert.match(out.sms[0].body, /refund of Rs\.1,180 is being processed/);
 
   out.mail.length = 0; out.sms.length = 0;
   await notifyOrderEvent('cancelled', mkOrder({ paymentMethod: 'cod', paymentStatus: 'pending' }));
@@ -88,7 +88,7 @@ test('cancelled: paid order promises a refund, unpaid order says nothing was cha
 test('refunded: includes the reference in the email', async () => {
   await notifyOrderEvent('refunded', mkOrder({ paymentStatus: 'refunded' }), { reference: 'rfnd_abc' });
   assert.match(out.mail[0].html, /rfnd_abc/);
-  assert.match(out.sms[0].body, /Refund of ₹1,180/);
+  assert.match(out.sms[0].body, /Refund of Rs\.1,180/);
 });
 
 test('returned: email only, no SMS', async () => {
@@ -153,4 +153,32 @@ test('settings lookup failing falls back to env brand and never fakes a support 
   assert.match(out.mail[0].html, /Just reply to this email/);
   assert.doesNotMatch(out.mail[0].html, /myshop/i);
   delete process.env.CLIENT_NAME;
+});
+
+test('every SMS is plain GSM text: no rupee sign (a single non-GSM character makes the SMS cost 2-3x)', async () => {
+  const gsm = /^[A-Za-z0-9 @$_!"#%&'()*+,\-./:;<=>?\n]*$/;
+  for (const [event, order, extra] of [
+    ['shipped', mkOrder({ paymentMethod: 'cod', paymentStatus: 'pending', tracking: { courier: 'Delhivery', trackingNumber: 'DL1' } }), {}],
+    ['delivered', mkOrder(), {}],
+    ['cancelled', mkOrder(), { reason: 'x' }],
+    ['refunded', mkOrder(), { reference: 'r1' }],
+    ['placed', mkOrder(), {}],
+  ]) {
+    out.sms.length = 0;
+    await notifyOrderEvent(event, order, extra);
+    assert.equal(out.sms.length, 1, event);
+    assert.match(out.sms[0].body, gsm, `${event} SMS must be GSM-7 safe: ${out.sms[0].body}`);
+  }
+});
+
+test('placed: SMS only (the confirmation email is sent separately), COD says what to pay, online says paid', async () => {
+  const cod = await notifyOrderEvent('placed', mkOrder({ paymentMethod: 'cod', paymentStatus: 'pending' }));
+  assert.deepEqual([cod.email, cod.sms], ['skipped', 'sent']);
+  assert.equal(out.mail.length, 0);
+  assert.match(out.sms[0].body, /Order ORD-77 placed\. Pay Rs\.1,180 on delivery\./);
+
+  out.sms.length = 0;
+  await notifyOrderEvent('placed', mkOrder());
+  assert.match(out.sms[0].body, /Order ORD-77 confirmed, Rs\.1,180 paid\./);
+  assert.match(out.sms[0].body, /https:\/\/shop\.example\.com\/orders\/ord1/);
 });

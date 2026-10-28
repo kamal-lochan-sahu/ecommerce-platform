@@ -12,6 +12,7 @@ import logger from '../utils/logger.js';
 //   delivered   yes    yes
 //   cancelled   yes    yes   (admin ne cancel kiya; refund note agar paisa liya ja chuka)
 //   returned    yes    no
+//   placed       no    yes   (email = order confirmation email, sent separately)
 //   refunded    yes    yes
 //
 // Design rules:
@@ -21,6 +22,9 @@ import logger from '../utils/logger.js';
 //  - Sirf wahi links jo sach mein exist karte hain (/orders/:id).
 
 const money = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
+// SMS mein ₹ nahi: wo non-GSM character hai, poora SMS Unicode ban jaata hai (70 char/segment) aur kharcha ~2-3x
+// ho jaata hai. "Rs." se SMS GSM-7 (160 char/segment) rehta hai.
+const smsMoney = (n) => `Rs.${Number(n || 0).toLocaleString('en-IN')}`;
 const isHttpUrl = (u) => /^https?:\/\//i.test(String(u || ''));
 const INDIAN_MOBILE = /^[6-9]\d{9}$/;
 
@@ -68,7 +72,7 @@ const buildContent = (event, order, user, brand, extra) => {
         subject: `Your order ${no} has shipped`,
         heading: 'Your order is on its way',
         paragraphs, details, cta,
-        sms: `${brand.name}: Order ${no} has shipped${via ? ` (${via})` : ''}.${isCod ? ` Pay ${money(total)} on delivery.` : ''}${orderLink ? ` ${orderLink}` : ''}`,
+        sms: `${brand.name}: Order ${no} has shipped${via ? ` (${via})` : ''}.${isCod ? ` Pay ${smsMoney(total)} on delivery.` : ''}${orderLink ? ` ${orderLink}` : ''}`,
       };
     }
     case 'delivered':
@@ -92,7 +96,7 @@ const buildContent = (event, order, user, brand, extra) => {
         subject: `Your order ${no} has been cancelled`,
         heading: 'Order cancelled',
         paragraphs, cta: view,
-        sms: `${brand.name}: Order ${no} has been cancelled.${paid ? ` Your refund of ${money(total)} is being processed.` : ''}`,
+        sms: `${brand.name}: Order ${no} has been cancelled.${paid ? ` Your refund of ${smsMoney(total)} is being processed.` : ''}`,
       };
     }
     case 'returned':
@@ -117,9 +121,18 @@ const buildContent = (event, order, user, brand, extra) => {
         ],
         details: ref ? [['Refund reference', ref]] : [],
         cta: view,
-        sms: `${brand.name}: Refund of ${money(total)} for order ${no} has been processed. It may take a few days to show in your account.`,
+        sms: `${brand.name}: Refund of ${smsMoney(total)} for order ${no} has been processed. It may take a few days to show in your account.`,
       };
     }
+    // Order lag gaya / payment mil gaya. Email alag se jaati hai (order confirmation email),
+    // isliye ye event sirf SMS hai (subject null = email nahi).
+    case 'placed':
+      return {
+        subject: null,
+        sms: isCod
+          ? `${brand.name}: Order ${no} placed. Pay ${smsMoney(total)} on delivery.${orderLink ? ` ${orderLink}` : ''}`
+          : `${brand.name}: Order ${no} confirmed, ${smsMoney(total)} paid.${orderLink ? ` ${orderLink}` : ''}`,
+      };
     default:
       return null;
   }
@@ -138,7 +151,7 @@ export const notifyOrderEvent = async (event, order, extra = {}) => {
     const jobs = [];
 
     // Email: nakli (phone-only account ka placeholder) address par kabhi nahi
-    if (user?.email && !isPlaceholderEmail(user.email)) {
+    if (content.subject && user?.email && !isPlaceholderEmail(user.email)) {
       jobs.push(
         sendMail({ to: user.email, subject: `${content.subject} | ${brand.name}`, html: renderEmail(brand, content) })
           .then((r) => {

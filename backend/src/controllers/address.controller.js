@@ -78,7 +78,7 @@ export const updateAddress = asyncHandler(async (req, res) => {
   const updated = await Address.findByIdAndUpdate(
     req.params.id,
     updateData,
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   res.json(new ApiResponse(200, { address: updated }, 'Address updated successfully'));

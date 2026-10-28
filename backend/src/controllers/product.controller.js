@@ -225,7 +225,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   const updated = await Product.findByIdAndUpdate(
     req.params.id,
     updateData,
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   ).populate('category', 'name slug');
 
   res.json(new ApiResponse(200, { product: updated }, 'Product updated'));

@@ -140,7 +140,7 @@ export const markHelpful = asyncHandler(async (req, res) => {
   const review = await Review.findByIdAndUpdate(
     req.params.id,
     { $inc: { helpfulCount: 1 } },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!review) throw new ApiError(404, 'Review not found');
