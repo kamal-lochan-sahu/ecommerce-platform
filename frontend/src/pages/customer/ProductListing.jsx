@@ -18,10 +18,16 @@ const SORT_OPTIONS = [
   { value: "newest",    label: "Newest First"    },
   { value: "popular",   label: "Most Popular"    },
   { value: "rating",    label: "Top Rated"       },
-  { value: "price-asc", label: "Price: Low to High" },
-  { value: "price-desc",label: "Price: High to Low" },
-  { value: "discount",  label: "Best Discount"   },
+  { value: "price_asc",  label: "Price: Low to High" },
+  { value: "price_desc", label: "Price: High to Low" },
 ];
+
+// Backend ke sortBy values: newest | popular | rating | price_asc | price_desc.
+// Purane bookmark ("price-asc", "discount") safe tareeke se handle hote hain.
+const normalizeSort = (value) => {
+  const v = String(value || "").replace("-", "_");
+  return SORT_OPTIONS.some((o) => o.value === v) ? v : "newest";
+};
 
 const DEFAULT_FILTERS = {
   category:   "",
@@ -37,7 +43,7 @@ export default function ProductListing() {
     ...DEFAULT_FILTERS,
     category: searchParams.get("category") || "",
   });
-  const [sort, setSort]           = useState(searchParams.get("sort") || "newest");
+  const [sort, setSort]           = useState(normalizeSort(searchParams.get("sort")));
   const [viewMode, setViewMode]   = useState("grid");
   const [page, setPage]           = useState(1);
   const [filterOpen, setFilterOpen] = useState(false);

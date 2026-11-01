@@ -11,13 +11,16 @@ import OrderTimeline from '../../components/order/OrderTimeline'
 import Skeleton from '../../components/ui/Skeleton'
 import Modal from '../../components/ui/Modal'
 
+// Poori Tailwind class strings (`bg-${color}-100` jaisi bani hui classes tabhi chalti hain jab wahi class
+// kahin aur literal likhi ho - e.g. Returned ka bg-orange-50 build mein tha hi nahi)
 const STATUS_CONFIG = {
-  pending:    { color: 'yellow', Icon: Clock,         label: 'Pending' },
-  processing: { color: 'blue',   Icon: Package,       label: 'Processing' },
-  shipped:    { color: 'indigo', Icon: Truck,         label: 'Shipped' },
-  delivered:  { color: 'green',  Icon: CheckCircle,   label: 'Delivered' },
-  cancelled:  { color: 'red',    Icon: XCircle,       label: 'Cancelled' },
-  returned:   { color: 'orange', Icon: AlertCircle,   label: 'Returned' },
+  placed:     { badge: 'bg-yellow-100 text-yellow-700', Icon: Clock,         label: 'Pending' },
+  confirmed:  { badge: 'bg-sky-100 text-sky-700',       Icon: CheckCircle,   label: 'Confirmed' },
+  processing: { badge: 'bg-blue-100 text-blue-700',     Icon: Package,       label: 'Processing' },
+  shipped:    { badge: 'bg-indigo-100 text-indigo-700', Icon: Truck,         label: 'Shipped' },
+  delivered:  { badge: 'bg-green-100 text-green-700',   Icon: CheckCircle,   label: 'Delivered' },
+  cancelled:  { badge: 'bg-red-100 text-red-700',       Icon: XCircle,       label: 'Cancelled' },
+  returned:   { badge: 'bg-orange-100 text-orange-700', Icon: AlertCircle,   label: 'Returned' },
 }
 
 export default function OrderDetail() {
@@ -25,6 +28,7 @@ export default function OrderDetail() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [showCancelModal, setShowCancelModal] = useState(false)
+  const [downloading, setDownloading] = useState(false)
 
   const { data: order, isLoading, isError } = useQuery({
     queryKey: ['order', id],
@@ -51,16 +55,24 @@ export default function OrderDetail() {
   })
 
   const handleDownloadInvoice = async () => {
+    if (downloading) return
+    setDownloading(true)
     try {
-      const blob = await orderService.getInvoice(id)
-      const url = window.URL.createObjectURL(blob)
+      // getInvoice axios response deta hai - PDF bytes res.data mein hain
+      // (pehle poora response object createObjectURL ko diya jaata tha, isliye hamesha fail hota tha)
+      const res = await orderService.getInvoice(id)
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
       const a = document.createElement('a')
       a.href = url
       a.download = `invoice-${order.orderNumber}.pdf`
+      document.body.appendChild(a)
       a.click()
+      a.remove()
       window.URL.revokeObjectURL(url)
     } catch {
       toast.error('Failed to download invoice')
+    } finally {
+      setDownloading(false)
     }
   }
 
@@ -92,10 +104,18 @@ export default function OrderDetail() {
     )
   }
 
-  const cfg = STATUS_CONFIG[order.orderStatus] || STATUS_CONFIG.pending
+  const cfg = STATUS_CONFIG[order.orderStatus] || STATUS_CONFIG.placed
   const { Icon: StatusIcon } = cfg
-  const canCancel = ['placed', 'processing'].includes(order.orderStatus)
-  const canTrack  = ['shipped', 'out_for_delivery'].includes(order.orderStatus)
+  // Backend (cancelOrder) sirf placed/confirmed cancel hone deta hai
+  const canCancel = ['placed', 'confirmed'].includes(order.orderStatus)
+  const canTrack  = ['shipped', 'delivered'].includes(order.orderStatus)
+  const isPaid    = order.paymentStatus === 'paid'
+  const isClosed  = ['cancelled', 'returned'].includes(order.orderStatus)
+  // createOrder discount pricing.couponDiscount mein rakhta hai
+  const couponSaving = order.pricing?.couponDiscount || order.pricing?.discount || 0
+  const totalLabel = isPaid
+    ? 'Total Paid'
+    : order.paymentMethod === 'cod' && !isClosed ? 'Total to Pay on Delivery' : 'Total'
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -123,10 +143,11 @@ export default function OrderDetail() {
             )}
             <button
               onClick={handleDownloadInvoice}
-              className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors"
+              disabled={downloading}
+              className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors disabled:opacity-60"
             >
               <Download size={16} />
-              Invoice
+              {downloading ? 'Preparing...' : 'Invoice'}
             </button>
           </div>
         </div>
@@ -147,13 +168,13 @@ export default function OrderDetail() {
               </p>
             </div>
 
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-${cfg.color}-100 text-${cfg.color}-700`}>
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${cfg.badge}`}>
               <StatusIcon size={14} />
               {cfg.label}
             </div>
           </div>
 
-          <OrderTimeline status={order.orderStatus} statusHistory={order.orderStatusHistory} />
+          <OrderTimeline status={order.orderStatus} statusHistory={order.statusHistory} />
         </div>
 
         {/* Items */}
@@ -166,17 +187,17 @@ export default function OrderDetail() {
             {order.items?.map((item, idx) => (
               <div key={idx} className="flex gap-4 py-4 first:pt-0 last:pb-0">
                 <img
-                  src={item.product?.images?.[0] || 'https://placehold.co/400x400?text=Product'}
-                  alt={item.product?.name}
+                  src={item.image || item.product?.images?.[0] || 'https://placehold.co/400x400?text=Product'}
+                  alt={item.name || item.product?.name}
                   className="w-16 h-16 object-cover rounded-xl border border-gray-100 flex-shrink-0"
                   loading="lazy"
                 />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-gray-900 truncate">
-                    {item.product?.name}
+                    {item.name || item.product?.name}
                   </p>
-                  {item.variant && (
-                    <p className="text-xs text-gray-400 mt-0.5">{item.variant}</p>
+                  {item.variant?.name && (
+                    <p className="text-xs text-gray-400 mt-0.5">{item.variant.name}</p>
                   )}
                   <p className="text-sm text-gray-500 mt-1">Qty: {item.quantity}</p>
                 </div>
@@ -201,16 +222,10 @@ export default function OrderDetail() {
               <span>Subtotal</span>
               <span>₹{order.pricing?.subtotal?.toLocaleString('en-IN')}</span>
             </div>
-            {order.pricing?.discount > 0 && (
+            {couponSaving > 0 && (
               <div className="flex justify-between text-green-600">
-                <span>Discount</span>
-                <span>- ₹{order.pricing?.discount?.toLocaleString('en-IN')}</span>
-              </div>
-            )}
-            {order.pricing?.couponDiscount > 0 && (
-              <div className="flex justify-between text-green-600">
-                <span>Coupon ({order.couponCode})</span>
-                <span>- ₹{order.pricing?.couponDiscount?.toLocaleString('en-IN')}</span>
+                <span>Discount{order.couponCode ? ` (${order.couponCode})` : ''}</span>
+                <span>- ₹{couponSaving.toLocaleString('en-IN')}</span>
               </div>
             )}
             <div className="flex justify-between text-gray-600">
@@ -226,7 +241,7 @@ export default function OrderDetail() {
               <span>₹{order.pricing?.tax?.toLocaleString('en-IN')}</span>
             </div>
             <div className="border-t border-gray-100 pt-3 flex justify-between font-bold text-gray-900 text-base">
-              <span>Total Paid</span>
+              <span>{totalLabel}</span>
               <span className="text-indigo-600">
                 ₹{order.pricing?.total?.toLocaleString('en-IN')}
               </span>
@@ -245,6 +260,11 @@ export default function OrderDetail() {
                 {order.paymentStatus?.toUpperCase()}
               </span>
             </div>
+            {isClosed && isPaid && (
+              <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2 mt-2">
+                Your refund will be processed within 5–7 business days.
+              </p>
+            )}
           </div>
         </div>
 
@@ -256,7 +276,7 @@ export default function OrderDetail() {
           </h3>
           {order.shippingAddress && (
             <div className="text-sm text-gray-600 leading-relaxed">
-              <p className="font-semibold text-gray-800">{order.shippingAddress.name}</p>
+              <p className="font-semibold text-gray-800">{order.shippingAddress.fullName}</p>
               <p>{order.shippingAddress.phone}</p>
               <p className="mt-1">
                 {order.shippingAddress.addressLine1}
@@ -300,8 +320,10 @@ export default function OrderDetail() {
         <div className="p-4">
           <p className="text-gray-600 text-sm mb-6">
             Are you sure you want to cancel order{' '}
-            <strong className="text-gray-900">#{order.orderNumber}</strong>?
-            Refund will be processed within 5–7 business days.
+            <strong className="text-gray-900">#{order.orderNumber}</strong>?{' '}
+            {isPaid
+              ? 'Your refund will be processed within 5–7 business days.'
+              : 'You have not been charged for this order.'}
           </p>
           <div className="flex gap-3">
             <button

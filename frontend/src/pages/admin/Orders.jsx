@@ -210,7 +210,7 @@ export default function Orders() {
               <div className="space-y-1.5 text-sm">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Amount</p>
                 <div className="flex justify-between"><span className="text-gray-500">Subtotal</span><span>{money(s.pricing?.subtotal)}</span></div>
-                {s.pricing?.discount > 0 && <div className="flex justify-between"><span className="text-gray-500">Discount{s.couponCode ? ` (${s.couponCode})` : ''}</span><span className="text-green-600">− {money(s.pricing.discount)}</span></div>}
+                {(s.pricing?.couponDiscount || s.pricing?.discount) > 0 && <div className="flex justify-between"><span className="text-gray-500">Discount{s.couponCode ? ` (${s.couponCode})` : ''}</span><span className="text-green-600">− {money(s.pricing.couponDiscount || s.pricing.discount)}</span></div>}
                 <div className="flex justify-between"><span className="text-gray-500">Shipping</span><span>{s.pricing?.shippingCharge ? money(s.pricing.shippingCharge) : 'Free'}</span></div>
                 {s.pricing?.tax > 0 && <div className="flex justify-between"><span className="text-gray-500">Tax</span><span>{money(s.pricing.tax)}</span></div>}
                 <div className="flex justify-between border-t border-gray-100 pt-1.5 font-bold text-gray-900"><span>Total</span><span>{money(s.pricing?.total)}</span></div>

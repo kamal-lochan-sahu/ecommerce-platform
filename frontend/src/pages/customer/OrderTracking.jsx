@@ -6,15 +6,18 @@ import {
 } from 'lucide-react'
 import orderService from '../../services/order.service'
 import Skeleton from '../../components/ui/Skeleton'
+import OrderTimeline from '../../components/order/OrderTimeline'
 
+// Backend flow (utils/orderRules.js): placed -> confirmed -> processing -> shipped -> delivered
+// ('out_for_delivery' backend mein hai hi nahi, isliye hata diya)
 const STEPS = [
-  { key: 'placed',            label: 'Order Placed',      Icon: Package },
-  { key: 'confirmed',         label: 'Confirmed',         Icon: CheckCircle },
-  { key: 'processing',        label: 'Processing',        Icon: Clock },
-  { key: 'shipped',           label: 'Shipped',           Icon: Truck },
-  { key: 'out_for_delivery',  label: 'Out for Delivery',  Icon: Truck },
-  { key: 'delivered',         label: 'Delivered',         Icon: CheckCircle },
+  { key: 'placed',     label: 'Order Placed', Icon: Package },
+  { key: 'confirmed',  label: 'Confirmed',    Icon: CheckCircle },
+  { key: 'processing', label: 'Processing',   Icon: Clock },
+  { key: 'shipped',    label: 'Shipped',      Icon: Truck },
+  { key: 'delivered',  label: 'Delivered',    Icon: CheckCircle },
 ]
+const FINAL_STATUSES = ['delivered', 'cancelled', 'returned']
 const STATUS_ORDER = STEPS.map((s) => s.key)
 
 function getStepIndex(status) {
@@ -28,8 +31,11 @@ export default function OrderTracking() {
 
   const { data: order, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['order-tracking', id],
-    queryFn: () => orderService.getById(id),
-    refetchInterval: 30_000,
+    // axios response unwrap: pehle poora response object `order` ban jaata tha, isliye
+    // order number / status / address sab undefined the. Backend { order } wrap karke deta hai.
+    queryFn: () => orderService.getById(id).then(r => r.data?.data?.order ?? null),
+    // Order khatam ho gaya (delivered/cancelled/returned) to baar-baar poll karne ki zaroorat nahi
+    refetchInterval: (query) => FINAL_STATUSES.includes(query.state.data?.orderStatus) ? false : 30_000,
   })
 
   /* ── Loading ── */
@@ -60,7 +66,11 @@ export default function OrderTracking() {
   }
 
   const currentStep = getStepIndex(order.orderStatus)
-  const tracking = order.trackingInfo
+  const tracking = order.tracking
+  const hasTracking = Boolean(tracking?.courier || tracking?.trackingNumber || tracking?.trackingUrl)
+  // Admin ka diya link sirf http(s) ho to hi kholo (javascript: jaisi link nahi)
+  const safeTrackingUrl = /^https?:\/\//i.test(tracking?.trackingUrl || '') ? tracking.trackingUrl : null
+  const isClosed = ['cancelled', 'returned'].includes(order.orderStatus)
   const progressPct = (currentStep / (STEPS.length - 1)) * 100
 
   return (
@@ -91,7 +101,7 @@ export default function OrderTracking() {
         <div className="bg-indigo-600 text-white rounded-2xl p-5 mb-5">
           <p className="text-indigo-200 text-xs mb-1">Tracking Order</p>
           <h2 className="text-xl font-bold font-mono">#{order.orderNumber}</h2>
-          {order.expectedDelivery && (
+          {order.expectedDelivery && !FINAL_STATUSES.includes(order.orderStatus) && (
             <div className="mt-3 bg-indigo-500 rounded-xl p-3">
               <p className="text-indigo-200 text-xs">Expected Delivery</p>
               <p className="font-semibold mt-0.5">
@@ -107,6 +117,9 @@ export default function OrderTracking() {
         <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-4 shadow-sm">
           <h3 className="font-semibold text-gray-900 mb-8">Delivery Progress</h3>
 
+          {isClosed ? (
+            <OrderTimeline status={order.orderStatus} statusHistory={order.statusHistory} />
+          ) : (
           <div className="relative">
             {/* Track line — background */}
             <div className="absolute left-5 top-5 bottom-5 w-0.5 bg-gray-100" />
@@ -121,7 +134,7 @@ export default function OrderTracking() {
                 const done    = idx <= currentStep
                 const current = idx === currentStep
                 const { Icon } = step
-                const event = order.orderStatusHistory?.find((h) => h.status === step.key)
+                const event = order.statusHistory?.find((h) => h.status === step.key)
 
                 return (
                   <div key={step.key} className="flex items-start gap-4">
@@ -164,20 +177,21 @@ export default function OrderTracking() {
               })}
             </div>
           </div>
+          )}
         </div>
 
         {/* Courier Info */}
-        {tracking && (
+        {hasTracking && (
           <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-4 shadow-sm">
             <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Truck size={18} className="text-indigo-500" />
               Courier Details
             </h3>
             <div className="space-y-3 text-sm">
-              {tracking.courierName && (
+              {tracking.courier && (
                 <div className="flex justify-between">
                   <span className="text-gray-500">Courier</span>
-                  <span className="font-medium text-gray-800">{tracking.courierName}</span>
+                  <span className="font-medium text-gray-800">{tracking.courier}</span>
                 </div>
               )}
               {tracking.trackingNumber && (
@@ -188,9 +202,9 @@ export default function OrderTracking() {
                   </span>
                 </div>
               )}
-              {tracking.trackingUrl && (
+              {safeTrackingUrl && (
                 <a
-                  href={`${tracking?.trackingUrl || "#"}`}
+                  href={safeTrackingUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 w-full mt-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-sm font-medium hover:bg-indigo-100 transition-colors"
@@ -211,7 +225,7 @@ export default function OrderTracking() {
           </h3>
           {order.shippingAddress && (
             <div className="text-sm text-gray-600 leading-relaxed">
-              <p className="font-semibold text-gray-800">{order.shippingAddress.name}</p>
+              <p className="font-semibold text-gray-800">{order.shippingAddress.fullName}</p>
               <p className="mt-1">
                 {order.shippingAddress.addressLine1}
                 {order.shippingAddress.addressLine2 && `, ${order.shippingAddress.addressLine2}`}

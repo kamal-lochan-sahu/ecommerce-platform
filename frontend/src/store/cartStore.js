@@ -27,10 +27,17 @@ const transformItems = (serverItems = []) =>
       price:        item.price,
       comparePrice: item.product.comparePrice,
       images:       item.product.images,
-      stock:        item.product.stock,
+      image:        item.product.images?.[0] || null,
+      stock:        item.variant?.stock ?? item.product.stock,
       quantity:     item.quantity,
       variant:      item.variant?._id || null,
+      // Customer ko variant ka naam dikhta hai, ObjectId nahi
+      variantLabel: item.variant?.name || null,
     }));
+
+// Cart badalne ke baad coupon dobara check hota hai: purana discount nayi cart total par
+// galat ho sakta hai. Sirf sabse naya response maana jaata hai (tez +/- clicks ke liye).
+let couponSyncSeq = 0;
 
 const useCartStore = create(
   persist(
@@ -52,6 +59,34 @@ const useCartStore = create(
         });
       },
 
+      // ── Coupon ko current cart ke hisaab se dobara check karo ──
+      _syncCoupon: async () => {
+        const code = get().couponCode;
+        if (!code) return;
+        const seq = ++couponSyncSeq;
+
+        if (get().items.length === 0) {
+          set({ couponCode: null, couponDiscount: 0 });
+          try { await cartService.removeCoupon(); } catch { /* silent */ }
+          return;
+        }
+
+        try {
+          const res = await cartService.applyCoupon(code);
+          if (seq !== couponSyncSeq) return;
+          const d = res.data?.data;
+          if (d?.couponCode) set({ couponCode: d.couponCode, couponDiscount: d.discount || 0 });
+        } catch (err) {
+          if (seq !== couponSyncSeq) return;
+          // Network issue par coupon rehne do (checkout par server dobara validate karta hai).
+          // Server ne coupon reject kiya (min amount, expiry...) to hata do aur batao kyun.
+          if (err.response?.status !== 400) return;
+          set({ couponCode: null, couponDiscount: 0 });
+          try { await cartService.removeCoupon(); } catch { /* silent */ }
+          toast.error(`Coupon ${code} removed: ${err.response?.data?.message || "not valid for this cart"}`);
+        }
+      },
+
       // ── Fetch cart from server (call on app load + after login) ──
       fetchCart: async () => {
         try {
@@ -59,13 +94,18 @@ const useCartStore = create(
           const data = res.data?.data;
           if (data?.cart?.items?.length) {
             const items = transformItems(data.cart.items);
+            // Server cart mein lagaya hua coupon reload ke baad bhi wapas aata hai
+            // (pehle gayab ho jaata tha aur customer bina discount ke pay kar deta tha)
+            const couponCode = data.cart.couponCode || null;
             set({
               items,
               totalAmount: data.totalAmount || 0,
               totalItems:  data.totalItems  || 0,
+              couponCode,
+              couponDiscount: couponCode ? (data.cart.couponDiscount || 0) : 0,
             });
           } else {
-            set({ items: [], totalAmount: 0, totalItems: 0 });
+            set({ items: [], totalAmount: 0, totalItems: 0, couponCode: null, couponDiscount: 0 });
           }
         } catch {
           // Silent fail — keep local state intact
@@ -97,6 +137,7 @@ const useCartStore = create(
             variantId: product.variant || undefined,
             quantity:  product.quantity || 1,
           });
+          get()._syncCoupon();
           return true;
         } catch (err) {
           // Revert on failure
@@ -115,6 +156,7 @@ const useCartStore = create(
 
         try {
           await cartService.removeItem({ productId: id, variantId: variant || undefined });
+          get()._syncCoupon();
         } catch {
           set({ items: prevItems });
           get()._recalc();
@@ -139,6 +181,7 @@ const useCartStore = create(
             variantId: variant || undefined,
             quantity:  qty,
           });
+          get()._syncCoupon();
         } catch {
           set({ items: prevItems });
           get()._recalc();

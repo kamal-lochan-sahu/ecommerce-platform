@@ -93,7 +93,16 @@ export const getProducts = asyncHandler(async (req, res) => {
     // No matching category (bad/stale slug) -> empty result, not a crash.
     filter.category = categoryDoc ? categoryDoc._id : null;
   }
-  if (brand) filter.brand = { $regex: brand, $options: 'i' };
+  // Sidebar se kai brands comma se judkar aate hain ("Nike,Adidas"). Har brand exact
+  // (case-insensitive) match hota hai; user text regex mein escape karke jaata hai.
+  if (brand) {
+    const brands = String(brand).split(',').map((b) => b.trim()).filter(Boolean).slice(0, 20);
+    if (brands.length) {
+      filter.brand = {
+        $in: brands.map((b) => new RegExp(`^${escapeRegex(b)}$`, 'i')),
+      };
+    }
+  }
   if (isFeatured === 'true') filter.isFeatured = true;
   if (inStock === 'true') filter.stock = { $gt: 0 };
 

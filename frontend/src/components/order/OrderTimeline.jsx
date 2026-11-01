@@ -1,41 +1,42 @@
 import { Clock, Package, Truck, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 
+// Backend flow (utils/orderRules.js): placed -> confirmed -> processing -> shipped -> delivered
 const STEPS = [
-  { key: 'placed',          label: 'Order Placed',      Icon: Clock },
-  { key: 'processing',       label: 'Processing',        Icon: Package },
-  { key: 'shipped',          label: 'Shipped',           Icon: Truck },
-  { key: 'shipped', label: 'Out for Delivery',  Icon: Truck },
-  { key: 'delivered',        label: 'Delivered',         Icon: CheckCircle },
+  { key: 'placed',     label: 'Order Placed', Icon: Clock },
+  { key: 'confirmed',  label: 'Confirmed',    Icon: CheckCircle },
+  { key: 'processing', label: 'Processing',   Icon: Package },
+  { key: 'shipped',    label: 'Shipped',      Icon: Truck },
+  { key: 'delivered',  label: 'Delivered',    Icon: CheckCircle },
 ]
 
 const STATUS_ORDER = STEPS.map((s) => s.key)
 
+// Tailwind poori class string dhundta hai (bani hui `bg-${color}-50` build mein miss ho sakti hai - Returned ka bg-orange-50 miss thi)
+const FINAL = {
+  cancelled: { Icon: XCircle,     title: 'Order Cancelled', box: 'bg-red-50',    icon: 'text-red-500',    head: 'text-red-700',    sub: 'text-red-500' },
+  returned:  { Icon: AlertCircle, title: 'Order Returned',  box: 'bg-orange-50', icon: 'text-orange-500', head: 'text-orange-700', sub: 'text-orange-500' },
+}
+
 function getStepIndex(status) {
-  if (status === 'cancelled' || status === 'returned') return -1
   const i = STATUS_ORDER.indexOf(status)
   return i === -1 ? 0 : i
 }
 
 export default function OrderTimeline({ status, statusHistory = [] }) {
   const currentIdx = getStepIndex(status)
-  const isCancelled = status === 'cancelled'
-  const isReturned  = status === 'returned'
+  const final = FINAL[status]
 
-  if (isCancelled || isReturned) {
-    const Icon = isCancelled ? XCircle : AlertCircle
-    const color = isCancelled ? 'red' : 'orange'
+  if (final) {
+    const { Icon } = final
+    const when = statusHistory?.find(h => h.status === status)?.timestamp
     return (
-      <div className={`flex items-center gap-3 p-4 bg-${color}-50 rounded-xl`}>
-        <Icon className={`text-${color}-500`} size={22} />
+      <div className={`flex items-center gap-3 p-4 ${final.box} rounded-xl`}>
+        <Icon className={final.icon} size={22} />
         <div>
-          <p className={`font-semibold text-${color}-700 text-sm`}>
-            Order {isCancelled ? 'Cancelled' : 'Returned'}
-          </p>
-          {statusHistory?.find(h => h.status === status)?.timestamp && (
-            <p className={`text-xs text-${color}-500 mt-0.5`}>
-              {new Date(
-                statusHistory.find(h => h.status === status).timestamp
-              ).toLocaleString('en-IN', {
+          <p className={`font-semibold ${final.head} text-sm`}>{final.title}</p>
+          {when && (
+            <p className={`text-xs ${final.sub} mt-0.5`}>
+              {new Date(when).toLocaleString('en-IN', {
                 day: 'numeric', month: 'short',
                 hour: '2-digit', minute: '2-digit',
               })}

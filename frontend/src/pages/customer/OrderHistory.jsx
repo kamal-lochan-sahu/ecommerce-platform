@@ -10,6 +10,7 @@ import Skeleton from '../../components/ui/Skeleton'
 const TABS = [
   { label: 'All Orders', value: '' },
   { label: 'Pending',    value: 'placed' },
+  { label: 'Confirmed',  value: 'confirmed' },
   { label: 'Processing', value: 'processing' },
   { label: 'Shipped',    value: 'shipped' },
   { label: 'Delivered',  value: 'delivered' },
@@ -122,12 +123,12 @@ export default function OrderHistory() {
                     <OrderCard order={order} />
                   </Link>
                 ))}
-                {data.totalPages > 1 && (
+                {data.pagination?.totalPages > 1 && (
                   <div className="pt-4">
                     <Pagination
-                      currentPage={page}
-                      totalPages={data.totalPages}
-                      onPageChange={setPage}
+                      page={page}
+                      totalPages={data.pagination.totalPages}
+                      onPageChange={(p) => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
                     />
                   </div>
                 )}

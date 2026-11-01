@@ -436,11 +436,12 @@ export const getMyOrders = asyncHandler(async (req, res) => {
     Order.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit)
-      .select('-items.image'),
+      .limit(limit),
     Order.countDocuments(filter),
   ]);
 
+  // items[].name / items[].image order ke waqt ka snapshot hain - My Orders list
+  // wahi dikhati hai (pehle image select se hata di jaati thi, isliye placeholder dikhta tha)
   res.json(new ApiResponse(200, {
     orders,
     pagination: getPaginationMeta(total, page, limit),
@@ -455,7 +456,9 @@ export const getOrderById = asyncHandler(async (req, res) => {
   const order = await Order.findOne({
     _id: req.params.id,
     userId: req.user._id,
-  }).populate('items.product', 'name slug images');
+  })
+    .populate('items.product', 'name slug images')
+    .populate('items.variant', 'name');
 
   if (!order) throw new ApiError(404, 'Order not found');
 

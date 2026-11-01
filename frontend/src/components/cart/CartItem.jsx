@@ -10,14 +10,14 @@ export default function CartItem({ item }) {
     <div className="flex gap-3 py-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
       <Link to={`/products/${item.slug}`} className="flex-shrink-0">
         <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-          <img src={item.image || "https://placehold.co/400x400?text=Product"} alt={item.name} className="w-full h-full object-cover" />
+          <img src={item.image || item.images?.[0] || "https://placehold.co/400x400?text=Product"} alt={item.name} className="w-full h-full object-cover" />
         </div>
       </Link>
       <div className="flex-1 min-w-0">
         <Link to={`/products/${item.slug}`}>
           <h4 className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-2 hover:text-primary transition-colors">{item.name}</h4>
         </Link>
-        {item.variant && <p className="text-xs text-gray-400 mt-0.5">{item.variant}</p>}
+        {item.variantLabel && <p className="text-xs text-gray-400 mt-0.5">{item.variantLabel}</p>}
         <p className="text-sm font-bold text-gray-900 dark:text-white mt-1">₹{(item.price * item.quantity).toLocaleString("en-IN")}</p>
         <p className="text-xs text-gray-400">₹{item.price?.toLocaleString("en-IN")} × {item.quantity}</p>
       </div>

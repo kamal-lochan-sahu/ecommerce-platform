@@ -2,9 +2,9 @@ import { Package, ChevronRight, Clock, Truck, CheckCircle, XCircle, AlertCircle 
 
 const STATUS_CONFIG = {
   placed:          { label: 'Pending',          bg: 'bg-yellow-100', text: 'text-yellow-700', Icon: Clock },
+  confirmed:       { label: 'Confirmed',        bg: 'bg-sky-100',    text: 'text-sky-700',    Icon: CheckCircle },
   processing:       { label: 'Processing',       bg: 'bg-blue-100',   text: 'text-blue-700',   Icon: Package },
   shipped:          { label: 'Shipped',          bg: 'bg-indigo-100', text: 'text-indigo-700', Icon: Truck },
-  out_for_delivery: { label: 'Out for Delivery', bg: 'bg-purple-100', text: 'text-purple-700', Icon: Truck },
   delivered:        { label: 'Delivered',        bg: 'bg-green-100',  text: 'text-green-700',  Icon: CheckCircle },
   cancelled:        { label: 'Cancelled',        bg: 'bg-red-100',    text: 'text-red-700',    Icon: XCircle },
   returned:         { label: 'Returned',         bg: 'bg-orange-100', text: 'text-orange-700', Icon: AlertCircle },
@@ -14,7 +14,10 @@ export default function OrderCard({ order }) {
   const cfg = STATUS_CONFIG[order.orderStatus] || STATUS_CONFIG.placed
   const { Icon } = cfg
 
-  const firstImage = order.items?.[0]?.product?.images?.[0] || 'https://placehold.co/400x400?text=Product'
+  // Order ke waqt ka snapshot pehle (product baad mein badal/delete ho sakta hai)
+  const first      = order.items?.[0]
+  const firstImage = first?.image || first?.product?.images?.[0] || 'https://placehold.co/400x400?text=Product'
+  const firstName  = first?.name || first?.product?.name || 'Product'
   const itemCount  = order.items?.length || 0
   const extraCount = itemCount - 1
 
@@ -49,7 +52,7 @@ export default function OrderCard({ order }) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-800 truncate">
-            {order.items?.[0]?.product?.name || 'Product'}
+            {firstName}
           </p>
           <p className="text-xs text-gray-400 mt-0.5">
             {itemCount} item{itemCount > 1 ? 's' : ''}

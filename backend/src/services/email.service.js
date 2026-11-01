@@ -415,7 +415,7 @@ export const sendOrderConfirmationEmail = async (order, user) => {
       ).toLocaleDateString("en-IN"),
       items,
       subtotal: pricing.subtotal,
-      discount: pricing.discount || 0, // asli field pricing.discount hai (couponDiscount kabhi tha hi nahi)
+      discount: pricing.couponDiscount || pricing.discount || 0, // createOrder pricing.couponDiscount likhta hai (pricing.discount kabhi set nahi hota)
       couponCode: order.couponCode,
       deliveryCharge: pricing.shippingCharge || 0,
       tax: pricing.tax || 0,
