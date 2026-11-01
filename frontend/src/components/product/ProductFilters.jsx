@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp, SlidersHorizontal } from "lucide-react";
 import { clsx } from "clsx";
 import Rating from "../ui/Rating";
+import productService from "../../services/product.service";
 
 const PRICE_RANGES = [
   { label: "Under ₹500",        min: 0,     max: 500   },
@@ -10,8 +12,6 @@ const PRICE_RANGES = [
   { label: "₹5,000 - ₹10,000", min: 5000,  max: 10000 },
   { label: "Above ₹10,000",    min: 10000, max: 999999 },
 ];
-
-const BRANDS = ["Nike", "Apple", "Samsung", "Puma", "Adidas", "Sony", "OnePlus", "Boat"];
 
 function FilterSection({ title, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -32,6 +32,13 @@ function FilterSection({ title, children, defaultOpen = true }) {
 
 export default function ProductFilters({ filters, onChange, onReset, isMobile = false }) {
   const { category, priceRange, brands, rating, inStock } = filters;
+
+  // Brand list store ke asli products se aati hai (admin jo brand daalta hai wahi dikhta hai)
+  const { data: brandOptions = [] } = useQuery({
+    queryKey: ["product-brands"],
+    queryFn: () => productService.getBrands().then((r) => r.data?.data?.brands ?? []),
+    staleTime: 5 * 60_000,
+  });
 
   const toggleBrand = (brand) => {
     const next = brands.includes(brand)
@@ -100,9 +107,10 @@ export default function ProductFilters({ filters, onChange, onReset, isMobile = 
       </FilterSection>
 
       {/* Brand */}
+      {brandOptions.length > 0 && (
       <FilterSection title="Brand">
         <div className="space-y-2">
-          {BRANDS.map((brand) => (
+          {brandOptions.map((brand) => (
             <label key={brand} className="flex items-center gap-2.5 cursor-pointer group">
               <input
                 type="checkbox"
@@ -117,6 +125,7 @@ export default function ProductFilters({ filters, onChange, onReset, isMobile = 
           ))}
         </div>
       </FilterSection>
+      )}
 
       {/* Rating */}
       <FilterSection title="Minimum Rating">

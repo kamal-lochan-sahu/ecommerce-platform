@@ -7,6 +7,7 @@ import {
   updateProduct,
   deleteProduct,
   getFeaturedProducts,
+  getBrands,
   getAdminProducts,
   searchProducts,
 } from '../controllers/product.controller.js';
@@ -24,6 +25,7 @@ const router = Router();
 // Public — specific routes pehle, dynamic baad mein
 router.get('/featured', getFeaturedProducts);
 router.get('/search', searchProducts);
+router.get('/brands', getBrands);
 router.get('/admin/list', protect, adminOnly, getAdminProducts);
 router.get('/id/:id', protect, adminOnly, getProductById);
 router.get('/:slug', getProductBySlug);

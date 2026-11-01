@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 
 const rec = { find: null, findOne: null, populates: [], selects: [], productFilter: null, mail: [] };
 let orderDoc;
+let rawBrands = [];
 
 // Minimal chainable query: await-able, records populate()/select() calls
 const chain = (result) => {
@@ -35,6 +36,7 @@ mock.module('../src/models/index.js', {
     Product: {
       find: (f) => { rec.productFilter = f; return chain([]); },
       countDocuments: async () => 0,
+      distinct: async (field, f) => { rec.distinct = [field, f]; return rawBrands; },
     },
     Category: { findOne: () => ({ select: async () => null }) },
     Settings: { getSingleton: async () => ({ storeName: 'Sharma Sarees', storeEmail: 'help@sharmasarees.in' }) },
@@ -65,7 +67,7 @@ mock.module('../src/utils/logger.js', { defaultExport: { info() {}, warn() {}, e
 process.env.FRONTEND_URL = 'https://shop.example.com';
 
 const { getMyOrders, getOrderById } = await import('../src/controllers/order.controller.js');
-const { getProducts } = await import('../src/controllers/product.controller.js');
+const { getProducts, getBrands } = await import('../src/controllers/product.controller.js');
 const { sendOrderConfirmationEmail } = await import('../src/services/email.service.js');
 
 const call = async (handler, req) => {
@@ -132,4 +134,17 @@ test('confirmation email shows the coupon discount that createOrder stores', asy
   assert.equal(rec.mail.length, 1);
   assert.match(rec.mail[0].html, /SAVE10/);
   assert.match(rec.mail[0].html, /-₹100/);
+});
+
+test('brand list for the sidebar: real brands only, trimmed, de-duplicated, sorted', async () => {
+  rawBrands = ['Luxora Home', 'apex', ' Apex ', null, '', undefined, 'Aether', 'luxora active'];
+  const body = await call(getBrands, {});
+  assert.deepEqual(rec.distinct, ['brand', { isActive: true }]);
+  assert.deepEqual(body.data.brands, ['Aether', 'apex', 'luxora active', 'Luxora Home']);
+});
+
+test('brand list is empty (not an error) when no product has a brand', async () => {
+  rawBrands = [];
+  const body = await call(getBrands, {});
+  assert.deepEqual(body.data.brands, []);
 });

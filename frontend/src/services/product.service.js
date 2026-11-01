@@ -5,6 +5,7 @@ const productService = {
   getAll:      (params) => api.get("/products", { params }),
   getBySlug:   (slug)   => api.get(`/products/${slug}`),
   getFeatured: (limit=8)=> api.get("/products/featured", { params: { limit } }),
+  getBrands:   ()       => api.get("/products/brands"),
   search:      (params) => api.get("/products/search", { params }),
   getCategories: ()     => api.get("/categories"),
   getBanners:  (params) => api.get("/banners", { params }),

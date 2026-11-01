@@ -153,6 +153,26 @@ export const getProducts = asyncHandler(async (req, res) => {
 });
 
 // =====================
+// @route  GET /api/products/brands
+// @access Public
+// Sidebar ke Brand filter ke liye: store ke active products ke asli brands
+// (pehle sidebar mein hardcoded Nike/Puma... tha, jo store mein the hi nahi)
+// =====================
+export const getBrands = asyncHandler(async (req, res) => {
+  const raw = await Product.distinct('brand', { isActive: true });
+
+  // Trim karo, khali hatao, aur "Apex" / "apex " ko ek hi maano
+  const seen = new Map();
+  for (const b of raw) {
+    const name = typeof b === 'string' ? b.trim() : '';
+    if (name && !seen.has(name.toLowerCase())) seen.set(name.toLowerCase(), name);
+  }
+  const brands = [...seen.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+  res.json(new ApiResponse(200, { brands }, 'Brands fetched'));
+});
+
+// =====================
 // @route  GET /api/products/:slug
 // @access Public
 // =====================
