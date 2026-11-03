@@ -11,6 +11,9 @@ import { getPagination, getPaginationMeta } from '../utils/pagination.js';
 import { sendEmail } from '../utils/email.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
 import { notifyOrderEventInBackground } from '../services/orderNotifications.service.js';
+import { countCouponUses, findRelatedUserIds } from '../utils/couponUsage.js';
+import { getOrderRecipient } from '../utils/orderRecipient.js';
+import { isValidGuestPhoneToken } from '../utils/guestCheckoutToken.js';
 import { allowedNextStatuses, checkTransition, isRefundDue, REFUND_DUE_FILTER } from '../utils/orderRules.js';
 import {
   cancelOrderAndRestore,
@@ -22,7 +25,8 @@ import {
 // =====================
 // Helper — coupon validate karo
 // =====================
-const validateCoupon = async (code, userId, subtotal) => {
+// who = { userId } (logged-in) ya { guestKey, relatedUserIds } (guest)
+const validateCoupon = async (code, who, subtotal) => {
   const coupon = await Coupon.findOne({
     code: code.toUpperCase(),
     isActive: true,
@@ -40,11 +44,7 @@ const validateCoupon = async (code, userId, subtotal) => {
     throw new ApiError(400, `Minimum order amount ₹${coupon.minOrderAmount} required`);
   }
 
-  const userUsage = coupon.usedBy.filter(
-    (u) => u.userId.toString() === userId.toString()
-  ).length;
-
-  if (userUsage >= coupon.usagePerUser) {
+  if (countCouponUses(coupon, who) >= coupon.usagePerUser) {
     throw new ApiError(400, 'You have already used this coupon');
   }
 
@@ -64,17 +64,33 @@ const validateCoupon = async (code, userId, subtotal) => {
 
 // =====================
 // @route  POST /api/orders
-// @access Private
+// @access Logged-in (addressId) ya Guest (guest object, x-session-id cart)
 // =====================
 export const createOrder = asyncHandler(async (req, res) => {
-  const { addressId, paymentMethod, couponCode, notes } = req.body;
-  const userId = req.user._id;
+  const { addressId, paymentMethod, couponCode, notes, guest } = req.body;
+  const userId = req.user?._id || null;
+  const sessionId = req.headers['x-session-id'];
+
+  // Na login, na guest details: shayad token expire ho gaya. 401 dene se app token refresh
+  // karke wahi request dobara bhejti hai (400 dete to customer ko galat error dikhta).
+  if (!userId && !guest) {
+    throw new ApiError(401, 'Please log in to place an order');
+  }
+  if (userId && !addressId) {
+    throw new ApiError(400, 'Delivery address is required');
+  }
+  if (!userId && !sessionId) {
+    throw new ApiError(400, 'Your cart is empty');
+  }
 
   // Maintenance mode: admin ne store band kiya hai to naye orders nahi lete
   // (Settings page ka toggle sach mein kaam kare, sirf dikhawa na ho).
   const storeState = await Settings.getSingleton();
   if (storeState.maintenanceMode) {
     throw new ApiError(503, 'The store is under maintenance and not taking new orders right now. Please try again shortly');
+  }
+  if (!userId && storeState.allowGuestCheckout === false) {
+    throw new ApiError(403, 'Guest checkout is turned off. Please log in to place an order');
   }
 
   // Payment method enabled check
@@ -84,29 +100,57 @@ export const createOrder = asyncHandler(async (req, res) => {
   if (paymentMethod === 'stripe' && process.env.STRIPE_ENABLED !== 'true') {
     throw new ApiError(400, 'Stripe is not enabled');
   }
+  if (paymentMethod === 'stripe' && !userId) {
+    throw new ApiError(400, 'Please log in to pay with Stripe, or choose Razorpay or Cash on Delivery');
+  }
   if (paymentMethod === 'cod' && process.env.COD_ENABLED !== 'true') {
     throw new ApiError(400, 'Cash on delivery is not available');
   }
   // COD mein paisa delivery pe milta hai — fake/prank orders rokne ke liye
   // verified phone zaroori hai (online payment mein payment khud deterrent hai).
-  if (paymentMethod === 'cod' && !req.user.isPhoneVerified) {
+  if (paymentMethod === 'cod' && userId && !req.user.isPhoneVerified) {
     throw new ApiError(
       403,
       'Please verify your phone number in your Profile to place a Cash on Delivery order',
       ['PHONE_NOT_VERIFIED']
     );
   }
+  // Guest ke liye wahi rule: COD par phone OTP se verify hona chahiye (phoneToken uska proof hai).
+  if (paymentMethod === 'cod' && !userId && !isValidGuestPhoneToken(guest.phoneToken, guest.phone)) {
+    throw new ApiError(
+      403,
+      'Please verify your phone number with the OTP to place a Cash on Delivery order',
+      ['PHONE_NOT_VERIFIED']
+    );
+  }
 
-  // Cart fetch karo
-  const cart = await Cart.findOne({ userId }).populate('items.product').populate('items.variant');
+  // Cart fetch karo — logged-in: userId se, guest: x-session-id se
+  const cartFilter = userId ? { userId } : { sessionId };
+  const cart = await Cart.findOne(cartFilter).populate('items.product').populate('items.variant');
 
   if (!cart || cart.items.length === 0) {
     throw new ApiError(400, 'Your cart is empty');
   }
 
-  // Address fetch karo
-  const address = await Address.findOne({ _id: addressId, userId });
-  if (!address) throw new ApiError(404, 'Address not found');
+  // Address: logged-in ka saved Address, guest ka form se snapshot (Address document nahi banta)
+  let address;
+  if (userId) {
+    address = await Address.findOne({ _id: addressId, userId });
+    if (!address) throw new ApiError(404, 'Address not found');
+  } else {
+    // validate middleware body ko trim karke wapas nahi deta, isliye yahan trim karte hain
+    const t = (v) => String(v || '').trim();
+    address = {
+      fullName: t(guest.name),
+      phone: guest.phone,
+      addressLine1: t(guest.address.addressLine1),
+      addressLine2: t(guest.address.addressLine2),
+      city: t(guest.address.city),
+      state: t(guest.address.state),
+      pincode: guest.address.pincode,
+      country: 'India',
+    };
+  }
 
   // Stock validate karo — friendly early error. NOT the authoritative check:
   // stock can still change between this read and the atomic decrement below,
@@ -139,7 +183,10 @@ export const createOrder = asyncHandler(async (req, res) => {
   let couponDiscount = 0;
   let appliedCoupon = null;
   if (couponCode) {
-    const result = await validateCoupon(couponCode, userId, subtotal);
+    const who = userId
+      ? { userId }
+      : { guestKey: guest.phone, relatedUserIds: await findRelatedUserIds({ phone: guest.phone, email: guest.email }) };
+    const result = await validateCoupon(couponCode, who, subtotal);
     couponDiscount = result.discount;
     appliedCoupon = result.coupon;
   }
@@ -213,6 +260,12 @@ export const createOrder = asyncHandler(async (req, res) => {
 
       const created = await Order.create([{
         userId,
+        guestContact: userId ? undefined : {
+          name: guest.name,
+          email: guest.email || '',
+          phone: guest.phone,
+          phoneVerified: paymentMethod === 'cod',
+        },
         items: orderItems,
         shippingAddress,
         pricing: {
@@ -236,14 +289,14 @@ export const createOrder = asyncHandler(async (req, res) => {
       if (appliedCoupon) {
         await Coupon.findByIdAndUpdate(
           appliedCoupon._id,
-          { $inc: { usedCount: 1 }, $push: { usedBy: { userId } } },
+          { $inc: { usedCount: 1 }, $push: { usedBy: userId ? { userId } : { guestKey: guest.phone } } },
           { session }
         );
       }
 
       // Cart clear karo
       await Cart.findOneAndUpdate(
-        { userId },
+        cartFilter,
         { items: [], couponCode: null, couponDiscount: 0 },
         { session }
       );
@@ -252,8 +305,8 @@ export const createOrder = asyncHandler(async (req, res) => {
     await session.endSession();
   }
 
-  // Loyalty points add karo (1 point per ₹10)
-  if (process.env.LOYALTY_ENABLED === 'true') {
+  // Loyalty points add karo (1 point per ₹10) — sirf registered customers ko
+  if (userId && process.env.LOYALTY_ENABLED === 'true') {
     const pointsEarned = Math.floor(total / 10);
     await LoyaltyPoints.findOneAndUpdate(
       { userId },
@@ -272,14 +325,16 @@ export const createOrder = asyncHandler(async (req, res) => {
     );
   }
 
-  // Notification create karo
-  await Notification.create({
-    userId,
-    title: 'Order Placed! 🎉',
-    message: `Your order ${order.orderNumber} has been placed successfully.`,
-    type: 'order',
-    link: `/orders/${order._id}`,
-  });
+  // In-app notification sirf registered customer ke liye (guest ka account nahi hota)
+  if (userId) {
+    await Notification.create({
+      userId,
+      title: 'Order Placed! 🎉',
+      message: `Your order ${order.orderNumber} has been placed successfully.`,
+      type: 'order',
+      link: `/orders/${order._id}`,
+    });
+  }
 
   // COD — directly confirm karo (online orders ki email payment confirm hone pe jaati hai)
   if (paymentMethod === 'cod') {
@@ -337,7 +392,7 @@ export const createOrder = asyncHandler(async (req, res) => {
 
 // =====================
 // @route  POST /api/payments/razorpay/verify
-// @access Private
+// @access Logged-in ya guest order (signature se verify)
 // =====================
 export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
   const {
@@ -366,10 +421,17 @@ export const verifyRazorpayPayment = asyncHandler(async (req, res) => {
 
   const orderId = transaction.order;
 
-  // Ownership check — sirf apna order verify kar sakta hai
-  const orderCheck = await Order.findOne({ _id: orderId, userId: req.user._id });
+  // Ownership check:
+  //  - guest order (userId null): login nahi hota; Razorpay ka signed payment hi proof hai
+  //  - registered user ka order: wahi user hona chahiye. Token nahi mila to 401 (expired token ho sakta hai,
+  //    app refresh karke dobara bhejti hai) — warna paisa kat kar bhi order confirm nahi hota.
+  const orderCheck = await Order.findById(orderId);
   if (!orderCheck) {
     throw new ApiError(404, 'Order not found');
+  }
+  if (orderCheck.userId) {
+    if (!req.user) throw new ApiError(401, 'Please log in to verify this payment');
+    if (String(orderCheck.userId) !== String(req.user._id)) throw new ApiError(404, 'Order not found');
   }
 
   // Signature verify karo
@@ -511,7 +573,13 @@ export const getAllOrders = asyncHandler(async (req, res) => {
       .select('_id')
       .limit(100)
       .lean();
-    filter.$or = [{ orderNumber: rx }, { userId: { $in: users.map((u) => u._id) } }];
+    filter.$or = [
+      { orderNumber: rx },
+      { userId: { $in: users.map((u) => u._id) } },
+      { 'guestContact.name': rx },
+      { 'guestContact.email': rx },
+      { 'guestContact.phone': rx },
+    ];
   }
 
   const [orders, total, statusAgg, refundDueCount] = await Promise.all([
@@ -529,8 +597,12 @@ export const getAllOrders = asyncHandler(async (req, res) => {
   ]);
 
   // UI ko wahi rules milte hain jo updateOrderStatus lagata hai
+  // Guest order ka userId null hota hai — admin table ko wahi shape (userId.name/email/phone) chahiye,
+  // isliye guest contact usi jagah rakh dete hain, aur isGuest flag se "Guest" badge dikhta hai.
   const withRules = orders.map((o) => ({
     ...o,
+    userId: o.userId || (o.guestContact ? { name: o.guestContact.name, email: o.guestContact.email, phone: o.guestContact.phone } : null),
+    isGuest: !o.userId,
     allowedNext: allowedNextStatuses(o),
     refundDue: isRefundDue(o),
   }));
@@ -601,13 +673,15 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   const trackingNote = status === 'shipped' && trackingNumber
     ? ` Tracking: ${courier ? `${courier} ` : ''}${trackingNumber}`
     : '';
-  await Notification.create({
-    userId: order.userId,
-    title: `Order ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-    message: message || `Your order ${order.orderNumber} is ${status}.${trackingNote}`,
-    type: 'order',
-    link: `/orders/${order._id}`,
-  });
+  if (order.userId) {
+    await Notification.create({
+      userId: order.userId,
+      title: `Order ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+      message: message || `Your order ${order.orderNumber} is ${status}.${trackingNote}`,
+      type: 'order',
+      link: `/orders/${order._id}`,
+    });
+  }
 
   // Email + SMS: shipped (tracking ke saath), delivered, returned
   if (['shipped', 'delivered', 'returned'].includes(status)) {
@@ -648,13 +722,15 @@ export const markOrderRefunded = asyncHandler(async (req, res) => {
   );
   if (!updated) throw new ApiError(400, 'This refund was already marked as done');
 
-  await Notification.create({
-    userId: order.userId,
-    title: 'Refund processed',
-    message: `Your refund for order ${order.orderNumber} has been processed. It can take a few days to show in your account.`,
-    type: 'order',
-    link: `/orders/${order._id}`,
-  });
+  if (order.userId) {
+    await Notification.create({
+      userId: order.userId,
+      title: 'Refund processed',
+      message: `Your refund for order ${order.orderNumber} has been processed. It can take a few days to show in your account.`,
+      type: 'order',
+      link: `/orders/${order._id}`,
+    });
+  }
   notifyOrderEventInBackground('refunded', updated, { reference });
 
   res.json(new ApiResponse(200, { order: updated }, 'Refund marked as done'));
@@ -903,17 +979,16 @@ export const getInvoicePDF = asyncHandler(async (req, res) => {
   // invalid/deleted order id crashed with a raw 500 instead of a clean 404.
   if (!order) throw new ApiError(404, "Order not found");
 
-  const user = await (await import("../models/user.model.js")).default
-    .findById(order.userId)
-    .select("name email phone");
-
-  // Sirf apna order dekh sakta hai (admin sab dekh sakta hai)
+  // Sirf apna order dekh sakta hai (admin sab dekh sakta hai). Guest order ka koi owner
+  // account nahi, isliye usse sirf admin dekh sakta hai.
   if (
-    order.userId.toString() !== req.user._id.toString() &&
-    req.user.role !== "admin"
+    req.user.role !== "admin" &&
+    (!order.userId || order.userId.toString() !== req.user._id.toString())
   ) {
     throw new ApiError(403, "Not authorized");
   }
+
+  const user = await getOrderRecipient(order);
 
   const generateInvoicePDF = (await import("../utils/pdf.js")).default;
   const pdfBuffer = await generateInvoicePDF(order, user);

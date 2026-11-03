@@ -49,3 +49,17 @@ export const otpResendLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Guest order banana (bina login) — IP par limit, taaki koi script se stock na rok le.
+// Logged-in users par lagu nahi hota (skip).
+export const guestOrderLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 15,
+  skip: (req) => !!req.user,
+  message: {
+    success: false,
+    message: 'Too many orders from this network. Please try again later.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

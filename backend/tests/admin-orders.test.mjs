@@ -178,10 +178,15 @@ test('order list: adds allowedNext + refundDue per order and status counts for t
 test('order list search: matches order number OR the customer, and user text cannot break the regex', async () => {
   await call(getAllOrders, { query: { search: 'a.b(' } });
   const f = sent.lastFind;
-  assert.equal(f.$or.length, 2);
+  // order number, registered customer, aur guest ka naam/email/phone
+  assert.equal(f.$or.length, 5);
   assert.ok(f.$or[0].orderNumber instanceof RegExp);
   assert.equal(f.$or[0].orderNumber.source, 'a\\.b\\(');
   assert.deepEqual(f.$or[1].userId.$in, ['u9']);
+  for (const [i, key] of [[2, 'guestContact.name'], [3, 'guestContact.email'], [4, 'guestContact.phone']]) {
+    assert.ok(f.$or[i][key] instanceof RegExp);
+    assert.equal(f.$or[i][key].source, 'a\\.b\\(');
+  }
 });
 
 test('email + SMS events: shipped, delivered and returned are sent; confirmed/processing stay in-app only', async () => {

@@ -17,7 +17,7 @@ const SEND_WINDOW_MS = 60 * 60 * 1000;
 const MAX_SENDS_PER_WINDOW = 5;
 const MAX_ATTEMPTS = 5;
 
-const CHANNEL = { login: 'sms', phone_verify: 'sms', email_verify: 'email', email_add: 'email' };
+const CHANNEL = { login: 'sms', phone_verify: 'sms', email_verify: 'email', email_add: 'email', guest_checkout: 'sms' };
 
 const secret = () => process.env.OTP_SECRET || process.env.JWT_SECRET || 'dev-only-otp-secret';
 

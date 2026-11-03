@@ -4,10 +4,8 @@ import { clsx } from "clsx";
 import toast from "react-hot-toast";
 import cartService from "../../services/cart.service";
 import useCartStore from "../../store/cartStore";
-import useAuthStore from "../../store/authStore";
 
 export default function CartSummary({ subtotal, onCheckout, compact = false }) {
-  const { user } = useAuthStore();
   const { couponCode, couponDiscount, setCoupon, clearCoupon } = useCartStore();
   const [couponInput, setCouponInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -18,10 +16,6 @@ export default function CartSummary({ subtotal, onCheckout, compact = false }) {
 
   const applyCoupon = async () => {
     if (!couponInput.trim()) return;
-    if (!user) {
-      toast.error("Please login to apply a coupon");
-      return;
-    }
     setLoading(true);
     try {
       const res = await cartService.applyCoupon(couponInput.trim());

@@ -113,7 +113,7 @@ export default function Dashboard() {
                 <div key={o._id} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
                   <div>
                     <p className="text-sm font-medium text-gray-800 font-mono">#{o.orderNumber}</p>
-                    <p className="text-xs text-gray-400">{o.userId?.name}</p>
+                    <p className="text-xs text-gray-400">{o.userId?.name || o.guestContact?.name}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-gray-900">₹{o.pricing?.total?.toLocaleString('en-IN')}</p>

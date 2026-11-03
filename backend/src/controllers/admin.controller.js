@@ -598,6 +598,8 @@ export const getPublicSettings = asyncHandler(async (req, res) => {
     storeName: settings.storeName,
     // Storefront ye dekhkar "store maintenance mein hai" banner dikhata hai
     maintenanceMode: !!settings.maintenanceMode,
+    // Checkout page guest form dikhaye ya login maange
+    allowGuestCheckout: settings.allowGuestCheckout !== false,
   }, "Public settings fetched"));
 });
 
@@ -612,7 +614,7 @@ export const getSettings = asyncHandler(async (req, res) => {
 
 const ALLOWED_SETTINGS_FIELDS = [
   "storeName", "storeEmail", "storePhone", "storeAddress",
-  "currency", "deliveryFee", "freeDeliveryAbove", "taxRate", "maintenanceMode",
+  "currency", "deliveryFee", "freeDeliveryAbove", "taxRate", "maintenanceMode", "allowGuestCheckout",
 ];
 
 export const updateSettings = asyncHandler(async (req, res) => {
@@ -652,6 +654,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
     if (!/^[A-Z]{3}$/.test(updates.currency)) throw new ApiError(400, "Currency must be a 3-letter code like INR");
   }
   if (updates.maintenanceMode !== undefined) updates.maintenanceMode = updates.maintenanceMode === true || updates.maintenanceMode === "true";
+  if (updates.allowGuestCheckout !== undefined) updates.allowGuestCheckout = updates.allowGuestCheckout === true || updates.allowGuestCheckout === "true";
 
   if (Object.keys(updates).length === 0) {
     throw new ApiError(400, "No valid settings fields provided");

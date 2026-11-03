@@ -42,6 +42,7 @@ const couponSchema = new mongoose.Schema({
   usedBy: [
     {
       userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      guestKey: { type: String }, // guest order: unka phone number (userId nahi hota)
       usedAt: { type: Date, default: Date.now },
     },
   ],

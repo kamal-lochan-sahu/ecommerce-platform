@@ -63,7 +63,7 @@ const Transaction = {
   },
 };
 const Notification = { create: async (n) => { sent.notifications.push(n); } };
-const User = { findById: () => ({ select: () => Promise.resolve({ _id: 'u1', name: 'Krishna', email: 'k@example.com' }) }) };
+const User = { findById: () => ({ select: () => ({ lean: async () => ({ _id: 'u1', name: 'Krishna', email: 'k@example.com' }) }) }) };
 
 mock.module('mongoose', {
   defaultExport: { startSession: async () => ({ withTransaction: async (fn) => fn(), endSession: async () => {} }) },
@@ -346,4 +346,58 @@ test('ensureBody leaves an existing body alone and fills a missing one', () => {
   const b = {}; ensureBody(b, {}, () => {});
   assert.deepEqual(a.body, { x: 1 });
   assert.deepEqual(b.body, {});
+});
+
+// ───────── guest orders (userId null, contact on the order) ─────────
+const mkGuestOrder = (over = {}) => mkOrder({
+  userId: null,
+  guestContact: { name: 'Asha Guest', email: 'asha@example.com', phone: '9876543210' },
+  ...over,
+});
+
+test('guest order cancel: the coupon use is matched by the guest phone (guestKey) and only ONE entry goes back', async () => {
+  db.coupons.set('c1', mkCoupon({
+    usedBy: [{ userId: 'u1' }, { guestKey: '9876543210' }, { guestKey: '9000000000' }, { guestKey: '9876543210' }],
+    usedCount: 4,
+  }));
+  db.orders.set('o1', mkGuestOrder({ couponCode: 'SAVE10' }));
+  await L.cancelOrderAndRestore('o1', { allowedFrom: ['placed'], reason: 'x' });
+  const c = db.coupons.get('c1');
+  assert.equal(c.usedCount, 3);
+  // releaseCoupon latest matching entry hatata hai (peeche se dhoondhta hai)
+  assert.deepEqual(c.usedBy.map((u) => u.userId || u.guestKey), ['u1', '9876543210', '9000000000']);
+});
+
+test('guest order cancel never touches another customer\'s coupon use (no guestKey match -> nothing reverted)', async () => {
+  db.coupons.set('c1', mkCoupon({ usedBy: [{ userId: 'u1' }, { guestKey: '9000000000' }], usedCount: 2 }));
+  db.orders.set('o1', mkGuestOrder({ couponCode: 'SAVE10' }));
+  await L.cancelOrderAndRestore('o1', { allowedFrom: ['placed'], reason: 'x' });
+  assert.equal(db.coupons.get('c1').usedCount, 2);
+  assert.equal(db.coupons.get('c1').usedBy.length, 2);
+});
+
+test('guest order cancel with notify: stock comes back, no in-app notification (a guest has no account)', async () => {
+  db.orders.set('o1', mkGuestOrder());
+  const r = await L.cancelOrderAndRestore('o1', { allowedFrom: ['placed'], reason: 'x', notify: true });
+  assert.equal(r.cancelled, true);
+  assert.equal(db.products.get('p1').stock, 10);
+  assert.equal(sent.notifications.length, 0);
+});
+
+test('guest order paid: no in-app notification, confirmation email goes to the guest email, SMS event fires once', async () => {
+  db.orders.set('o1', mkGuestOrder({ paymentMethod: 'razorpay' }));
+  const r = await L.markOrderPaid('o1');
+  await tick();
+  assert.equal(r.status, 'paid');
+  assert.equal(sent.notifications.length, 0);
+  assert.deepEqual(sent.emails, ['ORD-1']);
+  assert.deepEqual(sent.sms, [['placed', 'ORD-1']]);
+});
+
+test('guest order without an email: no confirmation email, but the SMS event still fires', async () => {
+  db.orders.set('o1', mkGuestOrder({ guestContact: { name: 'Asha', email: '', phone: '9876543210' } }));
+  L.sendConfirmationEmailFor(db.orders.get('o1'));
+  await tick(); await tick();
+  assert.deepEqual(sent.emails, []);
+  assert.deepEqual(sent.sms, [['placed', 'ORD-1']]);
 });

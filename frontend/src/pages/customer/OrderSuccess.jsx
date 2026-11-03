@@ -14,6 +14,8 @@ export default function OrderSuccess() {
   // Support both orderId (MongoDB _id) and orderNumber
   const orderId     = location.state?.orderId;
   const orderNumber = location.state?.orderNumber;
+  // Guest ne email diya tha to wahi dikhate hain; nahi diya to SMS ka bharosa
+  const guestEmail  = location.state?.guestEmail;
 
   // Redirect if accessed directly without order state
   useEffect(() => {
@@ -76,7 +78,11 @@ export default function OrderSuccess() {
 
         <h1 className="text-2xl font-bold text-gray-900 mb-2">Order Placed! 🛍️</h1>
         <p className="text-gray-600 mb-1">Your order has been confirmed.</p>
-        <p className="text-gray-500 text-sm mb-6">You will receive a confirmation email shortly.</p>
+        <p className="text-gray-500 text-sm mb-6">
+          {isAuthenticated || guestEmail
+            ? "You will receive a confirmation email shortly."
+            : "We will text you updates about this order. Please note your order ID below."}
+        </p>
 
         {/* Order ID Card */}
         <div className="card p-5 mb-4 text-left">
@@ -166,7 +172,11 @@ export default function OrderSuccess() {
           </Link>
         </div>
 
-        <p className="text-xs text-gray-400 mt-6">A confirmation email has been sent to you 📧</p>
+        {(isAuthenticated || guestEmail) && (
+          <p className="text-xs text-gray-400 mt-6">
+            A confirmation email has been sent{guestEmail ? ` to ${guestEmail}` : " to you"} 📧
+          </p>
+        )}
       </div>
     </div>
   );

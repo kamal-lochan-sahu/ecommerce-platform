@@ -106,7 +106,7 @@ export default function Orders() {
 
   const columns = [
     { key:'orderNumber', label:'Order', render:(v)=><span className="font-mono font-semibold text-gray-900">#{v}</span> },
-    { key:'userId', label:'Customer', render:(v)=><div><p className="text-sm font-medium">{v?.name || '—'}</p><p className="text-xs text-gray-400">{v?.email}</p></div> },
+    { key:'userId', label:'Customer', render:(v,row)=><div><p className="text-sm font-medium">{v?.name || '—'}{row?.isGuest && <span className="ml-1.5 text-[10px] font-semibold uppercase bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Guest</span>}</p><p className="text-xs text-gray-400">{v?.email || v?.phone}</p></div> },
     { key:'items', label:'Items', render:(v)=><span className="text-gray-600">{(v||[]).reduce((n,i)=>n+(i.quantity||0),0)}</span> },
     { key:'pricing', label:'Amount', render:(v)=><span className="font-semibold">{money(v?.total)}</span> },
     { key:'paymentStatus', label:'Payment', render:(v,row)=>(
@@ -169,7 +169,7 @@ export default function Orders() {
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="bg-gray-50 rounded-xl p-4">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Customer</p>
-                <p className="font-medium text-gray-900">{s.userId?.name || '—'}</p>
+                <p className="font-medium text-gray-900">{s.userId?.name || '—'}{s.isGuest && <span className="ml-1.5 text-[10px] font-semibold uppercase bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded">Guest</span>}</p>
                 <p className="text-sm text-gray-500">{s.userId?.email}</p>
                 {s.userId?.phone && <p className="text-sm text-gray-500">{s.userId.phone}</p>}
               </div>

@@ -149,9 +149,10 @@ function AppLayout() {
             <Route path="/verify-otp"          element={<VerifyOTP />} />
 
             {/* Protected customer routes */}
-            <Route path="/cart"          element={<ProtectedRoute><Cart /></ProtectedRoute>} />
-            <Route path="/checkout"      element={<ProtectedRoute><Checkout /></ProtectedRoute>} />
-            <Route path="/order-success" element={<ProtectedRoute><OrderSuccess /></ProtectedRoute>} />
+            {/* Cart, checkout aur order-success guest ke liye bhi khule hain (guest checkout) */}
+            <Route path="/cart"          element={<Cart />} />
+            <Route path="/checkout"      element={<Checkout />} />
+            <Route path="/order-success" element={<OrderSuccess />} />
             <Route path="/orders"        element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
             <Route path="/orders/:id"    element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
             <Route path="/orders/:id/tracking" element={<ProtectedRoute><OrderTracking /></ProtectedRoute>} />

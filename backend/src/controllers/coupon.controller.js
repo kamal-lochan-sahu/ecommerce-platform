@@ -2,6 +2,15 @@ import { Coupon, Cart } from '../models/index.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import { countCouponUses } from '../utils/couponUsage.js';
+
+// Logged-in: userId se cart. Guest: x-session-id se cart.
+const cartFilterFor = (req) => {
+  if (req.user) return { userId: req.user._id };
+  const sessionId = req.headers['x-session-id'];
+  if (!sessionId) throw new ApiError(400, 'Your cart is empty');
+  return { sessionId };
+};
 
 // =====================
 // @route  POST /api/admin/coupons
@@ -68,14 +77,14 @@ export const deleteCoupon = asyncHandler(async (req, res) => {
 
 // =====================
 // @route  POST /api/cart/apply-coupon
-// @access Private
+// @access Logged-in ya guest (guest cart x-session-id se)
 // =====================
 export const applyCoupon = asyncHandler(async (req, res) => {
   const { code } = req.body;
-  const userId = req.user._id;
+  const userId = req.user?._id || null;
 
   // Cart fetch karo
-  const cart = await Cart.findOne({ userId }).populate('items.product');
+  const cart = await Cart.findOne(cartFilterFor(req)).populate('items.product');
   if (!cart || cart.items.length === 0) {
     throw new ApiError(400, 'Your cart is empty');
   }
@@ -102,11 +111,9 @@ export const applyCoupon = asyncHandler(async (req, res) => {
     throw new ApiError(400, `Minimum order amount ₹${coupon.minOrderAmount} required`);
   }
 
-  const userUsage = coupon.usedBy.filter(
-    (u) => u.userId.toString() === userId.toString()
-  ).length;
-
-  if (userUsage >= coupon.usagePerUser) {
+  // Per-user limit: logged-in ke liye abhi check. Guest ka phone abhi pata nahi —
+  // uska limit order lagate waqt (phone se) lagta hai.
+  if (userId && countCouponUses(coupon, { userId }) >= coupon.usagePerUser) {
     throw new ApiError(400, 'You have already used this coupon');
   }
 
@@ -138,11 +145,11 @@ export const applyCoupon = asyncHandler(async (req, res) => {
 
 // =====================
 // @route  DELETE /api/cart/remove-coupon
-// @access Private
+// @access Logged-in ya guest
 // =====================
 export const removeCoupon = asyncHandler(async (req, res) => {
   await Cart.findOneAndUpdate(
-    { userId: req.user._id },
+    cartFilterFor(req),
     { couponCode: null, couponDiscount: 0 }
   );
 
@@ -151,11 +158,11 @@ export const removeCoupon = asyncHandler(async (req, res) => {
 
 // =====================
 // @route  POST /api/coupons/validate
-// @access Private
+// @access Logged-in ya guest
 // =====================
 export const validateCoupon = asyncHandler(async (req, res) => {
   const { code } = req.body;
-  const userId = req.user._id;
+  const userId = req.user?._id || null;
 
   const coupon = await Coupon.findOne({
     code: code.toUpperCase(),
@@ -166,11 +173,7 @@ export const validateCoupon = asyncHandler(async (req, res) => {
 
   if (!coupon) throw new ApiError(400, 'Invalid or expired coupon');
 
-  const userUsage = coupon.usedBy.filter(
-    (u) => u.userId.toString() === userId.toString()
-  ).length;
-
-  if (userUsage >= coupon.usagePerUser) {
+  if (userId && countCouponUses(coupon, { userId }) >= coupon.usagePerUser) {
     throw new ApiError(400, 'You have already used this coupon');
   }
 

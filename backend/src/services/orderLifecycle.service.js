@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import { Order, Product, ProductVariant, Coupon, Notification, User } from '../models/index.js';
+import { Order, Product, ProductVariant, Coupon, Notification } from '../models/index.js';
+import { getOrderRecipient } from '../utils/orderRecipient.js';
 import logger from '../utils/logger.js';
 import { sendOrderConfirmationEmail } from './email.service.js';
 import { notifyOrderEventInBackground } from './orderNotifications.service.js';
@@ -41,9 +42,15 @@ const releaseCoupon = async (order, session) => {
 
   const wasExhausted = !!coupon.usageLimit && coupon.usedCount >= coupon.usageLimit;
 
+  // Registered order: userId se, guest order: guest ke phone (guestKey) se pehchano
+  const guestKey = order.guestContact?.phone;
+  const isMine = (entry) => (order.userId
+    ? entry.userId && String(entry.userId) === String(order.userId)
+    : !!guestKey && entry.guestKey === guestKey);
+
   let idx = -1;
   for (let i = coupon.usedBy.length - 1; i >= 0; i--) {
-    if (String(coupon.usedBy[i].userId) === String(order.userId)) { idx = i; break; }
+    if (isMine(coupon.usedBy[i])) { idx = i; break; }
   }
   if (idx === -1) return; // is order ne coupon use mark hi nahi kiya tha — kuch revert nahi
 
@@ -114,7 +121,8 @@ export const cancelOrderAndRestore = async (orderId, opts) => {
     await session.endSession();
   }
 
-  if (result.cancelled && notify) {
+  // In-app notification sirf registered customer ke liye (guest ka account nahi hota)
+  if (result.cancelled && notify && result.order.userId) {
     try {
       await Notification.create({
         userId: result.order.userId,
@@ -135,9 +143,10 @@ export const cancelOrderAndRestore = async (orderId, opts) => {
 // Confirmation email (fire-and-forget; kabhi order flow ko fail nahi karta)
 // ─────────────────────────────────────────────────────────────
 export const sendConfirmationEmailFor = (order) => {
-  User.findById(order.userId)
-    .select('name email')
-    .then((user) => (user ? sendOrderConfirmationEmail(order, user) : null))
+  // Registered user ya guest — dono ka naam/email getOrderRecipient se. Guest ne email nahi diya
+  // to email nahi jaati (SMS phir bhi jaata hai).
+  getOrderRecipient(order)
+    .then((who) => (who?.email ? sendOrderConfirmationEmail(order, who) : null))
     .catch((err) => logger.error(`Order confirmation email failed for ${order._id}: ${err.message}`));
   // Confirmation SMS (COD: order lagte hi, online: payment milte hi - dono yahin se guzarte hain)
   notifyOrderEventInBackground('placed', order);
@@ -181,16 +190,18 @@ export const markOrderPaid = async (orderId, message = 'Payment received success
     return { status: 'already_paid', order: existing };
   }
 
-  try {
-    await Notification.create({
-      userId: order.userId,
-      title: 'Payment Successful! ✅',
-      message: `Payment for order ${order.orderNumber} confirmed.`,
-      type: 'payment',
-      link: `/orders/${order._id}`,
-    });
-  } catch (err) {
-    logger.error(`Payment notification failed for ${order._id}: ${err.message}`);
+  if (order.userId) {
+    try {
+      await Notification.create({
+        userId: order.userId,
+        title: 'Payment Successful! ✅',
+        message: `Payment for order ${order.orderNumber} confirmed.`,
+        type: 'payment',
+        link: `/orders/${order._id}`,
+      });
+    } catch (err) {
+      logger.error(`Payment notification failed for ${order._id}: ${err.message}`);
+    }
   }
   sendConfirmationEmailFor(order);
 

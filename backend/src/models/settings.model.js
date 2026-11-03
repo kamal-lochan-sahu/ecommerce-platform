@@ -37,6 +37,11 @@ const settingsSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  // Guest checkout (bina account ke order). White-label client band kar sakta hai.
+  allowGuestCheckout: {
+    type: Boolean,
+    default: true,
+  },
 }, { timestamps: true });
 
 // Store ka ek hi settings document hota hai — singleton pattern.

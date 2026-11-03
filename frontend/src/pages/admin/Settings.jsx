@@ -6,7 +6,7 @@ import api from '../../services/api'
 import AdminLayout from '../../components/admin/AdminLayout'
 import Skeleton from '../../components/ui/Skeleton'
 
-const FIELDS = ['storeName','storeEmail','storePhone','storeAddress','currency','deliveryFee','freeDeliveryAbove','taxRate','maintenanceMode']
+const FIELDS = ['storeName','storeEmail','storePhone','storeAddress','currency','deliveryFee','freeDeliveryAbove','taxRate','maintenanceMode','allowGuestCheckout']
 
 export default function Settings() {
   const qc = useQueryClient()
@@ -95,6 +95,22 @@ export default function Settings() {
             </div>
           </div>
         ))}
+
+        <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
+          <h3 className="font-semibold text-gray-900 mb-4">Checkout</h3>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <div
+              className={`w-11 h-6 rounded-full transition-colors relative ${form.allowGuestCheckout !== false ? 'bg-indigo-500' : 'bg-gray-200'}`}
+              onClick={() => set('allowGuestCheckout', form.allowGuestCheckout === false)}
+            >
+              <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${form.allowGuestCheckout !== false ? 'translate-x-6' : 'translate-x-1'}`} />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-800">Allow guest checkout</p>
+              <p className="text-xs text-gray-500">Customers can order without creating an account (Cash on Delivery needs a phone OTP). Turn off to require login at checkout.</p>
+            </div>
+          </label>
+        </div>
 
         <div className="bg-white rounded-2xl border border-amber-100 p-5 shadow-sm">
           <h3 className="font-semibold text-gray-900 mb-4">Maintenance</h3>

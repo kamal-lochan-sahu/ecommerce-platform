@@ -16,10 +16,23 @@ const orderSchema = new mongoose.Schema({
     type: String,
     unique: true,
   },
+  // Guest checkout: guest order ka userId null hota hai, customer ka contact guestContact mein rehta hai.
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    default: null,
+  },
+  guestContact: {
+    type: new mongoose.Schema(
+      {
+        name: { type: String, trim: true, maxlength: 80 },
+        email: { type: String, trim: true, lowercase: true, maxlength: 120 },
+        phone: { type: String, trim: true },
+        phoneVerified: { type: Boolean, default: false },
+      },
+      { _id: false }
+    ),
+    default: undefined,
   },
   items: [
     {
@@ -101,6 +114,7 @@ orderSchema.pre('save', async function () {
 });
 
 orderSchema.index({ userId: 1, createdAt: -1 });
+orderSchema.index({ 'guestContact.phone': 1 });
 
 orderSchema.index({ orderStatus: 1 });
 orderSchema.index({ paymentStatus: 1 });

@@ -5,12 +5,13 @@ import mongoose from 'mongoose';
 //   phone_verify  subject = user id               target = phone   (SMS)   - add / verify / change phone
 //   email_verify  subject = user id               target = email   (email) - verify the registration email
 //   email_add     subject = user id               target = email   (email) - phone-only user adding a real email
+//   guest_checkout subject = phone number        target = phone   (SMS)   - guest verifies phone for a Cash on Delivery order
 // Kept OUT of the User document on purpose: it lets us send a login OTP to a brand-new
 // number without creating a user first, and it can never overwrite the password-reset
 // token that lives on User.otp.
 const otpSchema = new mongoose.Schema(
   {
-    purpose: { type: String, enum: ['login', 'phone_verify', 'email_verify', 'email_add'], required: true },
+    purpose: { type: String, enum: ['login', 'phone_verify', 'email_verify', 'email_add', 'guest_checkout'], required: true },
     subject: { type: String, required: true },
     target: { type: String, required: true },
     codeHash: { type: String, required: true }, // HMAC of the code - never the code itself

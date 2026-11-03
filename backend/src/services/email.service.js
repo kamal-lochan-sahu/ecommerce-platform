@@ -100,7 +100,7 @@ const inlineTemplates = {
           </div>
 
           <div style="text-align:center; margin-top:24px">
-            <a href="${process.env.FRONTEND_URL}/orders/${data.orderId}" class="btn">Track Your Order →</a>
+            ${data.trackUrl === null ? "" : `<a href="${data.trackUrl || `${process.env.FRONTEND_URL}/orders/${data.orderId}`}" class="btn">Track Your Order →</a>`}
           </div>
         </div>
         <div class="footer">
@@ -408,6 +408,8 @@ export const sendOrderConfirmationEmail = async (order, user) => {
       supportEmail: brand.supportEmail,
       customerName: user.name,
       orderId: order._id.toString(), // tracking link ke liye (/orders/:id)
+      // Guest ke liye /orders/:id login maangta hai, isliye button chhupa dete hain (track page aane par yahan link)
+      trackUrl: order.userId ? undefined : null,
       orderNumber: order.orderNumber, // customer ko dikhane ke liye
       orderDate: new Date(order.createdAt).toLocaleDateString("en-IN"),
       estimatedDelivery: new Date(

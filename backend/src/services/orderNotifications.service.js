@@ -1,4 +1,4 @@
-import { User } from '../models/index.js';
+import { getOrderRecipient } from '../utils/orderRecipient.js';
 import { sendMail, sendSms } from './messaging.service.js';
 import { getBrand } from './brand.service.js';
 import { isPlaceholderEmail } from '../utils/identity.js';
@@ -54,7 +54,8 @@ const buildContent = (event, order, user, brand, extra) => {
   const total = order.pricing?.total;
   const isCod = order.paymentMethod === 'cod';
   const paid = order.paymentStatus === 'paid';
-  const orderLink = brand.siteUrl ? `${brand.siteUrl}/orders/${order._id}` : '';
+  // /orders/:id login maangta hai — guest ko ye link nahi dete (guest ke liye alag track link baad me)
+  const orderLink = brand.siteUrl && order.userId ? `${brand.siteUrl}/orders/${order._id}` : '';
   const view = orderLink ? { url: orderLink, label: 'View order' } : null;
   const hello = `Hi ${name},`;
 
@@ -142,7 +143,7 @@ export const notifyOrderEvent = async (event, order, extra = {}) => {
   const result = { event, email: 'skipped', sms: 'skipped' };
   try {
     const [user, brand] = await Promise.all([
-      User.findById(order.userId).select('name email phone isPhoneVerified').lean(),
+      getOrderRecipient(order),
       getBrand(),
     ]);
     const content = buildContent(event, order, user, brand, extra);

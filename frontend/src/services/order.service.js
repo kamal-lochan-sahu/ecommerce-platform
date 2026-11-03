@@ -8,6 +8,10 @@ const orderService = {
   cancel:       (id)   => api.put(`/orders/${id}/cancel`),
   getInvoice:   (id)   => api.get(`/orders/${id}/invoice`, { responseType: "blob" }),
 
+  // Guest checkout: COD ke liye phone OTP (login nahi chahiye)
+  guestSendOtp:   (phone)      => api.post("/orders/guest/send-otp", { phone }),
+  guestVerifyOtp: (phone, otp) => api.post("/orders/guest/verify-otp", { phone, otp }),
+
   // Payment
   verifyRazorpay:     (data) => api.post("/orders/payments/razorpay/verify", data),
   createStripeSession:(data) => api.post("/orders/payments/stripe/create-session", data),

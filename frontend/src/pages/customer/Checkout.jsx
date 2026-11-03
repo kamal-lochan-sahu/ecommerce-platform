@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { MapPin, CreditCard, Check, ChevronRight, Lock } from "lucide-react";
+import { MapPin, CreditCard, Check, ChevronRight, Lock, ShieldCheck } from "lucide-react";
 import { clsx } from "clsx";
 import toast from "react-hot-toast";
 import Input from "../../components/ui/Input";
@@ -31,7 +31,7 @@ const PAYMENT_METHODS = [
 
 const STEPS = ["Address", "Payment", "Review"];
 
-const DEFAULT_SETTINGS = { taxRate: 18, deliveryFee: 49, freeDeliveryAbove: 499 };
+const DEFAULT_SETTINGS = { taxRate: 18, deliveryFee: 49, freeDeliveryAbove: 499, allowGuestCheckout: true };
 
 // Razorpay's checkout SDK isn't bundled — it must be loaded from their CDN
 // at runtime. Resolves immediately if it's already on the page (e.g. a
@@ -50,8 +50,10 @@ function loadRazorpayScript() {
 
 export default function Checkout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { items, totalAmount, clearCart, couponCode, couponDiscount, clearCoupon } = useCartStore();
   const { user } = useAuthStore();
+  const isGuest = !user;
   const [step,    setStep]    = useState(0);
   const [payment, setPayment] = useState("razorpay");
   const [placing, setPlacing] = useState(false);
@@ -60,6 +62,15 @@ export default function Checkout() {
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedSavedId, setSelectedSavedId] = useState(null);
   const [showNewAddressForm, setShowNewAddressForm] = useState(true);
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  // Guest + Cash on Delivery: phone OTP se verify karna zaroori (fake/prank COD orders rokne ke liye).
+  // phoneProof = server ka diya hua chhota token, sirf usi phone ke liye.
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpBusy, setOtpBusy] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
+  const [phoneProof, setPhoneProof] = useState({ phone: "", token: "" });
 
   // Real tax/delivery numbers — same source the backend uses, so what's
   // shown here always matches what actually gets charged.
@@ -67,10 +78,23 @@ export default function Checkout() {
     api.get("/settings/public")
       .then(res => {
         const s = res?.data?.data;
-        if (s) setSettings({ taxRate: s.taxRate, deliveryFee: s.deliveryFee, freeDeliveryAbove: s.freeDeliveryAbove });
+        if (s) setSettings({
+          taxRate: s.taxRate,
+          deliveryFee: s.deliveryFee,
+          freeDeliveryAbove: s.freeDeliveryAbove,
+          allowGuestCheckout: s.allowGuestCheckout !== false,
+        });
       })
-      .catch(() => { /* keep defaults */ });
+      .catch(() => { /* keep defaults */ })
+      .finally(() => setSettingsLoaded(true));
   }, []);
+
+  // OTP "Resend" countdown
+  useEffect(() => {
+    if (resendIn <= 0) return undefined;
+    const t = setTimeout(() => setResendIn((n) => n - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
 
   // Saved addresses — so checkout doesn't create a duplicate address row
   // on every single order for repeat customers.
@@ -99,7 +123,48 @@ export default function Checkout() {
     defaultValues: { fullName: user?.name || "", phone: user?.phone || "" },
   });
 
-  const onAddressSubmit = (data) => { setAddress(data); setStep(1); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  const onAddressSubmit = (data) => {
+    // Phone badla to purana OTP / proof is number ke liye bekaar hai
+    if (data.phone !== address?.phone) { setOtpSent(false); setOtpCode(""); }
+    setAddress(data);
+    setStep(1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const guestPhoneVerified = isGuest && !!phoneProof.token && phoneProof.phone === address?.phone;
+  const needsGuestOtp = isGuest && payment === "cod" && !guestPhoneVerified;
+
+  const sendGuestOtp = async () => {
+    setOtpBusy(true);
+    try {
+      await orderService.guestSendOtp(address.phone);
+      setOtpSent(true);
+      setOtpCode("");
+      setResendIn(30);
+      toast.success(`OTP sent to ${address.phone}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Couldn't send the OTP. Please try again.");
+    } finally {
+      setOtpBusy(false);
+    }
+  };
+
+  const verifyGuestOtp = async () => {
+    if (!/^\d{6}$/.test(otpCode)) { toast.error("Enter the 6-digit OTP"); return; }
+    setOtpBusy(true);
+    try {
+      const res = await orderService.guestVerifyOtp(address.phone, otpCode);
+      const token = res?.data?.data?.phoneToken;
+      if (!token) throw new Error("No token");
+      setPhoneProof({ phone: address.phone, token });
+      setOtpSent(false);
+      toast.success("Phone verified ✅");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Invalid OTP");
+    } finally {
+      setOtpBusy(false);
+    }
+  };
 
   const useSavedAddress = () => {
     const saved = savedAddresses.find(a => a._id === selectedSavedId);
@@ -112,33 +177,59 @@ export default function Checkout() {
   const handlePlaceOrder = async () => {
     setPlacing(true);
     try {
-      let addrId = address?._id;
+      let payload;
 
-      // Only create a new Address doc when the customer actually typed a
-      // new one — reusing a saved address doesn't create a duplicate.
-      if (!addrId) {
-        const addressRes = await api.post("/addresses", {
-          fullName: address.fullName,
-          phone: address.phone,
-          pincode: address.pincode,
-          city: address.city,
-          state: address.state,
-          addressLine1: address.address,
-          addressLine2: "",
-          country: "India",
-          isDefault: savedAddresses.length === 0,
-        });
-        addrId = addressRes?.data?.data?.address?._id;
+      if (user) {
+        let addrId = address?._id;
+
+        // Only create a new Address doc when the customer actually typed a
+        // new one — reusing a saved address doesn't create a duplicate.
+        if (!addrId) {
+          const addressRes = await api.post("/addresses", {
+            fullName: address.fullName,
+            phone: address.phone,
+            pincode: address.pincode,
+            city: address.city,
+            state: address.state,
+            addressLine1: address.address,
+            addressLine2: "",
+            country: "India",
+            isDefault: savedAddresses.length === 0,
+          });
+          addrId = addressRes?.data?.data?.address?._id;
+        }
+
+        if (!addrId) throw new Error("Failed to save delivery address. Please try again.");
+
+        payload = {
+          addressId: addrId,
+          paymentMethod: payment,
+          couponCode: couponCode || undefined,
+          notes: "Order from UI",
+        };
+      } else {
+        // Guest: koi Address document nahi banta — details order par snapshot hoti hain.
+        // Cart server par x-session-id se mil jaata hai.
+        payload = {
+          paymentMethod: payment,
+          couponCode: couponCode || undefined,
+          notes: "Order from UI",
+          guest: {
+            name: address.fullName.trim(),
+            phone: address.phone,
+            email: (address.email || "").trim(),
+            phoneToken: payment === "cod" ? phoneProof.token : undefined,
+            address: {
+              addressLine1: address.address.trim(),
+              city: address.city.trim(),
+              state: address.state.trim(),
+              pincode: address.pincode,
+            },
+          },
+        };
       }
 
-      if (!addrId) throw new Error("Failed to save delivery address. Please try again.");
-
-      const orderRes = await orderService.create({
-        addressId: addrId,
-        paymentMethod: payment,
-        couponCode: couponCode || undefined,
-        notes: "Order from UI",
-      });
+      const orderRes = await orderService.create(payload);
 
       const orderData = orderRes?.data?.data;
       const order = orderData?.order;
@@ -177,12 +268,12 @@ export default function Checkout() {
               clearCart();
               clearCoupon();
               toast.success("Payment successful! 🎉");
-              navigate("/order-success", { state: { orderId: order?._id, orderNumber: order?.orderNumber } });
+              navigate("/order-success", { state: { orderId: order?._id, orderNumber: order?.orderNumber, guestEmail: isGuest ? (address?.email || "") : undefined } });
             } catch {
               toast.error("Payment verification failed. Contact support.");
             }
           },
-          prefill: { name: address?.fullName, contact: address?.phone },
+          prefill: { name: address?.fullName, contact: address?.phone, email: isGuest ? (address?.email || undefined) : undefined },
           theme: { color: "#6366f1" },
         };
         const razorpayInstance = new window.Razorpay(options);
@@ -194,9 +285,14 @@ export default function Checkout() {
       clearCart();
       clearCoupon();
       toast.success("Order placed successfully! 🎉");
-      navigate("/order-success", { state: { orderId: order?._id, orderNumber: order?.orderNumber } });
+      navigate("/order-success", { state: { orderId: order?._id, orderNumber: order?.orderNumber, guestEmail: isGuest ? (address?.email || "") : undefined } });
     } catch (err) {
       console.error(err);
+      // Guest COD: proof expire/galat ho gaya — wapas verify karwao
+      if (isGuest && err?.response?.data?.errors?.includes?.("PHONE_NOT_VERIFIED")) {
+        setPhoneProof({ phone: "", token: "" });
+        setStep(1);
+      }
       toast.error(err?.response?.data?.message || "Order failed. Try again.");
     } finally {
       setPlacing(false);
@@ -211,6 +307,26 @@ export default function Checkout() {
       </div>
     );
   }
+
+  // Admin ne guest checkout band kiya hai: login ke bina checkout nahi
+  if (isGuest && !settingsLoaded) {
+    return <div className="page-container text-center py-20 text-gray-400 text-sm">Loading checkout…</div>;
+  }
+  if (isGuest && !settings.allowGuestCheckout) {
+    return (
+      <div className="page-container text-center py-20 max-w-md">
+        <Lock size={32} className="mx-auto text-primary mb-3" />
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Please log in to check out</h2>
+        <p className="text-gray-500 text-sm mb-5">Your cart is saved — it will be waiting for you after you log in.</p>
+        <Link to="/login" state={{ from: location }} className="btn-primary px-6 py-2.5 inline-block">Login to continue</Link>
+        <p className="text-sm text-gray-500 mt-4">
+          New here? <Link to="/register" state={{ from: location }} className="text-primary font-medium hover:underline">Create an account</Link>
+        </p>
+      </div>
+    );
+  }
+
+  const paymentMethods = PAYMENT_METHODS.filter((m) => user || m.id !== "stripe"); // Stripe ke liye account chahiye
 
   return (
     <div className="page-container max-w-5xl">
@@ -270,7 +386,7 @@ export default function Checkout() {
                   {!user && (
                     <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-700">
                       💡 Checking out as a guest —{" "}
-                      <a href="/login" className="font-semibold underline">Login</a> to save your order history
+                      <Link to="/login" state={{ from: location }} className="font-semibold underline">Login</Link> to use saved addresses and see your order history
                     </div>
                   )}
                   {savedAddresses.length > 0 && (
@@ -283,6 +399,9 @@ export default function Checkout() {
                     <Input label="Full Name" placeholder="Kamal Sahu" required error={errors.fullName?.message} {...register("fullName")} />
                     <Input label="Phone" type="tel" placeholder="9876543210" required error={errors.phone?.message} {...register("phone")} />
                   </div>
+                  {isGuest && (
+                    <Input label="Email (for order updates)" type="email" placeholder="you@example.com" error={errors.email?.message} {...register("email")} />
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <Input label="Pincode" placeholder="751001" required maxLength={6} error={errors.pincode?.message} {...register("pincode")} />
                     <Input label="City" placeholder="Bhubaneswar" required error={errors.city?.message} {...register("city")} />
@@ -305,7 +424,7 @@ export default function Checkout() {
                 <h2 className="text-lg font-semibold">Payment Method</h2>
               </div>
               <div className="space-y-3 mb-6">
-                {PAYMENT_METHODS.map(method => (
+                {paymentMethods.map(method => (
                   <label key={method.id} className={clsx("flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all",
                     payment === method.id ? "border-primary bg-primary-50" : "border-gray-100 hover:border-gray-200")}>
                     <input type="radio" name="payment" value={method.id} checked={payment === method.id}
@@ -326,10 +445,50 @@ export default function Checkout() {
                   {" "}or choose an online payment method.
                 </div>
               )}
+              {isGuest && payment === "cod" && (
+                <div className="mb-6 p-4 rounded-xl border border-gray-200 bg-gray-50">
+                  {guestPhoneVerified ? (
+                    <p className="text-sm text-green-700 flex items-center gap-2">
+                      <ShieldCheck size={16} /> Phone number {address?.phone} verified
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-gray-700">
+                        Cash on Delivery needs a verified phone number. We will send an OTP to <span className="font-semibold">{address?.phone}</span>.
+                      </p>
+                      {!otpSent ? (
+                        <button type="button" onClick={sendGuestOtp} disabled={otpBusy}
+                          className="btn-primary px-5 py-2.5 text-sm">
+                          {otpBusy ? "Sending…" : "Send OTP"}
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <input type="text" inputMode="numeric" maxLength={6} value={otpCode} autoComplete="one-time-code"
+                              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                              placeholder="6-digit OTP"
+                              className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm tracking-widest focus:outline-none focus:border-primary" />
+                            <button type="button" onClick={verifyGuestOtp} disabled={otpBusy || otpCode.length !== 6}
+                              className="btn-primary px-5 py-2.5 text-sm">
+                              {otpBusy ? "Checking…" : "Verify"}
+                            </button>
+                          </div>
+                          <button type="button" onClick={sendGuestOtp} disabled={otpBusy || resendIn > 0}
+                            className="text-xs text-primary font-medium hover:underline disabled:text-gray-400 disabled:no-underline">
+                            {resendIn > 0 ? `Resend OTP in ${resendIn}s` : "Resend OTP"}
+                          </button>
+                        </div>
+                      )}
+                      <p className="text-xs text-gray-500">Or choose an online payment method — no OTP needed.</p>
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="flex gap-3">
                 <button onClick={() => setStep(0)} className="btn-ghost px-6 py-3 border border-gray-200">← Back</button>
                 <button onClick={() => { setStep(2); window.scrollTo({ top: 0, behavior: "smooth" }); }}
-                  className="btn-primary flex-1 py-3 flex items-center justify-center gap-2">
+                  disabled={needsGuestOtp}
+                  className="btn-primary flex-1 py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                   Review Order <ChevronRight size={16} />
                 </button>
               </div>
@@ -348,13 +507,14 @@ export default function Checkout() {
                 <p className="text-sm text-gray-600">{address?.address}</p>
                 <p className="text-sm text-gray-600">{address?.city}, {address?.state} — {address?.pincode}</p>
                 <p className="text-sm text-gray-600">📞 {address?.phone}</p>
+                {isGuest && address?.email && <p className="text-sm text-gray-600">✉️ {address.email}</p>}
               </div>
               <div className="card p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2"><CreditCard size={16} className="text-primary" /><h3 className="font-semibold text-sm">Payment</h3></div>
                   <button onClick={() => setStep(1)} className="text-xs text-primary hover:underline">Change</button>
                 </div>
-                <p className="text-sm font-medium text-gray-700">{PAYMENT_METHODS.find(m => m.id === payment)?.label}</p>
+                <p className="text-sm font-medium text-gray-700">{paymentMethods.find(m => m.id === payment)?.label}</p>
               </div>
               <div className="card p-5">
                 <h3 className="font-semibold text-sm mb-3">Items ({items.length})</h3>
@@ -374,8 +534,8 @@ export default function Checkout() {
               </div>
               <div className="flex gap-3">
                 <button onClick={() => setStep(1)} className="btn-ghost px-6 py-3 border border-gray-200">← Back</button>
-                <button onClick={handlePlaceOrder} disabled={placing}
-                  className="btn-primary flex-1 py-3.5 flex items-center justify-center gap-2 text-base">
+                <button onClick={handlePlaceOrder} disabled={placing || needsGuestOtp}
+                  className="btn-primary flex-1 py-3.5 flex items-center justify-center gap-2 text-base disabled:opacity-50 disabled:cursor-not-allowed">
                   {placing ? (
                     <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />Placing...</>
                   ) : (

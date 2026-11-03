@@ -9,7 +9,7 @@ const transactionSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    default: null, // guest order ka transaction: user nahi hota
   },
   amount: {
     type: Number,
