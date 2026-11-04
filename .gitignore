@@ -65,3 +65,4 @@ result.txt
 # Test artifacts from Antigravity runs (root level only)
 /report.md
 /*.png
+report*.md
