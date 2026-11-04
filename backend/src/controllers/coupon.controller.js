@@ -113,7 +113,7 @@ export const applyCoupon = asyncHandler(async (req, res) => {
 
   // Per-user limit: logged-in ke liye abhi check. Guest ka phone abhi pata nahi —
   // uska limit order lagate waqt (phone se) lagta hai.
-  if (userId && countCouponUses(coupon, { userId }) >= coupon.usagePerUser) {
+  if (userId && countCouponUses(coupon, { userId, guestKey: req.user.isPhoneVerified ? req.user.phone : null }) >= coupon.usagePerUser) {
     throw new ApiError(400, 'You have already used this coupon');
   }
 
@@ -173,7 +173,7 @@ export const validateCoupon = asyncHandler(async (req, res) => {
 
   if (!coupon) throw new ApiError(400, 'Invalid or expired coupon');
 
-  if (userId && countCouponUses(coupon, { userId }) >= coupon.usagePerUser) {
+  if (userId && countCouponUses(coupon, { userId, guestKey: req.user.isPhoneVerified ? req.user.phone : null }) >= coupon.usagePerUser) {
     throw new ApiError(400, 'You have already used this coupon');
   }
 

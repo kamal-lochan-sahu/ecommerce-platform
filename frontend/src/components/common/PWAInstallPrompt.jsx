@@ -1,7 +1,33 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Download, X, Smartphone } from 'lucide-react'
 
+// Install banner ye kaam kharab na kare: checkout/cart jaise pages par nahi dikhta (wahan ye
+// "Place Order" jaise buttons ke upar aa kar clicks rok deta tha), 12 second baad khud hat jaata hai,
+// aur "Not now" / cross dabane par 7 din tak dubara nahi aata (sabhi devices par).
+const HIDE_ON = ['/checkout', '/cart', '/order-success', '/track-order', '/login', '/register', '/admin']
+const DISMISS_KEY = 'pwa-dismissed-at'
+const REMIND_AFTER_MS = 7 * 24 * 60 * 60 * 1000
+const AUTO_HIDE_MS = 12 * 1000
+
+const store = {
+  get: (k) => { try { return localStorage.getItem(k) } catch { return null } },
+  set: (k, v) => { try { localStorage.setItem(k, v) } catch { /* private mode */ } },
+  remove: (k) => { try { localStorage.removeItem(k) } catch { /* private mode */ } },
+}
+
+const recentlyDismissed = () => {
+  // Purani chabi ('pwa-dismissed') wale users ko bhi ab 7 din ke liye dismissed maano
+  if (store.get('pwa-dismissed')) {
+    store.remove('pwa-dismissed')
+    store.set(DISMISS_KEY, String(Date.now()))
+  }
+  const at = Number(store.get(DISMISS_KEY))
+  return Number.isFinite(at) && at > 0 && Date.now() - at < REMIND_AFTER_MS
+}
+
 export default function PWAInstallPrompt() {
+  const { pathname } = useLocation()
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showPrompt, setShowPrompt] = useState(false)
   const [isIOS] = useState(() => /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase()))
@@ -10,25 +36,35 @@ export default function PWAInstallPrompt() {
   )
 
   useEffect(() => {
-    if (isInstalled) return
+    if (isInstalled || recentlyDismissed()) return undefined
 
+    const timers = []
     // Android/Desktop install prompt
     const handler = (e) => {
       e.preventDefault()
       setDeferredPrompt(e)
-      // Show after 3 seconds
-      setTimeout(() => setShowPrompt(true), 3000)
+      timers.push(setTimeout(() => setShowPrompt(true), 3000))
     }
-
     window.addEventListener('beforeinstallprompt', handler)
 
-    // iOS: show after 5 seconds if not dismissed before
-    if (isIOS && !localStorage.getItem('pwa-dismissed')) {
-      setTimeout(() => setShowPrompt(true), 5000)
-    }
+    // iOS: koi install event nahi hota, isliye 5 second baad
+    if (isIOS) timers.push(setTimeout(() => setShowPrompt(true), 5000))
 
-    return () => window.removeEventListener('beforeinstallprompt', handler)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler)
+      timers.forEach(clearTimeout)
+    }
   }, [isIOS, isInstalled])
+
+  const hiddenHere = HIDE_ON.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+  const visible = showPrompt && !isInstalled && !hiddenHere
+
+  // Dikhne ke 12 second baad khud hat jaaye (dismiss nahi maana jaata, bas is baar ke liye)
+  useEffect(() => {
+    if (!visible) return undefined
+    const t = setTimeout(() => setShowPrompt(false), AUTO_HIDE_MS)
+    return () => clearTimeout(t)
+  }, [visible])
 
   const handleInstall = async () => {
     if (deferredPrompt) {
@@ -44,10 +80,10 @@ export default function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false)
-    localStorage.setItem('pwa-dismissed', 'true')
+    store.set(DISMISS_KEY, String(Date.now()))
   }
 
-  if (!showPrompt || isInstalled) return null
+  if (!visible) return null
 
   return (
     <div className="fixed bottom-6 left-4 right-4 z-[60] md:bottom-6 md:left-auto md:right-6 md:w-80">
@@ -66,6 +102,7 @@ export default function PWAInstallPrompt() {
           </div>
           <button
             onClick={handleDismiss}
+            aria-label="Dismiss"
             className="text-gray-400 hover:text-gray-600 flex-shrink-0"
           >
             <X size={16} />

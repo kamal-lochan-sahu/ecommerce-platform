@@ -100,11 +100,21 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         runtimeCaching: [
+          // Admin data kabhi cache nahi: stock / orders jaisi cheezein turant sahi dikhni chahiye.
+          // (Pehle ye /api/products/admin/... bhi pakad leta tha aur ghante bhar purana stock dikhata tha.)
+          // Rules upar se neeche match hote hain, isliye ye rule storefront wale se PEHLE hona chahiye.
+          {
+            urlPattern: /^https:\/\/.*\.onrender\.com\/api\/products\/admin/,
+            handler: 'NetworkOnly',
+          },
+          // Storefront: pehle network (taaki price/stock taaza dikhe). Network na chale / 4s se slow ho
+          // to saved copy (offline browsing). StaleWhileRevalidate pehle purana jawab dikhata tha.
           {
             urlPattern: /^https:\/\/.*\.onrender\.com\/api\/(products|categories)/,
-            handler: 'StaleWhileRevalidate',
+            handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
+              networkTimeoutSeconds: 4,
               expiration: {
                 maxEntries: 100,
                 maxAgeSeconds: 60 * 60, // 1 hour

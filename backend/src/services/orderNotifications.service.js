@@ -54,9 +54,13 @@ const buildContent = (event, order, user, brand, extra) => {
   const total = order.pricing?.total;
   const isCod = order.paymentMethod === 'cod';
   const paid = order.paymentStatus === 'paid';
-  // /orders/:id login maangta hai — guest ko ye link nahi dete (guest ke liye alag track link baad me)
-  const orderLink = brand.siteUrl && order.userId ? `${brand.siteUrl}/orders/${order._id}` : '';
-  const view = orderLink ? { url: orderLink, label: 'View order' } : null;
+  // Registered: /orders/:id (login). Guest: public Track Order page (order number pehle se bhara hota hai).
+  const orderLink = !brand.siteUrl
+    ? ''
+    : order.userId
+      ? `${brand.siteUrl}/orders/${order._id}`
+      : `${brand.siteUrl}/track-order?order=${encodeURIComponent(no)}`;
+  const view = orderLink ? { url: orderLink, label: order.userId ? 'View order' : 'Track order' } : null;
   const hello = `Hi ${name},`;
 
   switch (event) {

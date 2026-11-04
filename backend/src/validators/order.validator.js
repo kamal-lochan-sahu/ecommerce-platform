@@ -60,3 +60,14 @@ export const updateOrderStatusSchema = Joi.object({
 export const refundOrderSchema = Joi.object({
   reference: Joi.string().max(100).optional().allow(''),
 });
+
+// Guest tracking: order number + phone ya email
+export const trackOrderSchema = Joi.object({
+  orderNumber: Joi.string().trim().uppercase().pattern(/^ORD-\d{8}-\d{3}$/).required().messages({
+    'string.pattern.base': 'Please enter your order number, like ORD-12345678-123',
+    'any.required': 'Order number is required',
+  }),
+  contact: Joi.string().trim().min(5).max(120).required().messages({
+    'any.required': 'Phone number or email is required',
+  }),
+});

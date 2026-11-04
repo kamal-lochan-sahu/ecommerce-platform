@@ -8,6 +8,9 @@ const orderService = {
   cancel:       (id)   => api.put(`/orders/${id}/cancel`),
   getInvoice:   (id)   => api.get(`/orders/${id}/invoice`, { responseType: "blob" }),
 
+  // Public tracking: order number + phone/email (login nahi chahiye)
+  track: (orderNumber, contact) => api.post("/orders/track", { orderNumber, contact }),
+
   // Guest checkout: COD ke liye phone OTP (login nahi chahiye)
   guestSendOtp:   (phone)      => api.post("/orders/guest/send-otp", { phone }),
   guestVerifyOtp: (phone, otp) => api.post("/orders/guest/verify-otp", { phone, otp }),

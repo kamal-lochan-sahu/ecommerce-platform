@@ -5,6 +5,7 @@ import asyncHandler from '../utils/asyncHandler.js';
 import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js';
 import { isPlaceholderEmail } from '../utils/identity.js';
 import { issueOtp, consumeOtp } from '../services/otp.service.js';
+import { claimGuestOrdersInBackground } from '../services/guestOrderClaim.service.js';
 
 // =====================
 // @route  GET /api/users/profile
@@ -190,6 +191,7 @@ export const verifyEmailAdd = asyncHandler(async (req, res) => {
     if (err?.code === 11000) throw new ApiError(400, 'Email already registered');
     throw err;
   }
+  claimGuestOrdersInBackground(user); // naya verified email: us email ke guest orders account me
 
   const out = user.toJSON();
   out.hasRealEmail = true;
@@ -248,6 +250,7 @@ export const verifyPhone = asyncHandler(async (req, res) => {
     }
     throw err;
   }
+  claimGuestOrdersInBackground(user); // naya verified phone: us phone ke guest orders account me
 
   const out = user.toJSON();
   out.hasRealEmail = !isPlaceholderEmail(user.email);

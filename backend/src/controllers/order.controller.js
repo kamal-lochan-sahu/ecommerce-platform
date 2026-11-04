@@ -183,8 +183,9 @@ export const createOrder = asyncHandler(async (req, res) => {
   let couponDiscount = 0;
   let appliedCoupon = null;
   if (couponCode) {
+    // Logged-in: apna userId, aur verified phone se pehle guest ban kar kiya use bhi gina jaata hai
     const who = userId
-      ? { userId }
+      ? { userId, guestKey: req.user.isPhoneVerified ? req.user.phone : null }
       : { guestKey: guest.phone, relatedUserIds: await findRelatedUserIds({ phone: guest.phone, email: guest.email }) };
     const result = await validateCoupon(couponCode, who, subtotal);
     couponDiscount = result.discount;

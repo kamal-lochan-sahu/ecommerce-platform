@@ -159,9 +159,17 @@ export default function OrderSuccess() {
             </Link>
           ) : (
             <>
-              <Link to="/register" className="btn-primary w-full py-3 flex items-center justify-center gap-2">
+              {orderNumber && (
+                <Link to={`/track-order?order=${encodeURIComponent(orderNumber)}`} className="btn-primary w-full py-3 flex items-center justify-center gap-2">
+                  Track This Order
+                </Link>
+              )}
+              <Link to="/register" className="btn-ghost w-full py-3 border border-gray-200 flex items-center justify-center gap-2">
                 Create Account — Save Orders
               </Link>
+              <p className="text-xs text-gray-400 text-center -mt-1">
+                Sign up and verify the same phone or email, and this order shows up in My Orders.
+              </p>
               <Link to="/login" className="btn-ghost w-full py-2.5 border border-gray-200 flex items-center justify-center gap-2 text-sm">
                 Already have an account? Login
               </Link>

@@ -8,6 +8,7 @@ import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import logger from '../utils/logger.js';
 import { placeholderEmailFor } from '../utils/identity.js';
+import { claimGuestOrdersInBackground } from '../services/guestOrderClaim.service.js';
 
 // Helper — OTP generate karo (6 digits)
 
@@ -136,6 +137,7 @@ export const login = asyncHandler(async (req, res) => {
   // Last login update
   user.lastLogin = new Date();
   await user.save({ validateBeforeSave: false });
+  claimGuestOrdersInBackground(user); // login ke baad bhi: account bante hi ke baad kiye guest orders pakad lo
 
   await sendTokenResponse(res, user, 200, 'Login successful');
 });
@@ -241,6 +243,7 @@ export const verifyOtp = asyncHandler(async (req, res) => {
     }
   }
 
+  claimGuestOrdersInBackground(user); // verified phone se kiye guest orders account me
   await sendTokenResponse(res, user, 200, 'OTP verified successfully');
 });
 
@@ -355,6 +358,7 @@ export const verifyEmail = asyncHandler(async (req, res) => {
 
   user.isVerified = true;
   await user.save({ validateBeforeSave: false });
+  claimGuestOrdersInBackground(user); // is email se kiye purane guest orders account me aa jaayein
 
   res.json(new ApiResponse(200, null, 'Email verified successfully'));
 });

@@ -63,3 +63,15 @@ export const guestOrderLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Order tracking (public): order number + phone/email andaaze se na ladaye ja sakein
+export const trackOrderLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 15,
+  message: {
+    success: false,
+    message: 'Too many tracking attempts. Please try again in a few minutes.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

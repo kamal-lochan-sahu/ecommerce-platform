@@ -49,6 +49,8 @@ class FakeOtp {
   static async findOneAndDelete(q) { const i = otps.findIndex((d) => matches(d, q)); return i >= 0 ? otps.splice(i, 1)[0] : null; }
 }
 const url = (p) => new URL(p, import.meta.url).href;
+const claims = []; // kis user ke liye guest-order claim chala
+mock.module(url('../src/services/guestOrderClaim.service.js'), { namedExports: { claimGuestOrdersInBackground: (u) => { claims.push(String(u._id)); } } });
 mock.module(url('../src/models/index.js'), { namedExports: { User: FakeUser, Otp: FakeOtp } });
 mock.module(url('../src/services/messaging.service.js'), {
   namedExports: {
@@ -69,7 +71,7 @@ const call = async (handler, req) => {
   return { ...out, err };
 };
 const flush = () => new Promise((r) => setTimeout(r, 5));
-beforeEach(() => { users.length = 0; otps.length = 0; sentSms.length = 0; sentMail.length = 0; smsOk = true; mailOk = true; });
+beforeEach(() => { claims.length = 0; users.length = 0; otps.length = 0; sentSms.length = 0; sentMail.length = 0; smsOk = true; mailOk = true; });
 const P = '9000000020';
 const codeIn = (s) => s.match(/\b\d{6}\b/)[0];
 const lastSmsCode = () => codeIn(sentSms.at(-1).body);
@@ -315,4 +317,50 @@ test('delete account: email + phone are released so the person can sign up again
   assert.equal(u.phone, undefined); assert.equal(u.isPhoneVerified, false); assert.equal(u.refreshToken, undefined);
   const again = await call(auth.register, { body: { name: 'Gone', email: 'gone@x.com', phone: P, password: 'secret1' } });
   assert.equal(again.err, undefined, 'same email can register again');
+});
+
+// ============================ guest orders get claimed by the verified owner ============================
+test('claim guest orders: runs after the email is verified (not on a wrong code)', async () => {
+  const u = await FakeUser.create({ email: 'a@x.com', name: 'A' });
+  await call(auth.resendVerification, { user: { _id: u._id } });
+  const good = lastMailCode();
+  await call(auth.verifyEmail, { user: { _id: u._id }, body: { otp: wrong(good) } });
+  assert.deepEqual(claims, []);
+  await call(auth.verifyEmail, { user: { _id: u._id }, body: { otp: good } });
+  assert.deepEqual(claims, [String(u._id)]);
+});
+
+test('claim guest orders: runs on phone-OTP login (new and existing verified owner), never before the OTP is right', async () => {
+  await call(auth.sendOtp, { body: { phone: P } });
+  await call(auth.verifyOtp, { body: { phone: P, otp: wrong(lastSmsCode()) } });
+  assert.deepEqual(claims, []);
+  await call(auth.verifyOtp, { body: { phone: P, otp: lastSmsCode() } });
+  assert.equal(claims.length, 1);
+  assert.equal(claims[0], String(users[0]._id));
+});
+
+test('claim guest orders: runs after a newly added email and a newly verified phone are confirmed', async () => {
+  const u = await phoneUser();
+  await call(usr.requestEmailAdd, { user: { _id: u._id }, body: { email: 'kamal@example.com' } });
+  const good = lastMailCode();
+  await call(usr.verifyEmailAdd, { user: { _id: u._id }, body: { otp: wrong(good) } });
+  assert.deepEqual(claims, []);
+  await call(usr.verifyEmailAdd, { user: { _id: u._id }, body: { otp: good } });
+  assert.deepEqual(claims, [String(u._id)]);
+
+  const v = await FakeUser.create({ email: 'b@x.com', name: 'B' });
+  await call(usr.requestPhoneVerification, { user: { _id: v._id }, body: { phone: '9000000044' } });
+  const code = lastSmsCode();
+  await call(usr.verifyPhone, { user: { _id: v._id }, body: { otp: wrong(code) } });
+  assert.equal(claims.length, 1);
+  await call(usr.verifyPhone, { user: { _id: v._id }, body: { otp: code } });
+  assert.deepEqual(claims, [String(u._id), String(v._id)]);
+});
+
+test('claim guest orders: runs after a successful password login, not after a failed one', async () => {
+  const u = await FakeUser.create({ email: 'v@x.com', phone: P, isPhoneVerified: true, password: 'h', _pw: 'victimpass' });
+  await call(auth.login, { body: { email: 'v@x.com', password: 'wrongpass' } });
+  assert.deepEqual(claims, []);
+  await call(auth.login, { body: { email: 'v@x.com', password: 'victimpass' } });
+  assert.deepEqual(claims, [String(u._id)]);
 });

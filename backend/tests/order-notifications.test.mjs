@@ -182,3 +182,39 @@ test('placed: SMS only (the confirmation email is sent separately), COD says wha
   assert.match(out.sms[0].body, /Order ORD-77 confirmed, Rs\.1,180 paid\./);
   assert.match(out.sms[0].body, /https:\/\/shop\.example\.com\/orders\/ord1/);
 });
+
+// ───────── guest orders (no account): the Track Order page link, never the login-only /orders/:id ─────────
+const mkGuest = (over = {}) => mkOrder({
+  userId: null,
+  guestContact: { name: 'Asha Guest', email: 'asha@example.com', phone: '9123456789' },
+  shippingAddress: { phone: '9123456789' },
+  ...over,
+});
+
+test('guest: email + SMS link to the public Track Order page with the order number filled in', async () => {
+  user = null; // a guest has no User record at all
+  const r = await notifyOrderEvent('shipped', mkGuest());
+  assert.deepEqual([r.email, r.sms], ['sent', 'sent']);
+  assert.equal(out.mail[0].to, 'asha@example.com');
+  assert.match(out.mail[0].html, /href="https:\/\/shop\.example\.com\/track-order\?order=ORD-77"/);
+  assert.match(out.mail[0].html, /Track order/);
+  assert.doesNotMatch(out.mail[0].html, /\/orders\/ord1/);
+  assert.equal(out.sms[0].to.replace(/\D/g, '').slice(-10), '9123456789');
+  assert.match(out.sms[0].body, /https:\/\/shop\.example\.com\/track-order\?order=ORD-77/);
+  assert.doesNotMatch(out.sms[0].body, /\/orders\/ord1/);
+});
+
+test('guest without an email: no email attempted, SMS still goes with the track link', async () => {
+  user = null;
+  const r = await notifyOrderEvent('shipped', mkGuest({ guestContact: { name: 'Asha', email: '', phone: '9123456789' } }));
+  assert.equal(out.mail.length, 0);
+  assert.equal(r.sms, 'sent');
+  assert.match(out.sms[0].body, /track-order\?order=ORD-77/);
+});
+
+test('registered customer is unchanged: still the login-only /orders/:id link', async () => {
+  await notifyOrderEvent('shipped', mkOrder());
+  assert.match(out.mail[0].html, /View order/);
+  assert.match(out.mail[0].html, /\/orders\/ord1/);
+  assert.doesNotMatch(out.mail[0].html, /track-order/);
+});

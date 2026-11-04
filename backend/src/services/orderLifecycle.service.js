@@ -44,9 +44,10 @@ const releaseCoupon = async (order, session) => {
 
   // Registered order: userId se, guest order: guest ke phone (guestKey) se pehchano
   const guestKey = order.guestContact?.phone;
-  const isMine = (entry) => (order.userId
-    ? entry.userId && String(entry.userId) === String(order.userId)
-    : !!guestKey && entry.guestKey === guestKey);
+  // (claim hone ke baad order par userId bhi hota hai, par coupon entry guest phone se hi bani thi — dono check)
+  const isMine = (entry) =>
+    (!!order.userId && !!entry.userId && String(entry.userId) === String(order.userId))
+    || (!!guestKey && entry.guestKey === guestKey);
 
   let idx = -1;
   for (let i = coupon.usedBy.length - 1; i >= 0; i--) {

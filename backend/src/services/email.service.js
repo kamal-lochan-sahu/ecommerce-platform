@@ -408,8 +408,10 @@ export const sendOrderConfirmationEmail = async (order, user) => {
       supportEmail: brand.supportEmail,
       customerName: user.name,
       orderId: order._id.toString(), // tracking link ke liye (/orders/:id)
-      // Guest ke liye /orders/:id login maangta hai, isliye button chhupa dete hain (track page aane par yahan link)
-      trackUrl: order.userId ? undefined : null,
+      // Guest ke liye /orders/:id login maangta hai, isliye public Track Order page ka link
+      trackUrl: order.userId
+        ? undefined
+        : (process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL}/track-order?order=${encodeURIComponent(order.orderNumber)}` : null),
       orderNumber: order.orderNumber, // customer ko dikhane ke liye
       orderDate: new Date(order.createdAt).toLocaleDateString("en-IN"),
       estimatedDelivery: new Date(

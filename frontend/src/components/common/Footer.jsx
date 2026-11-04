@@ -5,7 +5,7 @@ import { config } from "../../config";
 const links = {
   Shop:    [{ label: "All Products", href: "/products" }, { label: "New Arrivals", href: "/products?sort=newest" }, { label: "Deals", href: "/products?sale=true" }],
   Account: [{ label: "My Orders", href: "/orders" }, { label: "Wishlist", href: "/wishlist" }, { label: "Profile", href: "/profile" }],
-  Help:    [{ label: "Contact Us", href: "#" }, { label: "FAQs", href: "#" }, { label: "Track Order", href: "#" }],
+  Help:    [{ label: "Contact Us", href: "#" }, { label: "FAQs", href: "#" }, { label: "Track Order", href: "/track-order" }],
 };
 
 export default function Footer() {

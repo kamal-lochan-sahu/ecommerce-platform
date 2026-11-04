@@ -26,6 +26,7 @@ const OrderSuccess   = lazy(() => import("./pages/customer/OrderSuccess"));
 const OrderHistory   = lazy(() => import("./pages/customer/OrderHistory"));
 const OrderDetail    = lazy(() => import("./pages/customer/OrderDetail"));
 const OrderTracking  = lazy(() => import("./pages/customer/OrderTracking"));
+const TrackOrder     = lazy(() => import("./pages/customer/TrackOrder"));
 const Profile        = lazy(() => import("./pages/customer/Profile"));
 const Addresses      = lazy(() => import("./pages/customer/Addresses"));
 const Wishlist       = lazy(() => import("./pages/customer/Wishlist"));
@@ -153,6 +154,7 @@ function AppLayout() {
             <Route path="/cart"          element={<Cart />} />
             <Route path="/checkout"      element={<Checkout />} />
             <Route path="/order-success" element={<OrderSuccess />} />
+            <Route path="/track-order"   element={<TrackOrder />} />
             <Route path="/orders"        element={<ProtectedRoute><OrderHistory /></ProtectedRoute>} />
             <Route path="/orders/:id"    element={<ProtectedRoute><OrderDetail /></ProtectedRoute>} />
             <Route path="/orders/:id/tracking" element={<ProtectedRoute><OrderTracking /></ProtectedRoute>} />

@@ -13,7 +13,8 @@ import {
   getInvoicePDF,
 } from '../controllers/order.controller.js';
 import { sendGuestCheckoutOtp, verifyGuestCheckoutOtp } from '../controllers/guestCheckout.controller.js';
-import { otpLimiter, otpVerifyLimiter, guestOrderLimiter } from '../middleware/rateLimit.middleware.js';
+import { trackOrder } from '../controllers/orderTracking.controller.js';
+import { otpLimiter, otpVerifyLimiter, guestOrderLimiter, trackOrderLimiter } from '../middleware/rateLimit.middleware.js';
 import { protect, optionalAuth, adminOnly } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
 import {
@@ -22,6 +23,7 @@ import {
   refundOrderSchema,
   guestSendOtpSchema,
   guestVerifyOtpSchema,
+  trackOrderSchema,
 } from '../validators/order.validator.js';
 import express from 'express';
 
@@ -38,6 +40,9 @@ router.post(
 // Guest COD ke liye phone OTP
 router.post('/guest/send-otp', otpLimiter, validate(guestSendOtpSchema), sendGuestCheckoutOtp);
 router.post('/guest/verify-otp', otpVerifyLimiter, validate(guestVerifyOtpSchema), verifyGuestCheckoutOtp);
+
+// Public order tracking (order number + phone/email) — login nahi chahiye
+router.post('/track', trackOrderLimiter, validate(trackOrderSchema), trackOrder);
 
 // Order banana: logged-in (addressId) ya guest (guest object + x-session-id cart).
 // optionalAuth + guestOrderLimiter (sirf guest par IP limit lagta hai).
