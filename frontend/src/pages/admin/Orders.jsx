@@ -191,7 +191,7 @@ export default function Orders() {
                     <img src={it.image || 'https://placehold.co/80x80?text=Item'} alt="" className="w-12 h-12 rounded-lg object-cover bg-gray-100 flex-shrink-0"/>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{it.name}</p>
-                      {it.variant?.name && <p className="text-xs text-gray-500">{it.variant.name}</p>}
+                      {(it.variantLabel || it.variant?.name) && <p className="text-xs text-gray-500">{it.variantLabel || it.variant?.name}</p>}
                       <p className="text-xs text-gray-400">{money(it.price)} × {it.quantity}</p>
                     </div>
                     <p className="text-sm font-semibold text-gray-900">{money(it.total ?? it.price * it.quantity)}</p>

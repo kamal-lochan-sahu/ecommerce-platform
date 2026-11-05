@@ -223,6 +223,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     product: item.product._id,
     variant: item.variant?._id || null,
     name: item.product.name,
+    variantLabel: item.variant?.name || '',
     image: item.product.images?.[0] || '',
     price: item.price,
     quantity: item.quantity,

@@ -76,7 +76,7 @@ export default function TrackOrder() {
             {order.items.map((it, i) => (
               <div key={i} className="flex items-center gap-3">
                 {it.image && <img src={it.image} alt="" className="w-12 h-12 rounded-lg object-cover bg-gray-100" />}
-                <p className="flex-1 text-sm text-gray-800">{it.name} <span className="text-gray-400">× {it.quantity}</span></p>
+                <p className="flex-1 text-sm text-gray-800">{it.name}{it.variantLabel && <span className="text-gray-500"> ({it.variantLabel})</span>} <span className="text-gray-400">× {it.quantity}</span></p>
                 <p className="text-sm font-medium">{money(it.price * it.quantity)}</p>
               </div>
             ))}

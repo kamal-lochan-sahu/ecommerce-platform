@@ -157,7 +157,8 @@ const generateInvoicePDF = (order, user) => {
         }
 
         const productName =
-          item.product?.name || item.name || "Product";
+          (item.product?.name || item.name || "Product") +
+          (item.variantLabel ? ` (${item.variantLabel})` : "");
         const quantity = item.quantity || 1;
         const price = item.price || item.product?.price || 0;
         const total = price * quantity;

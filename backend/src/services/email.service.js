@@ -394,7 +394,7 @@ export const sendOrderConfirmationEmail = async (order, user) => {
 
   // Order schema ke asli fields: items[].name (snapshot), pricing.*, orderNumber, expectedDelivery
   const items = order.items.map((item) => ({
-    name: item.name || "Product",
+    name: (item.name || "Product") + (item.variantLabel ? ` (${item.variantLabel})` : ""),
     quantity: item.quantity,
     price: item.price,
   }));

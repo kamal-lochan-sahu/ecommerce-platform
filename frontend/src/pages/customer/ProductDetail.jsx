@@ -10,7 +10,7 @@ import toast from "react-hot-toast";
 
 import productService from "../../services/product.service";
 import ProductImages from "../../components/product/ProductImages";
-import { ColorVariant, SizeVariant } from "../../components/product/ProductVariants";
+import VariantSelector from "../../components/product/ProductVariants";
 import ProductReviews from "../../components/product/ProductReviews";
 import ProductCard from "../../components/product/ProductCard";
 import Breadcrumb from "../../components/common/Breadcrumb";
@@ -27,21 +27,23 @@ export default function ProductDetail() {
   const { toggleItem, isInWishlist } = useWishlistStore();
   const { isAuthenticated } = useAuthStore();
 
-  const [selectedColor, setSelectedColor] = useState("");
-  const [selectedSize,  setSelectedSize]  = useState("");
+  const [variantId,    setVariantId]    = useState(null);
   const [qty,           setQty]           = useState(1);
   const [activeTab,     setActiveTab]     = useState("description");
   const [addingToCart,  setAddingToCart]  = useState(false);
 
-  const { data: product, isLoading, isError, error } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ["product", slug],
     queryFn:  async () => {
       const res = await productService.getBySlug(slug);
-      return res.data?.data?.product || res.data?.product || null;
+      const payload = res.data?.data || res.data || {};
+      return { product: payload.product || null, variants: payload.variants || [] };
     },
     retry: 1,
     staleTime: 1000 * 60 * 5,
   });
+  const product  = data?.product || null;
+  const variants = data?.variants || [];
 
   // Fetch real related products from same category
   const { data: relatedData } = useQuery({
@@ -56,11 +58,12 @@ export default function ProductDetail() {
 
   const relatedProducts = (relatedData || []).filter(p => p._id !== product?._id).slice(0, 4);
 
-  // Default to the product's first color/size until the user picks one —
-  // derived at render time instead of set in an effect, since it's a pure
-  // function of `product` + user selection.
-  const displayedColor = selectedColor || product?.colors?.[0]?.name || "";
-  const displayedSize  = selectedSize  || product?.sizes?.[0]        || "";
+  // Variant product: jab tak customer na chune, pehla in-stock variant selected dikhta hai —
+  // render time par nikalte hain (effect nahi), kyunki ye product + customer ki choice ka pure function hai.
+  const hasVariants = !!product?.hasVariants && variants.length > 0;
+  const selectedVariant = hasVariants
+    ? variants.find((v) => v._id === variantId) || variants.find((v) => v.stock > 0) || variants[0]
+    : null;
 
   // ── Loading state ──
   if (isLoading) return (
@@ -93,9 +96,15 @@ export default function ProductDetail() {
   );
 
   const inWishlist = isInWishlist(product._id);
-  const isOOS = product.stock === 0;
-  const productImages = product.images?.length > 0
-    ? product.images
+  // Price/MRP/stock selected variant ke hote hain; variant product ke variants na mile to OOS maano
+  const activePrice   = selectedVariant ? selectedVariant.price : product.price;
+  const activeCompare = selectedVariant ? selectedVariant.comparePrice : product.comparePrice;
+  const activeStock   = selectedVariant ? selectedVariant.stock : (product.hasVariants ? 0 : product.stock);
+  const isOOS = activeStock <= 0;
+  const safeQty = Math.min(qty, Math.max(activeStock, 1));
+  const baseImages = selectedVariant?.images?.length > 0 ? selectedVariant.images : product.images;
+  const productImages = baseImages?.length > 0
+    ? baseImages
     : [`https://placehold.co/400x400?text=${encodeURIComponent(product.name)}`];
 
   // Handle backend ratings object vs number
@@ -104,28 +113,38 @@ export default function ProductDetail() {
   const ratingCount = typeof product.ratings === "object"
     ? product.ratings?.count || 0 : product.totalReviews || 0;
 
-  const discountPct = product.comparePrice > product.price
-    ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100) : 0;
-  const savings = product.comparePrice > product.price
-    ? product.comparePrice - product.price : 0;
+  const discountPct = activeCompare > activePrice
+    ? Math.round(((activeCompare - activePrice) / activeCompare) * 100) : 0;
+  const savings = activeCompare > activePrice
+    ? activeCompare - activePrice : 0;
 
+  // true = cart mein gaya (cartStore failure par khud toast dikhata hai)
   const handleAddToCart = async () => {
-    if (isOOS || addingToCart) return;
+    if (isOOS || addingToCart) return false;
+    if (product.hasVariants && !selectedVariant) { toast.error("Please select an option"); return false; }
     setAddingToCart(true);
     try {
-      await addItem({ ...product, quantity: qty, variant: displayedColor || displayedSize || null });
+      const ok = await addItem({
+        ...product,
+        price: activePrice,
+        comparePrice: activeCompare,
+        stock: activeStock,
+        quantity: safeQty,
+        variant: selectedVariant?._id || null,
+        variantLabel: selectedVariant?.name || null,
+      });
+      if (!ok) return false;
       openCart();
       toast.success("Added to cart! 🛒");
-    } catch {
-      // cartStore already shows toast on error
+      return true;
     } finally {
       setAddingToCart(false);
     }
   };
 
   const handleBuyNow = async () => {
-    await handleAddToCart();
-    navigate("/checkout");
+    const ok = await handleAddToCart();
+    if (ok) navigate("/checkout");
   };
 
   const handleWishlist = () => {
@@ -152,7 +171,7 @@ export default function ProductDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-16">
 
         {/* Left — Images */}
-        <ProductImages images={productImages} name={product.name} />
+        <ProductImages key={selectedVariant?._id || "base"} images={productImages} name={product.name} />
 
         {/* Right — Product Info */}
         <div className="space-y-5">
@@ -171,17 +190,17 @@ export default function ProductDetail() {
             <Rating value={Math.round(ratingValue)} count={ratingCount} size={16} />
             <span className="text-sm text-gray-600 font-medium">{ratingValue} / 5</span>
             <span className="text-gray-200">|</span>
-            <span className="text-sm text-gray-500">{product.stock} in stock</span>
+            <span className="text-sm text-gray-500">{activeStock} in stock</span>
           </div>
 
           <div className="flex items-end gap-3 py-3 border-y border-gray-100">
             <span className="text-3xl font-bold text-gray-900">
-              ₹{product.price?.toLocaleString("en-IN")}
+              ₹{activePrice?.toLocaleString("en-IN")}
             </span>
-            {product.comparePrice > product.price && (
+            {activeCompare > activePrice && (
               <>
                 <span className="text-lg text-gray-400 line-through mb-0.5">
-                  ₹{product.comparePrice?.toLocaleString("en-IN")}
+                  ₹{activeCompare?.toLocaleString("en-IN")}
                 </span>
                 <span className="text-sm font-semibold text-green-600 mb-0.5">
                   Save ₹{savings?.toLocaleString("en-IN")}
@@ -201,28 +220,29 @@ export default function ProductDetail() {
             </ul>
           )}
 
-          {product.colors?.length > 0 && (
-            <ColorVariant colors={product.colors} selected={displayedColor} onChange={setSelectedColor} />
-          )}
-          {product.sizes?.length > 0 && (
-            <SizeVariant sizes={product.sizes} selected={displayedSize} onChange={setSelectedSize} />
+          {hasVariants && (
+            <VariantSelector
+              variants={variants}
+              selected={selectedVariant}
+              onSelect={(v) => { setVariantId(v._id); setQty(1); }}
+            />
           )}
 
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-gray-700">Quantity:</span>
             <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
-              <button onClick={() => setQty(q => Math.max(1, q - 1))}
+              <button onClick={() => setQty(() => Math.max(1, safeQty - 1))}
                 className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors text-lg font-medium">
                 −
               </button>
-              <span className="w-12 text-center text-sm font-semibold">{qty}</span>
-              <button onClick={() => setQty(q => Math.min(product.stock || 10, q + 1))}
+              <span className="w-12 text-center text-sm font-semibold">{safeQty}</span>
+              <button onClick={() => setQty(() => Math.min(activeStock || 10, safeQty + 1))}
                 className="w-10 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-colors text-lg font-medium">
                 +
               </button>
             </div>
-            {product.stock <= 5 && product.stock > 0 && (
-              <span className="text-xs text-orange-500 font-medium">⚠️ Only {product.stock} left!</span>
+            {activeStock <= 5 && activeStock > 0 && (
+              <span className="text-xs text-orange-500 font-medium">⚠️ Only {activeStock} left!</span>
             )}
           </div>
 

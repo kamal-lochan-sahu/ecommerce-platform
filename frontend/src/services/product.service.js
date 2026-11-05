@@ -20,6 +20,12 @@ const productService = {
     headers: { "Content-Type": "multipart/form-data" },
   }),
   adminDelete:    (id)     => api.delete(`/products/${id}`),
+
+  // Admin — variants
+  adminListVariants:  (pid)           => api.get(`/products/${pid}/variants`),
+  adminCreateVariant: (pid, data)     => api.post(`/products/${pid}/variants`, data),
+  adminUpdateVariant: (pid, vid, data)=> api.put(`/products/${pid}/variants/${vid}`, data),
+  adminDeleteVariant: (pid, vid)      => api.delete(`/products/${pid}/variants/${vid}`),
 };
 
 export default productService;

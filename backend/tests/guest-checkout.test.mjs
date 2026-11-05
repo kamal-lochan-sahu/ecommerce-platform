@@ -41,9 +41,19 @@ const Product = {
     p.stock += update.$inc.stock; p.totalSold += update.$inc.totalSold;
     return p;
   },
-  findByIdAndUpdate: async () => {},
+  findByIdAndUpdate: async (id, update) => {
+    const p = db.products.get(String(id));
+    if (p && update?.$inc) for (const [k, n] of Object.entries(update.$inc)) p[k] = (p[k] || 0) + n;
+  },
 };
-const ProductVariant = { findOneAndUpdate: async () => null };
+const ProductVariant = {
+  findOneAndUpdate: async (filter, update) => {
+    const v = db.variants.get(String(filter._id));
+    if (!v || v.stock < filter.stock.$gte) return null;
+    v.stock += update.$inc.stock;
+    return v;
+  },
+};
 const Order = {
   create: async ([doc]) => {
     const order = { _id: `o${db.orders.size + 1}`, orderNumber: `ORD-T${db.orders.size + 1}`, createdAt: new Date(), ...doc };
@@ -150,7 +160,15 @@ const mkCoupon = (over = {}) => ({
 });
 
 beforeEach(() => {
-  db.products = new Map([['p1', { _id: 'p1', name: 'Watch', isActive: true, stock: 10, totalSold: 0, images: ['w.jpg'] }]]);
+  db.products = new Map([
+    ['p1', { _id: 'p1', name: 'Watch', isActive: true, stock: 10, totalSold: 0, images: ['w.jpg'] }],
+    // Variant product: stock/price Product par variants ka jod/sabse sasta hote hain (variantSync.service.js)
+    ['p2', { _id: 'p2', name: 'Kurta', isActive: true, hasVariants: true, price: 700, stock: 7, totalSold: 0, images: ['k.jpg'] }],
+  ]);
+  db.variants = new Map([
+    ['v1', { _id: 'v1', productId: 'p2', name: 'Red / XL', price: 850, stock: 5, isActive: true }],
+    ['v2', { _id: 'v2', productId: 'p2', name: 'Blue / M', price: 700, stock: 2, isActive: true }],
+  ]);
   db.carts = []; db.orders = new Map(); db.coupons = new Map(); db.transactions = []; db.users = [];
   db.addresses = [{ _id: 'a1', userId: 'u1', fullName: 'Ravi', phone: '9000000001', addressLine1: '5 Park St', addressLine2: '', city: 'Cuttack', state: 'Odisha', pincode: '753001', country: 'India' }];
   db.settings = { maintenanceMode: false, allowGuestCheckout: true, freeDeliveryAbove: 499, deliveryFee: 49, taxRate: 18 };
@@ -485,4 +503,65 @@ test('validator: guest email is optional (empty is fine); OTP schemas accept onl
   assert.ok(guestSendOtpSchema.validate({ phone: '98765' }).error);
   assert.equal(guestVerifyOtpSchema.validate({ phone: '9876543210', otp: '123456' }).error, undefined);
   assert.ok(guestVerifyOtpSchema.validate({ phone: '9876543210', otp: '12' }).error);
+});
+
+// ───────── variants (Group 6) ─────────
+const variantCart = (over = {}) => {
+  db.carts = [{
+    sessionId: 'sess1', couponCode: null, couponDiscount: 0, save: async () => {},
+    items: [{ product: db.products.get('p2'), variant: db.variants.get('v1'), price: 799, quantity: 2, ...over }],
+  }];
+};
+const orderVariant = () => run(createOrder, { body: guestBody(), headers: { 'x-session-id': 'sess1' } });
+
+test('variant order: charged the LIVE variant price (cart still has an old one), label saved, variant AND product stock go down', async () => {
+  variantCart(); // cart mein purana price 799, variant ka price ab 850
+  const r = await orderVariant();
+  assert.equal(r.err, null);
+  assert.equal(r.code, 201);
+  const item = [...db.orders.values()][0].items[0];
+  assert.deepEqual([item.price, item.total, item.variantLabel, String(item.variant)], [850, 1700, 'Red / XL', 'v1']);
+  assert.equal([...db.orders.values()][0].pricing.subtotal, 1700);
+  assert.equal(db.variants.get('v1').stock, 3);
+  assert.deepEqual([db.products.get('p2').stock, db.products.get('p2').totalSold], [5, 2]);
+});
+
+test('variant order: a variant product without a chosen option is refused and nothing is touched', async () => {
+  variantCart({ variant: null });
+  const r = await orderVariant();
+  assert.equal(r.err.statusCode, 400);
+  assert.match(r.err.message, /select an option/);
+  assert.equal(db.orders.size, 0);
+  assert.equal(db.products.get('p2').stock, 7);
+});
+
+test('variant order: a deactivated variant, or a variant of another product, is refused', async () => {
+  db.variants.get('v1').isActive = false;
+  variantCart();
+  const inactive = await orderVariant();
+  assert.equal(inactive.err.statusCode, 400);
+  assert.match(inactive.err.message, /no longer available/);
+
+  db.variants.get('v1').isActive = true;
+  db.variants.get('v1').productId = 'p1';
+  variantCart();
+  const cross = await orderVariant();
+  assert.equal(cross.err.statusCode, 400);
+  assert.equal(db.orders.size, 0);
+  assert.equal(db.variants.get('v1').stock, 5);
+});
+
+test('variant order: more than the variant has -> 400 even though the product total (7) would cover it', async () => {
+  variantCart({ variant: db.variants.get('v2'), quantity: 3 }); // v2 mein sirf 2
+  const r = await orderVariant();
+  assert.equal(r.err.statusCode, 400);
+  assert.match(r.err.message, /Only 2 units/);
+  assert.equal(db.orders.size, 0);
+});
+
+test('plain product order: the live product price is used too (admin changed it after add-to-cart)', async () => {
+  db.products.get('p1').price = 1200; // cart item price 1000 purana hai
+  const r = await run(createOrder, { body: guestBody(), headers: { 'x-session-id': 'sess1' } });
+  assert.equal(r.err, null);
+  assert.equal([...db.orders.values()][0].items[0].price, 1200);
 });

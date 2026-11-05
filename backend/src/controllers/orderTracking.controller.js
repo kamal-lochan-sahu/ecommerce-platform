@@ -43,6 +43,7 @@ const toPublicOrder = (order) => ({
   deliveredAt: order.deliveredAt,
   items: (order.items || []).map((i) => ({
     name: i.name,
+    variantLabel: i.variantLabel || '',
     image: i.image,
     quantity: i.quantity,
     price: i.price,

@@ -182,10 +182,10 @@ const useCartStore = create(
             quantity:  qty,
           });
           get()._syncCoupon();
-        } catch {
+        } catch (err) {
           set({ items: prevItems });
           get()._recalc();
-          toast.error("Could not update cart");
+          toast.error(err.response?.data?.message || "Could not update cart");
         }
       },
 

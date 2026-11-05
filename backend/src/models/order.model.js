@@ -47,6 +47,7 @@ const orderSchema = new mongoose.Schema({
       },
       // PRICE SNAPSHOT
       name: String,
+      variantLabel: String, // variant ka naam (Red / XL) order ke waqt ka snapshot
       image: String,
       price: Number,
       quantity: Number,

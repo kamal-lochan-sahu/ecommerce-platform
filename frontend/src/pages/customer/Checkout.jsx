@@ -520,11 +520,12 @@ export default function Checkout() {
                 <h3 className="font-semibold text-sm mb-3">Items ({items.length})</h3>
                 <div className="space-y-3">
                   {items.map(item => (
-                    <div key={item._id} className="flex items-center gap-3">
+                    <div key={`${item._id}-${item.variant}`} className="flex items-center gap-3">
                       <img src={item.images?.[0] || item.image || "https://placehold.co/400x400?text=Product"} alt={item.name}
                         className="w-12 h-12 rounded-lg object-cover bg-gray-50" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 line-clamp-1">{item.name}</p>
+                        {item.variantLabel && <p className="text-xs text-gray-400">{item.variantLabel}</p>}
                         <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
                       </div>
                       <p className="text-sm font-semibold">₹{(item.price * item.quantity).toLocaleString("en-IN")}</p>
@@ -553,13 +554,15 @@ export default function Checkout() {
             <h3 className="font-semibold text-gray-900 mb-4">Order Summary</h3>
             <div className="space-y-3 mb-4">
               {items.map(item => (
-                <div key={item._id} className="flex items-center gap-2.5">
+                <div key={`${item._id}-${item.variant}`} className="flex items-center gap-2.5">
                   <div className="relative">
                     <img src={item.images?.[0] || item.image || "https://placehold.co/400x400?text=Product"} alt={item.name}
                       className="w-10 h-10 rounded-lg object-cover bg-gray-50" />
                     <span className="absolute -top-1 -right-1 w-4 h-4 bg-gray-600 text-white text-[9px] rounded-full flex items-center justify-center font-bold">{item.quantity}</span>
                   </div>
-                  <p className="text-xs text-gray-700 flex-1 line-clamp-2">{item.name}</p>
+                  <p className="text-xs text-gray-700 flex-1 line-clamp-2">
+                    {item.name}{item.variantLabel && <span className="text-gray-400"> ({item.variantLabel})</span>}
+                  </p>
                   <p className="text-xs font-semibold">₹{(item.price * item.quantity).toLocaleString("en-IN")}</p>
                 </div>
               ))}

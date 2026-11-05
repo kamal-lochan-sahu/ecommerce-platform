@@ -35,7 +35,7 @@ export default function ProductCard({ product }) {
   const {
     _id, name, slug, brand,
     price, comparePrice,
-    images, ratings, stock, discount,
+    images, ratings, stock, discount, hasVariants,
   } = product;
 
   // Handle both mock (number) and real (object) ratings
@@ -93,8 +93,15 @@ export default function ProductCard({ product }) {
             <Heart size={15} fill={inWishlist ? "currentColor" : "none"} />
           </button>
 
-          {/* Add to cart overlay */}
-          {!isOutOfStock && (
+          {/* Add to cart overlay — variant product mein size/color chunna zaroori hai, isliye product page par bhejte hain */}
+          {!isOutOfStock && hasVariants && (
+            <div className="absolute bottom-0 left-0 right-0 bg-primary text-white
+                            py-2.5 text-sm font-medium flex items-center justify-center gap-2
+                            translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+              Select Options
+            </div>
+          )}
+          {!isOutOfStock && !hasVariants && (
             <button onClick={handleAddToCart}
               className="absolute bottom-0 left-0 right-0 bg-primary text-white
                          py-2.5 text-sm font-medium flex items-center justify-center gap-2
@@ -112,6 +119,7 @@ export default function ProductCard({ product }) {
           </h3>
           <Stars value={ratingValue} count={ratingCount} />
           <div className="flex items-center gap-2 mt-2">
+            {hasVariants && <span className="text-xs text-gray-500">From</span>}
             <span className="text-base font-bold text-gray-900">
               ₹{price?.toLocaleString("en-IN")}
             </span>

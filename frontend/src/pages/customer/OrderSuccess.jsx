@@ -113,7 +113,7 @@ export default function OrderSuccess() {
                 <div key={i} className="flex items-center gap-2 text-sm">
                   <img src={item.image || "https://placehold.co/40x40?text=P"} alt={item.name}
                     className="w-8 h-8 rounded-lg object-cover bg-gray-50 flex-shrink-0" />
-                  <span className="flex-1 text-gray-700 line-clamp-1">{item.name}</span>
+                  <span className="flex-1 text-gray-700 line-clamp-1">{item.name}{item.variantLabel && ` (${item.variantLabel})`}</span>
                   <span className="text-gray-500 text-xs">×{item.quantity}</span>
                 </div>
               ))}

@@ -196,8 +196,8 @@ export default function OrderDetail() {
                   <p className="font-medium text-gray-900 truncate">
                     {item.name || item.product?.name}
                   </p>
-                  {item.variant?.name && (
-                    <p className="text-xs text-gray-400 mt-0.5">{item.variant.name}</p>
+                  {(item.variantLabel || item.variant?.name) && (
+                    <p className="text-xs text-gray-400 mt-0.5">{item.variantLabel || item.variant?.name}</p>
                   )}
                   <p className="text-sm text-gray-500 mt-1">Qty: {item.quantity}</p>
                 </div>

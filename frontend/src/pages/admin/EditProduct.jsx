@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import api from '../../services/api'
 import AdminLayout from '../../components/admin/AdminLayout'
 import Skeleton from '../../components/ui/Skeleton'
+import ProductVariantsManager from '../../components/admin/ProductVariantsManager'
 
 const EMPTY = { name:'', description:'', comparePrice:'', price:'', stock:'', lowStockThreshold:'10', category:'', brand:'', sku:'', tags:'' }
 
@@ -54,6 +55,19 @@ export default function EditProduct() {
     const existing = (product.specifications || []).map(s => ({ key: s.key || '', value: s.value || '' }))
     setSpecs(existing.length ? existing : [{key:'',value:''}])
   }, [product])
+
+  // Variant product ka price/MRP/stock variants se derive hota hai. Variants badalne ke baad manager
+  // taaza product deta hai — form ke ye 3 fields us par le aate hain, warna purani value save ho kar
+  // (aakhri variant hatne par) purana stock wapas aa sakta tha.
+  const syncDerivedFields = (p) => {
+    if (!p) return
+    setForm(f => ({
+      ...f,
+      price: p.price ?? '',
+      comparePrice: p.comparePrice ? String(p.comparePrice) : '',
+      stock: p.stock ?? '',
+    }))
+  }
 
   const mutation = useMutation({
     mutationFn: (fd) => api.put(`/products/${id}`, fd, { headers:{'Content-Type':'multipart/form-data'} }),
@@ -111,7 +125,7 @@ export default function EditProduct() {
         <button onClick={()=>navigate('/admin/products')} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6 text-sm font-medium">
           <ArrowLeft size={18}/> Back to Products
         </button>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form id="product-form" onSubmit={handleSubmit} className="space-y-4">
           {/* Basic Info */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
             <h3 className="font-semibold text-gray-900">Basic Information</h3>
@@ -141,12 +155,18 @@ export default function EditProduct() {
           {/* Pricing */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm space-y-4">
             <h3 className="font-semibold text-gray-900">Pricing & Inventory</h3>
+            {product.hasVariants && (
+              <p className="text-xs text-indigo-700 bg-indigo-50 rounded-xl px-3 py-2">
+                This product has variants, so price, MRP and stock come from them. Change them in the Variants section below.
+              </p>
+            )}
             <div className="grid grid-cols-3 gap-4">
               {[['comparePrice','MRP (Original Price)','number'],['price','Selling Price *','number'],['stock','Stock *','number']].map(([k,l,t])=>(
                 <div key={k}>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">{l}</label>
-                  <input type={t} value={form[k]} onChange={f(k)} required={l.includes('*')} min="0"
-                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-400 outline-none text-sm"/>
+                  <input type={t} value={form[k]} onChange={f(k)} required={l.includes('*') && !product.hasVariants} min="0"
+                    disabled={product.hasVariants}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-200 focus:border-indigo-400 outline-none text-sm disabled:bg-gray-50 disabled:text-gray-400"/>
                 </div>
               ))}
             </div>
@@ -226,13 +246,17 @@ export default function EditProduct() {
             ))}
           </div>
 
-          <div className="flex gap-3">
-            <button type="button" onClick={()=>navigate('/admin/products')} className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl text-sm font-medium hover:bg-gray-200">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-60">
-              {mutation.isPending ? 'Saving...' : 'Save Changes'}
-            </button>
-          </div>
         </form>
+
+        {/* Variants form ke bahar hain (apna alag save hota hai); Save button neeche form="product-form" se jud'ta hai */}
+        <ProductVariantsManager productId={id} productImages={product.images || []} onChanged={syncDerivedFields} />
+
+        <div className="flex gap-3 mt-4">
+          <button type="button" onClick={()=>navigate('/admin/products')} className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl text-sm font-medium hover:bg-gray-200">Cancel</button>
+          <button type="submit" form="product-form" disabled={mutation.isPending} className="flex-1 bg-indigo-600 text-white py-3 rounded-xl text-sm font-medium hover:bg-indigo-700 disabled:opacity-60">
+            {mutation.isPending ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
       </div>
     </AdminLayout>
   )
