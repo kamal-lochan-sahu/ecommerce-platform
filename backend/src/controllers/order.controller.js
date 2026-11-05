@@ -14,6 +14,7 @@ import { notifyOrderEventInBackground } from '../services/orderNotifications.ser
 import { countCouponUses, findRelatedUserIds } from '../utils/couponUsage.js';
 import { getOrderRecipient } from '../utils/orderRecipient.js';
 import { isValidGuestPhoneToken } from '../utils/guestCheckoutToken.js';
+import { refreshCartItemPrices } from '../utils/cartPricing.js';
 import { allowedNextStatuses, checkTransition, isRefundDue, REFUND_DUE_FILTER } from '../utils/orderRules.js';
 import {
   cancelOrderAndRestore,
@@ -152,6 +153,9 @@ export const createOrder = asyncHandler(async (req, res) => {
     };
   }
 
+  // Cart ka price snapshot purana ho sakta hai (admin ne price badla) — hamesha live price par charge
+  refreshCartItemPrices(cart);
+
   // Stock validate karo — friendly early error. NOT the authoritative check:
   // stock can still change between this read and the atomic decrement below,
   // so the real guard is the conditional $gte update inside the transaction.
@@ -159,6 +163,14 @@ export const createOrder = asyncHandler(async (req, res) => {
     const product = item.product;
     if (!product || !product.isActive) {
       throw new ApiError(400, `Product "${product?.name}" is no longer available`);
+    }
+    // Variant ab inactive/delete ho gaya ya galat product ka hai, ya variant product bina option ke aaya
+    if (item.variant) {
+      if (!item.variant.isActive || String(item.variant.productId) !== String(product._id)) {
+        throw new ApiError(400, `The selected option of "${product.name}" is no longer available`);
+      }
+    } else if (product.hasVariants) {
+      throw new ApiError(400, `Please select an option for "${product.name}" before ordering`);
     }
 
     const availableStock = item.variant ? item.variant.stock : product.stock;
@@ -241,10 +253,11 @@ export const createOrder = asyncHandler(async (req, res) => {
           // Variant stock ProductVariant pe hai, lekin totalSold hum hamesha
           // parent Product pe track karte hain (admin "top products" analytics
           // isi field se aata hai) — warna variant products kabhi top-sellers
-          // mein nahi dikhte.
+          // mein nahi dikhte. Product.stock = active variants ke stock ka jod,
+          // isliye wo bhi saath mein ghatta hai (listing "out of stock" sahi rahe).
           await Product.findByIdAndUpdate(
             item.product._id,
-            { $inc: { totalSold: item.quantity } },
+            { $inc: { totalSold: item.quantity, stock: -item.quantity } },
             { session }
           );
         } else {

@@ -44,7 +44,7 @@ const Order = {
   },
 };
 const incStore = (store) => ({
-  findByIdAndUpdate: async (id, update) => { applyUpdate(store.get(String(id)), update); },
+  findByIdAndUpdate: async (id, update) => { const d = store.get(String(id)); applyUpdate(d, update); return d; },
 });
 const Product = incStore(db.products);
 const ProductVariant = incStore(db.variants);
@@ -113,8 +113,16 @@ test('cancel gives stock back and reverses totalSold (simple product)', async ()
   assert.equal(db.orders.get('o1').statusHistory.at(-1).status, 'cancelled');
 });
 
-test('variant item: stock goes back to the VARIANT, totalSold to the product, product stock untouched', async () => {
-  db.variants.set('v1', { stock: 3 });
+test('variant item: stock goes back to the VARIANT and to the product total (sum of active variants), totalSold to the product', async () => {
+  db.variants.set('v1', { stock: 3, isActive: true });
+  db.orders.set('o1', mkOrder({ items: [{ product: 'p1', variant: 'v1', quantity: 2 }] }));
+  await L.cancelOrderAndRestore('o1', { allowedFrom: ['placed'], reason: 'x' });
+  assert.equal(db.variants.get('v1').stock, 5);
+  assert.deepEqual(db.products.get('p1'), { stock: 10, totalSold: 0 });
+});
+
+test('variant item whose variant was deactivated meanwhile: variant gets stock back, product total stays (it never counted that variant)', async () => {
+  db.variants.set('v1', { stock: 3, isActive: false });
   db.orders.set('o1', mkOrder({ items: [{ product: 'p1', variant: 'v1', quantity: 2 }] }));
   await L.cancelOrderAndRestore('o1', { allowedFrom: ['placed'], reason: 'x' });
   assert.equal(db.variants.get('v1').stock, 5);

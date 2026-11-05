@@ -54,7 +54,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     costPrice: costPrice || 0,
     stock: stock || 0,
     lowStockThreshold: lowStockThreshold || 10,
-    sku, hasVariants: hasVariants || false,
+    sku, hasVariants: false, // variants banne par sync se true hota hai
     tags: tags || [],
     specifications: specifications || [],
     images,
@@ -190,7 +190,7 @@ export const getProductBySlug = asyncHandler(async (req, res) => {
   const variants = await ProductVariant.find({
     productId: product._id,
     isActive: true,
-  });
+  }).sort({ createdAt: 1 });
 
   res.json(
     new ApiResponse(200, { product, variants }, 'Product fetched')
@@ -221,6 +221,15 @@ export const updateProduct = asyncHandler(async (req, res) => {
   if (!product) throw new ApiError(404, 'Product not found');
 
   const { name, removeImages, ...updateData } = req.body;
+
+  // hasVariants / variant products ka price, comparePrice, stock variants se derive hote hain
+  // (variantSync.service.js) — yahan se badalne par agli sync mein overwrite ho jaate.
+  delete updateData.hasVariants;
+  if (product.hasVariants) {
+    delete updateData.price;
+    delete updateData.comparePrice;
+    delete updateData.stock;
+  }
 
   // Name change? New slug generate karo
   if (name && name !== product.name) {

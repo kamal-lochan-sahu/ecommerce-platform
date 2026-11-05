@@ -2,6 +2,7 @@ import { Cart, Product, ProductVariant } from '../models/index.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
+import { refreshCartItemPrices } from '../utils/cartPricing.js';
 
 // Helper — cart dhundho ya banao
 const getOrCreateCart = async (userId, sessionId) => {
@@ -65,6 +66,9 @@ export const getCart = asyncHandler(async (req, res) => {
     }, 'Cart is empty'));
   }
 
+  // Admin ne price badla ho to cart live price dikhaye (order bhi live price par hi banta hai)
+  if (refreshCartItemPrices(cart)) await cart.save();
+
   res.json(new ApiResponse(200, {
     cart,
     totalAmount: cart.totalAmount,
@@ -96,9 +100,15 @@ export const addToCart = asyncHandler(async (req, res) => {
   let variant = null;
   let itemPrice = product.price;
 
+  // Variant wala product bina option chune cart mein nahi aa sakta (stock/price variants par hai)
+  if (product.hasVariants && !variantId) {
+    throw new ApiError(400, 'Please select an option (size, color...) for this product');
+  }
+
   if (variantId) {
     variant = await ProductVariant.findById(variantId);
-    if (!variant || !variant.isActive) {
+    // Variant isi product ka hona chahiye — warna sasta variant lagakar mehenga product khareeda ja sakta
+    if (!variant || !variant.isActive || String(variant.productId) !== String(productId)) {
       throw new ApiError(404, 'Variant not found');
     }
     itemPrice = variant.price;
@@ -176,9 +186,16 @@ export const updateCartItem = asyncHandler(async (req, res) => {
 
   // Stock check
   const product = await Product.findById(productId);
-  const maxStock = variantId
-    ? (await ProductVariant.findById(variantId))?.stock
-    : product?.stock;
+  let maxStock;
+  if (variantId) {
+    const variant = await ProductVariant.findById(variantId);
+    if (!variant || !variant.isActive || String(variant.productId) !== String(productId)) {
+      throw new ApiError(404, 'Variant not found');
+    }
+    maxStock = variant.stock;
+  } else {
+    maxStock = product?.stock;
+  }
 
   if (quantity > maxStock) {
     throw new ApiError(400, `Only ${maxStock} items available`);

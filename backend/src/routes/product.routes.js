@@ -19,6 +19,13 @@ import {
   createProductSchema,
   updateProductSchema,
 } from '../validators/product.validator.js';
+import {
+  listVariants,
+  createVariant,
+  updateVariant,
+  deleteVariant,
+} from '../controllers/variant.controller.js';
+import { createVariantSchema, updateVariantSchema } from '../validators/variant.validator.js';
 
 const router = Router();
 
@@ -35,5 +42,11 @@ router.get('/', getProducts);
 router.post('/', protect, adminOnly, upload.array('images', 10), parseJsonFields('tags', 'specifications', 'dimensions', 'meta', 'removeImages'), validate(createProductSchema), createProduct);
 router.put('/:id', protect, adminOnly, upload.array('images', 10), parseJsonFields('tags', 'specifications', 'dimensions', 'meta', 'removeImages'), validate(updateProductSchema), updateProduct);
 router.delete('/:id', protect, adminOnly, deleteProduct);
+
+// Variants (admin CRUD) — Product.price/stock/hasVariants variants se derive hote hain
+router.get('/:productId/variants', protect, adminOnly, listVariants);
+router.post('/:productId/variants', protect, adminOnly, validate(createVariantSchema), createVariant);
+router.put('/:productId/variants/:variantId', protect, adminOnly, validate(updateVariantSchema), updateVariant);
+router.delete('/:productId/variants/:variantId', protect, adminOnly, deleteVariant);
 
 export default router;

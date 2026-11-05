@@ -16,12 +16,20 @@ import { notifyOrderEventInBackground } from './orderNotifications.service.js';
 // ─────────────────────────────────────────────────────────────
 
 // Stock + totalSold wapas karo — createOrder ka exact ulta.
-// Variant item: stock ProductVariant pe wapas, totalSold hamesha parent Product pe.
+// Variant item: stock ProductVariant pe wapas, totalSold parent Product pe, aur parent ka stock
+// (= active variants ke stock ka jod) bhi wapas — par sirf tab jab variant abhi active hai,
+// warna us variant ka stock Product ke jod mein tha hi nahi.
 const restoreStock = async (order, session) => {
   for (const item of order.items) {
     if (item.variant) {
-      await ProductVariant.findByIdAndUpdate(item.variant, { $inc: { stock: item.quantity } }, { session });
-      await Product.findByIdAndUpdate(item.product, { $inc: { totalSold: -item.quantity } }, { session });
+      const variant = await ProductVariant.findByIdAndUpdate(
+        item.variant,
+        { $inc: { stock: item.quantity } },
+        { session, returnDocument: 'after' }
+      );
+      const productInc = { totalSold: -item.quantity };
+      if (variant?.isActive) productInc.stock = item.quantity;
+      await Product.findByIdAndUpdate(item.product, { $inc: productInc }, { session });
     } else {
       await Product.findByIdAndUpdate(
         item.product,
