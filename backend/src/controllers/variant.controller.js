@@ -36,17 +36,20 @@ const optionComboKey = (options) =>
 // "Red / XL" — admin naam na de to options ki values se banta hai
 const autoName = (options) => options.map((o) => o.value).join(' / ');
 
-// Ek product ke saare variants ek hi tarah ke options use karein (Color+Size, "Colour"+"Size" nahi),
-// aur same combination (Red / XL) do baar na bane.
+// Ek product ke saare ACTIVE variants ek hi tarah ke options use karein (Color+Size, "Colour"+"Size" nahi),
+// aur same combination (Red / XL) do baar na bane (inactive variants ke saath bhi).
+// Option NAMES sirf active variants se match hote hain: order wala band variant delete nahi ho sakta,
+// wo naye variants ko hamesha ke liye purane option names mein lock na kar de.
 const checkOptionsAgainstSiblings = (options, siblings) => {
   const combo = optionComboKey(options);
   if (siblings.some((s) => optionComboKey(s.options || []) === combo)) {
     throw new ApiError(400, `A variant with ${autoName(options)} already exists for this product`);
   }
-  if (siblings.length > 0) {
-    const expected = optionNameKey(siblings[0].options || []);
+  const active = siblings.filter((s) => s.isActive !== false);
+  if (active.length > 0) {
+    const expected = optionNameKey(active[0].options || []);
     if (optionNameKey(options) !== expected) {
-      const names = (siblings[0].options || []).map((o) => o.name).join(', ');
+      const names = (active[0].options || []).map((o) => o.name).join(', ');
       throw new ApiError(400, `All variants of a product must use the same options: ${names}`);
     }
   }
@@ -137,7 +140,9 @@ export const updateVariant = asyncHandler(async (req, res) => {
   const price = body.price ?? variant.price;
   const comparePrice = body.comparePrice !== undefined ? body.comparePrice : variant.comparePrice;
 
-  if (body.options) {
+  // Band variant wapas chalu karna bhi naya active variant jodne jaisa hai: options baaki active variants se mel khaane chahiye
+  const reactivating = body.isActive === true && variant.isActive === false;
+  if (body.options || reactivating) {
     const siblings = (await ProductVariant.find({ productId: product._id }))
       .filter((s) => String(s._id) !== String(variant._id));
     checkOptionsAgainstSiblings(options, siblings);

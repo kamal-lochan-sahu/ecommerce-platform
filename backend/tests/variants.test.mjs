@@ -176,6 +176,27 @@ test('update: changing options re-checks duplicates (ignoring itself) and rename
   assert.equal(rename.data.variant.name, 'Blue / L');
 });
 
+test('option names only have to match ACTIVE variants: a deactivated variant does not lock the names forever', async () => {
+  const a = (await add(red)).data.variant;
+  await call(V.updateVariant, { params: { productId: pid, variantId: a._id }, body: { isActive: false } });
+
+  const material = { options: [{ name: 'Material', value: 'Cotton' }], price: 500 };
+  const ok = await add(material);
+  assert.equal(ok.err, null);
+
+  // ab Material wala active hai, to Color/Size wala naya variant mana
+  const clash = await add({ options: [{ name: 'Color', value: 'Green' }, { name: 'Size', value: 'S' }], price: 800 });
+  assert.match(clash.err.message, /same options: Material/);
+
+  // aur purana (inactive) Color/Size variant wapas chalu karna bhi mana, warna storefront par do tarah ke options aa jaate
+  const back = await call(V.updateVariant, { params: { productId: pid, variantId: a._id }, body: { isActive: true } });
+  assert.match(back.err.message, /same options: Material/);
+
+  // same combination ab bhi inactive ke saath clash karta hai
+  const dup = await add(red);
+  assert.match(dup.err.message, /already exists/);
+});
+
 test('update/delete: variant of another product or a malformed id gives 404', async () => {
   const other = oid();
   db.products.set(other, { _id: other, name: 'Other', price: 1, stock: 0, hasVariants: false, images: [] });

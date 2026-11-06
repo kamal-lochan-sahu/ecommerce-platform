@@ -61,13 +61,14 @@ export default function ProductVariantsManager({ productId, productImages = [], 
     onError,
   })
 
-  // Ek product ke saare variants same option names use karte hain (backend bhi yahi rule lagata hai)
-  const others = (variants || []).filter((v) => v._id !== editing)
+  // Ek product ke saare ACTIVE variants same option names use karte hain (backend bhi yahi rule lagata hai)
+  const others = (variants || []).filter((v) => v._id !== editing && v.isActive)
   const lockedNames = others.length > 0 ? (others[0].options || []).map((o) => o.name) : null
 
   const openNew = () => {
     setEditing('new')
-    setForm(blankForm(variants[0] ? variants[0].options.map((o) => o.name) : []))
+    const firstActive = variants.find((v) => v.isActive)
+    setForm(blankForm(firstActive ? firstActive.options.map((o) => o.name) : []))
   }
   const openEdit = (v) => { setEditing(v._id); setForm(formFromVariant(v)) }
   const close = () => { setEditing(null); setForm(null) }
