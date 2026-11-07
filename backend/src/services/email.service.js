@@ -1,6 +1,7 @@
 import logger from '../utils/logger.js';
 import { sendMail } from "./messaging.service.js";
 import { getBrand } from "./brand.service.js";
+import { signUnsubscribeToken } from "../utils/unsubscribeToken.js";
 import handlebars from "handlebars";
 import juice from "juice";
 import fs from "fs";
@@ -282,10 +283,10 @@ const inlineTemplates = {
           </div>
 
           <p style="color:#999; font-size:12px; text-align:center; margin-top:24px">
-            If you don't want these reminders, <a href="${process.env.FRONTEND_URL}/unsubscribe" style="color:#999">unsubscribe here</a>.
+            If you don't want these reminders, <a href="${data.unsubscribeUrl}" style="color:#999">unsubscribe here</a>.
           </p>
         </div>
-        <div class="footer">© ${new Date().getFullYear()} MyShop</div>
+        <div class="footer">© ${new Date().getFullYear()} ${data.brandName || ""}</div>
       </div>
     </body>
     </html>
@@ -464,6 +465,9 @@ export const sendOrderDeliveredEmail = async (order, user) => {
 };
 
 export const sendAbandonedCartEmail = async (user, cart) => {
+  const brand = await getBrand();
+  const base = (process.env.FRONTEND_URL || "").replace(/\/+$/, "");
+  const unsubscribeUrl = `${base}/unsubscribe?token=${encodeURIComponent(signUnsubscribeToken(user._id))}`;
   // NOTE: pehle yahan ek nakli code (CARTxxxx) jaata tha jo database mein exist hi nahi karta tha —
   // customer ko 'invalid coupon' milta. Jab tak real auto-coupon nahi banta, email mein koi code nahi jaata.
   return sendEmail({
@@ -472,14 +476,17 @@ export const sendAbandonedCartEmail = async (user, cart) => {
     template: "abandonedCart",
     data: {
       customerName: user.name,
+      brandName: brand.name,
+      unsubscribeUrl,
       cartItems: cart.items.map((item) => ({
         name: item.product?.name || "Product",
         quantity: item.quantity,
-        price: item.product?.price || 0,
+        // Cart ka price (variant ka bhi sahi) — product.price variant products par sabse sasta option hota hai
+        price: item.price ?? item.product?.price ?? 0,
         image: item.product?.images?.[0],
       })),
       cartTotal: cart.items.reduce(
-        (sum, item) => sum + (item.product?.price || 0) * item.quantity,
+        (sum, item) => sum + (item.price ?? item.product?.price ?? 0) * item.quantity,
         0
       ),
     },

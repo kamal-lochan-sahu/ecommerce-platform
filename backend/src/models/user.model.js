@@ -48,6 +48,12 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  // Marketing/promotional emails (abandoned-cart reminder...). Order, OTP and account emails
+  // are never marketing, so this flag does not touch them. Missing on old users = opted in.
+  marketingEmails: {
+    type: Boolean,
+    default: true,
+  },
   googleId: {
     type: String,
     sparse: true,

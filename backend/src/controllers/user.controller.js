@@ -6,6 +6,7 @@ import { uploadToCloudinary, deleteFromCloudinary } from '../utils/cloudinary.js
 import { isPlaceholderEmail } from '../utils/identity.js';
 import { issueOtp, consumeOtp } from '../services/otp.service.js';
 import { claimGuestOrdersInBackground } from '../services/guestOrderClaim.service.js';
+import { verifyUnsubscribeToken } from '../utils/unsubscribeToken.js';
 
 // =====================
 // @route  GET /api/users/profile
@@ -26,7 +27,7 @@ export const getProfile = asyncHandler(async (req, res) => {
 // @access Private
 // =====================
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { name, phone } = req.body;
+  const { name, phone, marketingEmails } = req.body;
 
   // A phone number is a login identifier, so it can only change by proving you own
   // the new one (OTP) - never through a plain form save.
@@ -36,6 +37,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   const updateData = {};
   if (name) updateData.name = name;
+  if (typeof marketingEmails === 'boolean') updateData.marketingEmails = marketingEmails;
 
   // Avatar upload
   if (req.file) {
@@ -58,6 +60,23 @@ export const updateProfile = asyncHandler(async (req, res) => {
   );
 
   res.json(new ApiResponse(200, { user }, 'Profile updated successfully'));
+});
+
+// =====================
+// @route  POST /api/users/unsubscribe
+// @access Public (signed token from the email link — no login needed)
+// =====================
+// Idempotent: dobara click karne par bhi success. Token galat ho to 400 (user exist karta hai ya
+// nahi, ye kabhi nahi batate).
+export const unsubscribeMarketing = asyncHandler(async (req, res) => {
+  const userId = verifyUnsubscribeToken(req.body.token);
+  if (!userId) {
+    throw new ApiError(400, 'This unsubscribe link is invalid. You can also turn off marketing emails in your Profile.');
+  }
+
+  await User.updateOne({ _id: userId }, { $set: { marketingEmails: false } });
+
+  res.json(new ApiResponse(200, {}, 'You have been unsubscribed from marketing emails'));
 });
 
 // =====================

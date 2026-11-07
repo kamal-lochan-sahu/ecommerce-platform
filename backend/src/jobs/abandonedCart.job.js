@@ -7,7 +7,7 @@ import { sendAbandonedCartEmail } from "../services/email.service.js";
 // Har ghante run karta hai
 // Users jinhone cart mein items daale hain par 1 ghante se checkout nahi kiya
 
-const abandonedCartJob = cron.schedule(
+const abandonedCartJob = cron.createTask(
   "0 * * * *", // Har ghante ke top pe
   async () => {
     console.log("🕐 [CRON] Abandoned Cart Job started:", new Date().toISOString());
@@ -86,7 +86,6 @@ const abandonedCartJob = cron.schedule(
     }
   },
   {
-    scheduled: false, // Manually start karenge
     timezone: "Asia/Kolkata",
   }
 );

@@ -5,6 +5,14 @@ export const updateProfileSchema = Joi.object({
   phone: Joi.string().pattern(/^[6-9]\d{9}$/).optional().messages({
     'string.pattern.base': 'Please enter a valid Indian phone number',
   }),
+  marketingEmails: Joi.boolean().optional(),
+});
+
+export const unsubscribeSchema = Joi.object({
+  token: Joi.string().max(2000).required().messages({
+    'any.required': 'Unsubscribe token is required',
+    'string.empty': 'Unsubscribe token is required',
+  }),
 });
 
 export const changePasswordSchema = Joi.object({

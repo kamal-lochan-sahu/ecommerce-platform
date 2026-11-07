@@ -75,3 +75,15 @@ export const trackOrderLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+// Unsubscribe (public, token se): token andaaze se na ladaye ja sakein
+export const unsubscribeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 20,
+  message: {
+    success: false,
+    message: 'Too many attempts. Please try again in a few minutes.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});

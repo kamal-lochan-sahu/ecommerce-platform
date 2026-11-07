@@ -5,7 +5,7 @@ import Coupon from "../models/coupon.model.js";
 // Har din midnight pe run karta hai
 // Expired coupons ko deactivate karta hai
 
-const expireCouponsJob = cron.schedule(
+const expireCouponsJob = cron.createTask(
   "0 0 * * *", // Har din 12:00 AM IST
   async () => {
     console.log("🕐 [CRON] Expire Coupons Job started:", new Date().toISOString());
@@ -60,7 +60,6 @@ const expireCouponsJob = cron.schedule(
     }
   },
   {
-    scheduled: false,
     timezone: "Asia/Kolkata",
   }
 );

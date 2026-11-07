@@ -8,6 +8,7 @@ import {
   verifyEmailAdd,
   requestPhoneVerification,
   verifyPhone,
+  unsubscribeMarketing,
 } from '../controllers/user.controller.js';
 import { protect } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
@@ -19,12 +20,16 @@ import {
   verifyEmailSchema,
   requestPhoneSchema,
   verifyPhoneSchema,
+  unsubscribeSchema,
 } from '../validators/user.validator.js';
-import { otpVerifyLimiter, otpResendLimiter } from '../middleware/rateLimit.middleware.js';
+import { otpVerifyLimiter, otpResendLimiter, unsubscribeLimiter } from '../middleware/rateLimit.middleware.js';
 
 const router = Router();
 
-// Sab routes protected hain
+// Public: email ke unsubscribe link se (signed token) — login nahi chahiye
+router.post('/unsubscribe', unsubscribeLimiter, validate(unsubscribeSchema), unsubscribeMarketing);
+
+// Baaki sab routes protected hain
 router.use(protect);
 
 router.get('/profile', getProfile);

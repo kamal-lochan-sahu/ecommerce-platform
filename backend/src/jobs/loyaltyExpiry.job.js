@@ -8,7 +8,7 @@ import sendEmail from "../services/email.service.js";
 // Points jo 30 din mein expire honge unka reminder bhejta hai
 // Points jo expire ho gaye hain unhe deduct karta hai
 
-const loyaltyExpiryJob = cron.schedule(
+const loyaltyExpiryJob = cron.createTask(
   "0 10 * * *", // Har din 10:00 AM IST
   async () => {
     console.log(
@@ -146,7 +146,6 @@ const loyaltyExpiryJob = cron.schedule(
     }
   },
   {
-    scheduled: false,
     timezone: "Asia/Kolkata",
   }
 );

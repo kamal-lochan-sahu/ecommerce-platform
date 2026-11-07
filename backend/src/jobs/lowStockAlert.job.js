@@ -6,7 +6,7 @@ import { sendLowStockAlertEmail } from "../services/email.service.js";
 // Har din 9 AM IST pe run karta hai
 // Admin ko low stock + out of stock products ka email bhejta hai
 
-const lowStockAlertJob = cron.schedule(
+const lowStockAlertJob = cron.createTask(
   "0 9 * * *", // Har din 9:00 AM IST
   async () => {
     console.log("🕐 [CRON] Low Stock Alert Job started:", new Date().toISOString());
@@ -72,7 +72,6 @@ const lowStockAlertJob = cron.schedule(
     }
   },
   {
-    scheduled: false,
     timezone: "Asia/Kolkata",
   }
 );
