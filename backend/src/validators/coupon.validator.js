@@ -1,5 +1,13 @@
 import Joi from 'joi';
 
+// Scope list: Mongo ObjectId strings, duplicates nahi
+const objectIdList = Joi.array()
+  .items(Joi.string().hex().length(24).messages({
+    'string.hex': 'Invalid id in the list',
+    'string.length': 'Invalid id in the list',
+  }))
+  .unique();
+
 export const createCouponSchema = Joi.object({
   code: Joi.string().min(3).max(20).required().messages({
     'any.required': 'Coupon code is required',
@@ -30,8 +38,8 @@ export const createCouponSchema = Joi.object({
     'date.greater': 'Expiry date must be in future',
   }),
   startsAt: Joi.date().optional(),
-  applicableProducts: Joi.array().items(Joi.string()).optional(),
-  applicableCategories: Joi.array().items(Joi.string()).optional(),
+  applicableProducts: objectIdList.optional(),
+  applicableCategories: objectIdList.optional(),
 });
 
 export const updateCouponSchema = Joi.object({
@@ -43,6 +51,9 @@ export const updateCouponSchema = Joi.object({
   usagePerUser: Joi.number().min(1).optional(),
   isActive: Joi.boolean().optional(),
   expiresAt: Joi.date().greater('now').optional(),
+  // Khaali array = scope hata do (poore cart par lagega)
+  applicableProducts: objectIdList.optional(),
+  applicableCategories: objectIdList.optional(),
 });
 
 export const applyCouponSchema = Joi.object({

@@ -2,7 +2,8 @@ import { Coupon, Cart } from '../models/index.js';
 import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
-import { countCouponUses } from '../utils/couponUsage.js';
+import { refreshCartItemPrices } from '../utils/cartPricing.js';
+import { priceCoupon, findUsableCoupon, assertWithinPerUserLimit, couponHasScope } from '../services/couponPricing.service.js';
 
 // Logged-in: userId se cart. Guest: x-session-id se cart.
 const cartFilterFor = (req) => {
@@ -11,6 +12,14 @@ const cartFilterFor = (req) => {
   if (!sessionId) throw new ApiError(400, 'Your cart is empty');
   return { sessionId };
 };
+
+// Per-user limit ke liye: logged-in ka userId (+ verified phone se pehle guest ban kar kiya use).
+// Guest ka phone abhi pata nahi — uska limit order lagate waqt (phone se) lagta hai.
+const whoFor = (req) => (
+  req.user
+    ? { userId: req.user._id, guestKey: req.user.isPhoneVerified ? req.user.phone : null }
+    : null
+);
 
 // =====================
 // @route  POST /api/admin/coupons
@@ -81,53 +90,22 @@ export const deleteCoupon = asyncHandler(async (req, res) => {
 // =====================
 export const applyCoupon = asyncHandler(async (req, res) => {
   const { code } = req.body;
-  const userId = req.user?._id || null;
 
-  // Cart fetch karo
-  const cart = await Cart.findOne(cartFilterFor(req)).populate('items.product');
+  // Cart fetch karo (variant bhi, taaki live price par discount nikle)
+  const cart = await Cart.findOne(cartFilterFor(req)).populate('items.product').populate('items.variant');
   if (!cart || cart.items.length === 0) {
     throw new ApiError(400, 'Your cart is empty');
   }
 
-  // Coupon validate karo
-  const coupon = await Coupon.findOne({
-    code: code.toUpperCase(),
-    isActive: true,
-    expiresAt: { $gt: new Date() },
-    startsAt: { $lte: new Date() },
+  // Cart ka saved price purana ho sakta hai — order live price par banta hai, discount bhi wahi se
+  refreshCartItemPrices(cart);
+
+  // Validate + scope + discount: shared service (order create bhi yahi use karta hai)
+  const { coupon, discount, subtotal, eligibleSubtotal, scoped } = await priceCoupon({
+    code,
+    items: cart.items,
+    who: whoFor(req),
   });
-
-  if (!coupon) throw new ApiError(400, 'Invalid or expired coupon');
-
-  if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
-    throw new ApiError(400, 'Coupon usage limit exceeded');
-  }
-
-  const subtotal = cart.items.reduce(
-    (sum, item) => sum + item.price * item.quantity, 0
-  );
-
-  if (subtotal < coupon.minOrderAmount) {
-    throw new ApiError(400, `Minimum order amount ₹${coupon.minOrderAmount} required`);
-  }
-
-  // Per-user limit: logged-in ke liye abhi check. Guest ka phone abhi pata nahi —
-  // uska limit order lagate waqt (phone se) lagta hai.
-  if (userId && countCouponUses(coupon, { userId, guestKey: req.user.isPhoneVerified ? req.user.phone : null }) >= coupon.usagePerUser) {
-    throw new ApiError(400, 'You have already used this coupon');
-  }
-
-  // Discount calculate karo
-  let discount = 0;
-  if (coupon.type === 'percentage') {
-    discount = (subtotal * coupon.value) / 100;
-    if (coupon.maxDiscount) {
-      discount = Math.min(discount, coupon.maxDiscount);
-    }
-  } else {
-    discount = coupon.value;
-  }
-  discount = Math.round(discount);
 
   // Cart mein save karo
   cart.couponCode = coupon.code;
@@ -138,8 +116,12 @@ export const applyCoupon = asyncHandler(async (req, res) => {
     couponCode: coupon.code,
     discount,
     subtotal,
+    eligibleSubtotal,
+    scoped,
     total: subtotal - discount,
-    message: `Coupon applied! You save ₹${discount}`,
+    message: scoped
+      ? `Coupon applied! You save ₹${discount} on eligible items`
+      : `Coupon applied! You save ₹${discount}`,
   }, 'Coupon applied successfully'));
 });
 
@@ -162,20 +144,9 @@ export const removeCoupon = asyncHandler(async (req, res) => {
 // =====================
 export const validateCoupon = asyncHandler(async (req, res) => {
   const { code } = req.body;
-  const userId = req.user?._id || null;
 
-  const coupon = await Coupon.findOne({
-    code: code.toUpperCase(),
-    isActive: true,
-    expiresAt: { $gt: new Date() },
-    startsAt: { $lte: new Date() },
-  });
-
-  if (!coupon) throw new ApiError(400, 'Invalid or expired coupon');
-
-  if (userId && countCouponUses(coupon, { userId, guestKey: req.user.isPhoneVerified ? req.user.phone : null }) >= coupon.usagePerUser) {
-    throw new ApiError(400, 'You have already used this coupon');
-  }
+  const coupon = await findUsableCoupon(code);
+  assertWithinPerUserLimit(coupon, whoFor(req));
 
   res.json(new ApiResponse(200, {
     code: coupon.code,
@@ -184,5 +155,6 @@ export const validateCoupon = asyncHandler(async (req, res) => {
     minOrderAmount: coupon.minOrderAmount,
     maxDiscount: coupon.maxDiscount,
     description: coupon.description,
+    scoped: couponHasScope(coupon),
   }, 'Coupon is valid'));
 });

@@ -11,7 +11,8 @@ import { getPagination, getPaginationMeta } from '../utils/pagination.js';
 import { sendEmail } from '../utils/email.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
 import { notifyOrderEventInBackground } from '../services/orderNotifications.service.js';
-import { countCouponUses, findRelatedUserIds } from '../utils/couponUsage.js';
+import { findRelatedUserIds } from '../utils/couponUsage.js';
+import { priceCoupon } from '../services/couponPricing.service.js';
 import { getOrderRecipient } from '../utils/orderRecipient.js';
 import { isValidGuestPhoneToken } from '../utils/guestCheckoutToken.js';
 import { refreshCartItemPrices } from '../utils/cartPricing.js';
@@ -22,46 +23,6 @@ import {
   flagLatePayment,
   sendConfirmationEmailFor,
 } from '../services/orderLifecycle.service.js';
-
-// =====================
-// Helper — coupon validate karo
-// =====================
-// who = { userId } (logged-in) ya { guestKey, relatedUserIds } (guest)
-const validateCoupon = async (code, who, subtotal) => {
-  const coupon = await Coupon.findOne({
-    code: code.toUpperCase(),
-    isActive: true,
-    expiresAt: { $gt: new Date() },
-    startsAt: { $lte: new Date() },
-  });
-
-  if (!coupon) throw new ApiError(400, 'Invalid or expired coupon');
-
-  if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
-    throw new ApiError(400, 'Coupon usage limit exceeded');
-  }
-
-  if (subtotal < coupon.minOrderAmount) {
-    throw new ApiError(400, `Minimum order amount ₹${coupon.minOrderAmount} required`);
-  }
-
-  if (countCouponUses(coupon, who) >= coupon.usagePerUser) {
-    throw new ApiError(400, 'You have already used this coupon');
-  }
-
-  // Discount calculate karo
-  let discount = 0;
-  if (coupon.type === 'percentage') {
-    discount = (subtotal * coupon.value) / 100;
-    if (coupon.maxDiscount) {
-      discount = Math.min(discount, coupon.maxDiscount);
-    }
-  } else {
-    discount = coupon.value;
-  }
-
-  return { coupon, discount: Math.round(discount) };
-};
 
 // =====================
 // @route  POST /api/orders
@@ -199,7 +160,8 @@ export const createOrder = asyncHandler(async (req, res) => {
     const who = userId
       ? { userId, guestKey: req.user.isPhoneVerified ? req.user.phone : null }
       : { guestKey: guest.phone, relatedUserIds: await findRelatedUserIds({ phone: guest.phone, email: guest.email }) };
-    const result = await validateCoupon(couponCode, who, subtotal);
+    // Validate + scope + discount: coupon.controller ke applyCoupon wala hi shared hisaab
+    const result = await priceCoupon({ code: couponCode, items: cart.items, who });
     couponDiscount = result.discount;
     appliedCoupon = result.coupon;
   }
@@ -290,7 +252,7 @@ export const createOrder = asyncHandler(async (req, res) => {
           couponDiscount,
           total,
         },
-        couponCode: couponCode || null,
+        couponCode: appliedCoupon ? appliedCoupon.code : null,
         paymentMethod,
         paymentStatus: 'pending',
         orderStatus: 'placed',

@@ -3,6 +3,7 @@ import ApiError from '../utils/ApiError.js';
 import ApiResponse from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { refreshCartItemPrices } from '../utils/cartPricing.js';
+import { revalidateCartCoupon } from '../services/couponPricing.service.js';
 
 // Helper — cart dhundho ya banao
 const getOrCreateCart = async (userId, sessionId) => {
@@ -51,7 +52,7 @@ export const getCart = asyncHandler(async (req, res) => {
   const filter = userId ? { userId } : { sessionId };
   const cart = await Cart.findOne(filter).populate({
     path: 'items.product',
-    select: 'name slug images price comparePrice stock isActive',
+    select: 'name slug images price comparePrice stock isActive category',
   }).populate({
     path: 'items.variant',
     select: 'name price stock options',
@@ -67,12 +68,27 @@ export const getCart = asyncHandler(async (req, res) => {
   }
 
   // Admin ne price badla ho to cart live price dikhaye (order bhi live price par hi banta hai)
-  if (refreshCartItemPrices(cart)) await cart.save();
+  let dirty = refreshCartItemPrices(cart);
+
+  // Cart mein saved coupon ka discount purana ho sakta hai (qty/items badle, scoped coupon ka item
+  // hata, coupon expire hua). Dobara tolo: discount update, ya coupon invalid to hata do.
+  let couponRemoved = null;
+  if (cart.couponCode) {
+    const who = userId
+      ? { userId, guestKey: req.user.isPhoneVerified ? req.user.phone : null }
+      : null;
+    const result = await revalidateCartCoupon(cart, who);
+    if (result.changed) dirty = true;
+    couponRemoved = result.removedReason;
+  }
+
+  if (dirty) await cart.save();
 
   res.json(new ApiResponse(200, {
     cart,
     totalAmount: cart.totalAmount,
     totalItems: cart.totalItems,
+    couponRemoved,
   }, 'Cart fetched'));
 });
 
