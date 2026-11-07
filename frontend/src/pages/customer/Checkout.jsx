@@ -51,7 +51,7 @@ function loadRazorpayScript() {
 export default function Checkout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { items, totalAmount, clearCart, couponCode, couponDiscount, clearCoupon } = useCartStore();
+  const { items, totalAmount, clearCart, couponCode, couponDiscount, couponScoped, clearCoupon } = useCartStore();
   const { user } = useAuthStore();
   const isGuest = !user;
   const [step,    setStep]    = useState(0);
@@ -571,7 +571,7 @@ export default function Checkout() {
               <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>₹{totalAmount.toLocaleString("en-IN")}</span></div>
               {discount > 0 && (
                 <div className="flex justify-between text-green-600 font-medium">
-                  <span>Coupon ({couponCode})</span><span>−₹{discount.toLocaleString("en-IN")}</span>
+                  <span>Coupon ({couponCode}{couponScoped ? ", eligible items only" : ""})</span><span>−₹{discount.toLocaleString("en-IN")}</span>
                 </div>
               )}
               <div className="flex justify-between text-gray-600">

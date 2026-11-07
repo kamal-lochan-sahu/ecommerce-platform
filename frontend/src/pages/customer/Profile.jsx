@@ -53,6 +53,23 @@ export default function Profile() {
     onError: (e) => toast.error(e?.response?.data?.message || 'Update failed'),
   })
 
+  // Marketing emails on/off. Profile endpoint multipart leta hai, isliye FormData (backend "true"/"false" samajhta hai)
+  const marketingOn = profile?.marketingEmails !== false
+  const marketingMutation = useMutation({
+    mutationFn: (enabled) => {
+      const form = new FormData()
+      form.append('marketingEmails', String(enabled))
+      return userService.updateProfile(form)
+    },
+    onSuccess: (r, enabled) => {
+      const updated = r.data?.data?.user
+      if (updated) updateUser(updated)
+      qc.invalidateQueries({ queryKey: ['profile'] })
+      toast.success(enabled ? 'Marketing emails turned on' : 'Marketing emails turned off')
+    },
+    onError: (e) => toast.error(e?.response?.data?.message || 'Could not update preference'),
+  })
+
   const pwMutation = useMutation({
     mutationFn: (data) => userService.changePassword(data),
     onSuccess: () => {
@@ -192,6 +209,29 @@ export default function Profile() {
             </button>
           </div>
         </div>
+
+        {/* Email preferences — sirf un accounts ke liye jinka asli email hai */}
+        {!isPlaceholderEmail(user?.email) && (
+          <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h2 className="font-semibold text-gray-900">Marketing emails</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Cart reminders and offers. Order updates and account emails are always sent.</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={marketingOn}
+                aria-label="Marketing emails"
+                disabled={marketingMutation.isPending}
+                onClick={() => marketingMutation.mutate(!marketingOn)}
+                className={`relative w-11 h-6 rounded-full flex-shrink-0 transition-colors disabled:opacity-60 ${marketingOn ? 'bg-indigo-600' : 'bg-gray-300'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${marketingOn ? 'translate-x-5' : ''}`} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Change Password */}
         <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">

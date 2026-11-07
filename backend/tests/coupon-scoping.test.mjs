@@ -16,7 +16,18 @@ const thenable = (value) => {
   return t;
 };
 
-const Coupon = { findOne: (q) => thenable(db.coupon && db.coupon.code === q.code ? db.coupon : null) };
+const populated = [];
+const Coupon = {
+  findOne: (q) => thenable(db.coupon && db.coupon.code === q.code ? db.coupon : null),
+  find: () => {
+    const t = {
+      sort: () => t,
+      populate: (path, select) => { populated.push([path, select]); return t; },
+      then: (res, rej) => Promise.resolve(db.coupon ? [db.coupon] : []).then(res, rej),
+    };
+    return t;
+  },
+};
 const Cart = { findOne: () => thenable(db.cart) };
 
 mock.module('../src/models/index.js', {
@@ -30,7 +41,7 @@ mock.module('../src/models/category.model.js', {
 });
 
 const { priceCoupon, revalidateCartCoupon, couponHasScope } = await import('../src/services/couponPricing.service.js');
-const { applyCoupon, validateCoupon } = await import('../src/controllers/coupon.controller.js');
+const { applyCoupon, validateCoupon, getAllCoupons } = await import('../src/controllers/coupon.controller.js');
 const { getCart } = await import('../src/controllers/cart.controller.js');
 const { createCouponSchema, updateCouponSchema } = await import('../src/validators/coupon.validator.js');
 
@@ -209,6 +220,30 @@ test('getCart drops a scoped coupon once its product leaves the cart and says wh
   assert.match(r.body.data.couponRemoved, /not valid for the items in your cart/);
 });
 
+test('getCart tells the storefront whether the saved coupon is scoped', async () => {
+  db.coupon = mkCoupon({ applicableProducts: [P_MUG] });
+  db.cart = mkCart([item(P_MUG, C_HOME, 500, 2)], { couponCode: 'SAVE10', couponDiscount: 100 });
+  const r = await run(getCart, { user: { _id: 'u1' } });
+  assert.equal(r.body.data.couponScoped, true);
+
+  db.coupon = mkCoupon();
+  db.cart = mkCart([item(P_MUG, C_HOME, 500, 2)], { couponCode: 'SAVE10', couponDiscount: 100 });
+  const r2 = await run(getCart, { user: { _id: 'u1' } });
+  assert.equal(r2.body.data.couponScoped, false);
+
+  db.cart = mkCart([item(P_MUG, C_HOME, 500, 2)]); // coupon hi nahi
+  const r3 = await run(getCart, { user: { _id: 'u1' } });
+  assert.equal(r3.body.data.couponScoped, null);
+});
+
+test('admin coupon list resolves scope names (populate products + categories)', async () => {
+  populated.length = 0;
+  db.coupon = mkCoupon({ applicableProducts: [P_MUG] });
+  const r = await run(getAllCoupons, { user: { _id: 'admin' } });
+  assert.equal(r.body.data.coupons.length, 1);
+  assert.deepEqual(populated, [['applicableProducts', 'name'], ['applicableCategories', 'name']]);
+});
+
 test('getCart leaves a still-correct coupon alone (no needless save)', async () => {
   db.cart = mkCart([item(P_MUG, C_HOME, 500, 2)], { couponCode: 'SAVE10', couponDiscount: 100 });
   await run(getCart, { user: { _id: 'u1' } });
@@ -217,7 +252,7 @@ test('getCart leaves a still-correct coupon alone (no needless save)', async () 
 
 test('revalidateCartCoupon does nothing for a cart without a coupon', async () => {
   const r = await revalidateCartCoupon(mkCart([item(P_MUG, C_HOME, 500)]));
-  assert.deepEqual(r, { changed: false, removedReason: null });
+  assert.deepEqual(r, { changed: false, removedReason: null, scoped: null });
 });
 
 // ── validators ───────────────────────────────────────────────

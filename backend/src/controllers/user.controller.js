@@ -8,6 +8,14 @@ import { issueOtp, consumeOtp } from '../services/otp.service.js';
 import { claimGuestOrdersInBackground } from '../services/guestOrderClaim.service.js';
 import { verifyUnsubscribeToken } from '../utils/unsubscribeToken.js';
 
+// Profile page multipart/form-data bhejta hai, to boolean string ("true"/"false") ban ke aata hai
+// (validate middleware Joi ka converted value req.body mein wapas nahi likhta).
+const toBool = (v) => {
+  if (typeof v === 'boolean') return v;
+  const s = String(v ?? '').toLowerCase();
+  return s === 'true' ? true : s === 'false' ? false : undefined;
+};
+
 // =====================
 // @route  GET /api/users/profile
 // @access Private
@@ -27,7 +35,8 @@ export const getProfile = asyncHandler(async (req, res) => {
 // @access Private
 // =====================
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { name, phone, marketingEmails } = req.body;
+  const { name, phone } = req.body;
+  const marketingEmails = toBool(req.body.marketingEmails);
 
   // A phone number is a login identifier, so it can only change by proving you own
   // the new one (OTP) - never through a plain form save.
@@ -37,7 +46,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
 
   const updateData = {};
   if (name) updateData.name = name;
-  if (typeof marketingEmails === 'boolean') updateData.marketingEmails = marketingEmails;
+  if (marketingEmails !== undefined) updateData.marketingEmails = marketingEmails;
 
   // Avatar upload
   if (req.file) {

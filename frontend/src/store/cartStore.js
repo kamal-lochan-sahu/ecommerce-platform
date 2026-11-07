@@ -47,6 +47,7 @@ const useCartStore = create(
       totalItems:  0,
       couponCode:     null,
       couponDiscount: 0,
+      couponScoped:   false, // coupon sirf kuch products/categories par lagta hai
       isOpen:      false,
       loading:     false,
 
@@ -66,7 +67,7 @@ const useCartStore = create(
         const seq = ++couponSyncSeq;
 
         if (get().items.length === 0) {
-          set({ couponCode: null, couponDiscount: 0 });
+          set({ couponCode: null, couponDiscount: 0, couponScoped: false });
           try { await cartService.removeCoupon(); } catch { /* silent */ }
           return;
         }
@@ -75,13 +76,13 @@ const useCartStore = create(
           const res = await cartService.applyCoupon(code);
           if (seq !== couponSyncSeq) return;
           const d = res.data?.data;
-          if (d?.couponCode) set({ couponCode: d.couponCode, couponDiscount: d.discount || 0 });
+          if (d?.couponCode) set({ couponCode: d.couponCode, couponDiscount: d.discount || 0, couponScoped: !!d.scoped });
         } catch (err) {
           if (seq !== couponSyncSeq) return;
           // Network issue par coupon rehne do (checkout par server dobara validate karta hai).
           // Server ne coupon reject kiya (min amount, expiry...) to hata do aur batao kyun.
           if (err.response?.status !== 400) return;
-          set({ couponCode: null, couponDiscount: 0 });
+          set({ couponCode: null, couponDiscount: 0, couponScoped: false });
           try { await cartService.removeCoupon(); } catch { /* silent */ }
           toast.error(`Coupon ${code} removed: ${err.response?.data?.message || "not valid for this cart"}`);
         }
@@ -103,9 +104,12 @@ const useCartStore = create(
               totalItems:  data.totalItems  || 0,
               couponCode,
               couponDiscount: couponCode ? (data.cart.couponDiscount || 0) : 0,
+              couponScoped:   couponCode ? !!data.couponScoped : false,
             });
+            // Server ne coupon hata diya (item hata, coupon expire hua...): customer ko batao kyun
+            if (data.couponRemoved) toast.error(`Coupon removed: ${data.couponRemoved}`);
           } else {
-            set({ items: [], totalAmount: 0, totalItems: 0, couponCode: null, couponDiscount: 0 });
+            set({ items: [], totalAmount: 0, totalItems: 0, couponCode: null, couponDiscount: 0, couponScoped: false });
           }
         } catch {
           // Silent fail — keep local state intact
@@ -191,15 +195,15 @@ const useCartStore = create(
 
       // ── Clear cart ──
       clearCart: async (syncServer = true) => {
-        set({ items: [], totalAmount: 0, totalItems: 0, couponCode: null, couponDiscount: 0 });
+        set({ items: [], totalAmount: 0, totalItems: 0, couponCode: null, couponDiscount: 0, couponScoped: false });
         if (syncServer) {
           try { await cartService.clearCart(); } catch { /* silent */ }
         }
       },
 
       // ── Coupon (applied via CartSummary, read at checkout) ──
-      setCoupon:   (code, discount) => set({ couponCode: code, couponDiscount: discount }),
-      clearCoupon: () => set({ couponCode: null, couponDiscount: 0 }),
+      setCoupon:   (code, discount, scoped = false) => set({ couponCode: code, couponDiscount: discount, couponScoped: !!scoped }),
+      clearCoupon: () => set({ couponCode: null, couponDiscount: 0, couponScoped: false }),
 
       // ── Merge guest cart after login ──
       mergeGuestCart: async () => {

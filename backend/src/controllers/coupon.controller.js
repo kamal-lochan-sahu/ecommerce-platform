@@ -43,7 +43,10 @@ export const createCoupon = asyncHandler(async (req, res) => {
 // @access Admin
 // =====================
 export const getAllCoupons = asyncHandler(async (req, res) => {
-  const coupons = await Coupon.find().sort({ createdAt: -1 });
+  const coupons = await Coupon.find()
+    .sort({ createdAt: -1 })
+    .populate('applicableProducts', 'name')
+    .populate('applicableCategories', 'name');
   res.json(new ApiResponse(200, { coupons }, 'Coupons fetched'));
 });
 

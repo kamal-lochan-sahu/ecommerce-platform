@@ -73,6 +73,7 @@ export const getCart = asyncHandler(async (req, res) => {
   // Cart mein saved coupon ka discount purana ho sakta hai (qty/items badle, scoped coupon ka item
   // hata, coupon expire hua). Dobara tolo: discount update, ya coupon invalid to hata do.
   let couponRemoved = null;
+  let couponScoped = null;
   if (cart.couponCode) {
     const who = userId
       ? { userId, guestKey: req.user.isPhoneVerified ? req.user.phone : null }
@@ -80,6 +81,7 @@ export const getCart = asyncHandler(async (req, res) => {
     const result = await revalidateCartCoupon(cart, who);
     if (result.changed) dirty = true;
     couponRemoved = result.removedReason;
+    couponScoped = result.scoped;
   }
 
   if (dirty) await cart.save();
@@ -89,6 +91,7 @@ export const getCart = asyncHandler(async (req, res) => {
     totalAmount: cart.totalAmount,
     totalItems: cart.totalItems,
     couponRemoved,
+    couponScoped,
   }, 'Cart fetched'));
 });
 

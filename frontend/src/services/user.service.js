@@ -11,6 +11,8 @@ const userService = {
   verifyEmail:    (data)   => api.post("/users/email/verify", data),
   requestPhone:   (data)   => api.post("/users/phone/request", data),
   verifyPhone:    (data)   => api.post("/users/phone/verify", data),
+  // Public: email ke link ka signed token (login nahi chahiye)
+  unsubscribe:    (token)  => api.post("/users/unsubscribe", { token }),
 };
 
 export default userService;

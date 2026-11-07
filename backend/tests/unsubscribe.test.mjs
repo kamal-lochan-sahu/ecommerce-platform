@@ -106,6 +106,16 @@ test('profile toggle can turn marketing emails off and back on', async () => {
   assert.deepEqual(profileUpdates.map((p) => p.data.marketingEmails), [false, true]);
 });
 
+test('profile page sends multipart strings: "false"/"true" are understood, junk is ignored', async () => {
+  const user = { _id: 'u1' };
+  await run(updateProfile, { user, body: { marketingEmails: 'false' } });
+  await run(updateProfile, { user, body: { marketingEmails: 'TRUE' } });
+  await run(updateProfile, { user, body: { marketingEmails: 'maybe' } });
+  assert.equal(profileUpdates[0].data.marketingEmails, false);
+  assert.equal(profileUpdates[1].data.marketingEmails, true);
+  assert.equal('marketingEmails' in profileUpdates[2].data, false);
+});
+
 test('profile save without the flag does not change marketingEmails', async () => {
   await run(updateProfile, { user: { _id: 'u1' }, body: { name: 'Asha' } });
   assert.equal('marketingEmails' in profileUpdates[0].data, false);

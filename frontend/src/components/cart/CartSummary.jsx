@@ -6,7 +6,7 @@ import cartService from "../../services/cart.service";
 import useCartStore from "../../store/cartStore";
 
 export default function CartSummary({ subtotal, onCheckout, compact = false }) {
-  const { couponCode, couponDiscount, setCoupon, clearCoupon } = useCartStore();
+  const { couponCode, couponDiscount, couponScoped, setCoupon, clearCoupon } = useCartStore();
   const [couponInput, setCouponInput] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +20,7 @@ export default function CartSummary({ subtotal, onCheckout, compact = false }) {
     try {
       const res = await cartService.applyCoupon(couponInput.trim());
       const data = res.data?.data;
-      setCoupon(data.couponCode, data.discount);
+      setCoupon(data.couponCode, data.discount, data.scoped);
       toast.success(data.message || "Coupon applied!");
       setCouponInput("");
     } catch (err) {
@@ -65,7 +65,7 @@ export default function CartSummary({ subtotal, onCheckout, compact = false }) {
         <div className="flex justify-between text-gray-600"><span>Subtotal</span><span>₹{subtotal.toLocaleString("en-IN")}</span></div>
         {discount > 0 && (
           <div className="flex justify-between text-green-600 font-medium">
-            <span>Discount</span><span>−₹{discount.toLocaleString("en-IN")}</span>
+            <span>Discount{couponScoped ? " (eligible items only)" : ""}</span><span>−₹{discount.toLocaleString("en-IN")}</span>
           </div>
         )}
         <div className="flex justify-between text-gray-600">

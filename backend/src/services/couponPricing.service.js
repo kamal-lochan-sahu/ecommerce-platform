@@ -127,17 +127,17 @@ export const priceCoupon = async ({ code, items, who = null }) => {
 // expire hua, limit poori hui...). Discount badla to cart.couponDiscount update; coupon ab
 // valid nahi to hata do. Caller cart.save() kare jab changed true ho.
 export const revalidateCartCoupon = async (cart, who = null) => {
-  if (!cart.couponCode) return { changed: false, removedReason: null };
+  if (!cart.couponCode) return { changed: false, removedReason: null, scoped: null };
 
   try {
-    const { discount } = await priceCoupon({ code: cart.couponCode, items: cart.items, who });
-    if (discount === cart.couponDiscount) return { changed: false, removedReason: null };
+    const { discount, scoped } = await priceCoupon({ code: cart.couponCode, items: cart.items, who });
+    if (discount === cart.couponDiscount) return { changed: false, removedReason: null, scoped };
     cart.couponDiscount = discount;
-    return { changed: true, removedReason: null };
+    return { changed: true, removedReason: null, scoped };
   } catch (err) {
     if (!(err instanceof ApiError)) throw err;
     cart.couponCode = null;
     cart.couponDiscount = 0;
-    return { changed: true, removedReason: err.message };
+    return { changed: true, removedReason: err.message, scoped: null };
   }
 };
