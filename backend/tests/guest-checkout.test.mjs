@@ -284,6 +284,9 @@ test('guest coupon: used once per phone — same phone is refused the 2nd time, 
   const first = await run(createOrder, { body: guestBody({ couponCode: 'SAVE10' }), headers: { 'x-session-id': 'sess1' } });
   assert.equal(first.err, null);
   assert.equal([...db.orders.values()][0].pricing.couponDiscount, 200);
+  // GST discount ke baad wali amount par: 18% of (2000 - 200) = 324, total = 1800 + 324 (pehle 2160 tha)
+  assert.equal([...db.orders.values()][0].pricing.tax, 324);
+  assert.equal([...db.orders.values()][0].pricing.total, 2124);
   assert.deepEqual(db.coupons.get('SAVE10').usedBy, [{ guestKey: '9876543210' }]);
   assert.equal(db.coupons.get('SAVE10').usedCount, 1);
 

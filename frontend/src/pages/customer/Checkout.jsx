@@ -12,6 +12,7 @@ import useCartStore from "../../store/cartStore";
 import useAuthStore from "../../store/authStore";
 import orderService from "../../services/order.service";
 import api from "../../services/api";
+import { calculateOrderPricing } from "../../utils/orderPricing";
 
 const schema = z.object({
   fullName: z.string().min(2, "Please enter your full name"),
@@ -114,9 +115,8 @@ export default function Checkout() {
   }, [user]);
 
   const discount = couponCode ? Math.min(couponDiscount, totalAmount) : 0;
-  const delivery = totalAmount >= settings.freeDeliveryAbove ? 0 : settings.deliveryFee;
-  const tax      = Math.round(totalAmount * (settings.taxRate / 100));
-  const total    = totalAmount + delivery + tax - discount;
+  // Tax discount ke baad wali amount par (server ke order.controller jaisa hi hisaab, shared formula)
+  const { shippingCharge: delivery, tax, total } = calculateOrderPricing({ subtotal: totalAmount, couponDiscount: discount, settings });
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema),

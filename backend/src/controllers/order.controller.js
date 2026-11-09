@@ -13,6 +13,7 @@ import { escapeRegex } from '../utils/escapeRegex.js';
 import { notifyOrderEventInBackground } from '../services/orderNotifications.service.js';
 import { findRelatedUserIds } from '../utils/couponUsage.js';
 import { priceCoupon } from '../services/couponPricing.service.js';
+import { calculateOrderPricing } from '../utils/orderPricing.js';
 import { getOrderRecipient } from '../utils/orderRecipient.js';
 import { isValidGuestPhoneToken } from '../utils/guestCheckoutToken.js';
 import { refreshCartItemPrices } from '../utils/cartPricing.js';
@@ -149,10 +150,8 @@ export const createOrder = asyncHandler(async (req, res) => {
   );
 
   const settings = await Settings.getSingleton();
-  const shippingCharge = subtotal >= settings.freeDeliveryAbove ? 0 : settings.deliveryFee;
-  const tax = Math.round(subtotal * (settings.taxRate / 100));
 
-  // Coupon
+  // Coupon (pehle: tax discount ke BAAD wali amount par lagta hai)
   let couponDiscount = 0;
   let appliedCoupon = null;
   if (couponCode) {
@@ -166,7 +165,10 @@ export const createOrder = asyncHandler(async (req, res) => {
     appliedCoupon = result.coupon;
   }
 
-  const total = subtotal + shippingCharge + tax - couponDiscount;
+  // Shipping + tax + total: shared hisaab (frontend Checkout ka mirror)
+  const pricing = calculateOrderPricing({ subtotal, couponDiscount, settings });
+  const { shippingCharge, tax, total } = pricing;
+  couponDiscount = pricing.couponDiscount;
 
   // Address snapshot
   const shippingAddress = {
