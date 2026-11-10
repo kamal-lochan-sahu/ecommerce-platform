@@ -3,6 +3,7 @@ import { Otp } from '../models/index.js';
 import { sendSms, sendMail } from './messaging.service.js';
 import { getOtpEmailTemplate } from '../utils/email.js';
 import ApiError from '../utils/ApiError.js';
+import { getBrand } from './brand.service.js';
 
 // Industry-standard OTP hygiene for EVERY code we send (phone login, phone verify,
 // email verify, add email) in one place:
@@ -32,21 +33,22 @@ const safeEqual = (a, b) => {
 
 export const generateOtpCode = () => String(crypto.randomInt(100000, 1000000));
 
-const brand = () => process.env.CLIENT_NAME || 'Luxora';
+// Naam Admin -> Settings se (getBrand), taaki OTP SMS/email mein wahi naam jaye jo baaki jagah dikhta hai.
 
 // India requires SMS text to match a pre-registered DLT template exactly. Put the
 // registered text in SMS_OTP_TEMPLATE at launch ({{brand}} and {{otp}} are replaced).
-const smsText = (code) =>
+const smsText = (code, brandName) =>
   (process.env.SMS_OTP_TEMPLATE || '{{brand}} OTP: {{otp}}. Valid for 10 minutes. Do not share it with anyone.')
-    .replaceAll('{{brand}}', brand())
+    .replaceAll('{{brand}}', brandName)
     .replaceAll('{{otp}}', code);
 
 const deliver = async (channel, target, code) => {
+  const { name } = await getBrand();
   if (channel === 'sms') {
-    return (await sendSms({ to: target, body: smsText(code) })).success;
+    return (await sendSms({ to: target, body: smsText(code, name) })).success;
   }
   return (
-    await sendMail({ to: target, subject: 'Verify your email', html: getOtpEmailTemplate(code, brand()) })
+    await sendMail({ to: target, subject: 'Verify your email', html: getOtpEmailTemplate(code, name) })
   ).success;
 };
 

@@ -3,6 +3,7 @@ import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { escapeRegex } from "../utils/escapeRegex.js";
+import { BRAND_SETTINGS_FIELDS, validateBrandSettings, buildPublicSettings } from "../utils/brandSettings.js";
 import { REVENUE_MATCH, REFUND_DUE_FILTER, FINAL_STATUSES } from "../utils/orderRules.js";
 import {
   STORE_TIMEZONE,
@@ -590,17 +591,7 @@ export const getLowStockProducts = asyncHandler(async (req, res) => {
 // customer sees before paying always matches what the order actually charges.
 export const getPublicSettings = asyncHandler(async (req, res) => {
   const settings = await Settings.getSingleton();
-  return res.status(200).json(new ApiResponse(200, {
-    taxRate: settings.taxRate,
-    deliveryFee: settings.deliveryFee,
-    freeDeliveryAbove: settings.freeDeliveryAbove,
-    currency: settings.currency,
-    storeName: settings.storeName,
-    // Storefront ye dekhkar "store maintenance mein hai" banner dikhata hai
-    maintenanceMode: !!settings.maintenanceMode,
-    // Checkout page guest form dikhaye ya login maange
-    allowGuestCheckout: settings.allowGuestCheckout !== false,
-  }, "Public settings fetched"));
+  return res.status(200).json(new ApiResponse(200, buildPublicSettings(settings), "Public settings fetched"));
 });
 
 // ─── GET /api/admin/settings ─────────────────────────────────────────────────────────────────
@@ -615,6 +606,7 @@ export const getSettings = asyncHandler(async (req, res) => {
 const ALLOWED_SETTINGS_FIELDS = [
   "storeName", "storeEmail", "storePhone", "storeAddress",
   "currency", "deliveryFee", "freeDeliveryAbove", "taxRate", "maintenanceMode", "allowGuestCheckout",
+  ...BRAND_SETTINGS_FIELDS,
 ];
 
 export const updateSettings = asyncHandler(async (req, res) => {
@@ -655,6 +647,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
   }
   if (updates.maintenanceMode !== undefined) updates.maintenanceMode = updates.maintenanceMode === true || updates.maintenanceMode === "true";
   if (updates.allowGuestCheckout !== undefined) updates.allowGuestCheckout = updates.allowGuestCheckout === true || updates.allowGuestCheckout === "true";
+  validateBrandSettings(updates);
 
   if (Object.keys(updates).length === 0) {
     throw new ApiError(400, "No valid settings fields provided");

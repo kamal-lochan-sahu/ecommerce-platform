@@ -7,6 +7,7 @@ import { Settings } from '../models/index.js';
 //   naam          : Settings.storeName   -> CLIENT_NAME   -> "Luxora"
 //   support email : Settings.storeEmail  -> SUPPORT_EMAIL -> ""  (nakli default kabhi nahi)
 //   support phone : Settings.storePhone  -> SUPPORT_PHONE -> ""
+//   legal naam, GSTIN, tagline, logo, support timing, return window, invoice prefix: Settings only
 export const getBrand = async () => {
   let settings = null;
   try {
@@ -20,6 +21,13 @@ export const getBrand = async () => {
     supportEmail: (settings?.storeEmail || process.env.SUPPORT_EMAIL || '').trim(),
     supportPhone: (settings?.storePhone || process.env.SUPPORT_PHONE || '').trim(),
     address: (settings?.storeAddress || '').trim(),
+    legalName: (settings?.legalName || '').trim(),
+    gstin: (settings?.gstin || '').trim(),
+    tagline: (settings?.tagline || '').trim(),
+    logoUrl: (settings?.logoUrl || '').trim(),
+    supportHours: (settings?.supportHours || '').trim(),
+    returnWindowDays: settings?.returnWindowDays ?? 7,
+    invoicePrefix: settings?.invoicePrefix ?? 'INV-',
     color: /^#[0-9a-fA-F]{6}$/.test(color) ? color : '#4f46e5',
     siteUrl: (process.env.FRONTEND_URL || '').trim().replace(/\/+$/, ''),
   };

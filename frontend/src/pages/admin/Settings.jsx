@@ -6,7 +6,8 @@ import api from '../../services/api'
 import AdminLayout from '../../components/admin/AdminLayout'
 import Skeleton from '../../components/ui/Skeleton'
 
-const FIELDS = ['storeName','storeEmail','storePhone','storeAddress','currency','deliveryFee','freeDeliveryAbove','taxRate','maintenanceMode','allowGuestCheckout']
+const FIELDS = ['storeName','storeEmail','storePhone','storeAddress','currency','deliveryFee','freeDeliveryAbove','taxRate','maintenanceMode','allowGuestCheckout',
+  'legalName','gstin','invoicePrefix','tagline','logoUrl','supportHours','returnWindowDays','instagramUrl','facebookUrl','xUrl','youtubeUrl']
 
 export default function Settings() {
   const qc = useQueryClient()
@@ -29,6 +30,7 @@ export default function Settings() {
       setEdits({})
       qc.invalidateQueries({ queryKey: ['admin-settings'] })
       qc.invalidateQueries({ queryKey: ['public-settings-maintenance'] })
+      qc.invalidateQueries({ queryKey: ['public-settings'] })
       toast.success('Settings saved!')
     },
     onError: (err) => toast.error(err?.response?.data?.message || 'Failed to save settings'),
@@ -49,6 +51,21 @@ export default function Settings() {
       { key: 'storeEmail',   label: 'Support Email (shown in customer emails)', type: 'email' },
       { key: 'storePhone',   label: 'Support Phone (shown in customer emails)' },
       { key: 'storeAddress', label: 'Store Address' },
+      { key: 'supportHours',  label: 'Support Hours (e.g. Mon-Sat, 10am-7pm)' },
+    ]},
+    { icon: Store, title: 'Business & Invoice', fields: [
+      { key: 'legalName',     label: 'Legal Business Name (printed on invoice)' },
+      { key: 'gstin',         label: 'GSTIN (15 characters, optional)' },
+      { key: 'invoicePrefix', label: 'Invoice Number Prefix (e.g. INV-)' },
+      { key: 'returnWindowDays', label: 'Return Window (days, 0 = no returns)', type: 'number' },
+    ]},
+    { icon: Globe, title: 'Branding & Social', fields: [
+      { key: 'tagline',      label: 'Tagline' },
+      { key: 'logoUrl',      label: 'Logo URL (https://...)' },
+      { key: 'instagramUrl', label: 'Instagram link (https://...)' },
+      { key: 'facebookUrl',  label: 'Facebook link (https://...)' },
+      { key: 'xUrl',         label: 'X (Twitter) link (https://...)' },
+      { key: 'youtubeUrl',   label: 'YouTube link (https://...)' },
     ]},
     { icon: Globe, title: 'Commerce Settings', fields: [
       { key: 'currency',          label: 'Currency (3-letter code)' },

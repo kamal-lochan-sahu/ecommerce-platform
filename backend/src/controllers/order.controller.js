@@ -15,6 +15,8 @@ import { findRelatedUserIds } from '../utils/couponUsage.js';
 import { priceCoupon } from '../services/couponPricing.service.js';
 import { calculateOrderPricing } from '../utils/orderPricing.js';
 import { getOrderRecipient } from '../utils/orderRecipient.js';
+import { getBrand } from '../services/brand.service.js';
+import { formatInvoiceNumber } from '../utils/brandSettings.js';
 import { isValidGuestPhoneToken } from '../utils/guestCheckoutToken.js';
 import { refreshCartItemPrices } from '../utils/cartPricing.js';
 import { allowedNextStatuses, checkTransition, isRefundDue, REFUND_DUE_FILTER } from '../utils/orderRules.js';
@@ -969,14 +971,16 @@ export const getInvoicePDF = asyncHandler(async (req, res) => {
 
   const user = await getOrderRecipient(order);
 
+  const brand = await getBrand();
   const generateInvoicePDF = (await import("../utils/pdf.js")).default;
-  const pdfBuffer = await generateInvoicePDF(order, user);
+  const pdfBuffer = await generateInvoicePDF(order, user, brand);
 
-  const shortId = order._id.toString().slice(-8).toUpperCase();
+  // Invoice number mein "/" ho sakta hai (prefix), file name ke liye safe banao
+  const fileSafe = formatInvoiceNumber(order, brand.invoicePrefix).replace(/[^A-Za-z0-9._-]/g, "-");
 
   res.set({
     "Content-Type": "application/pdf",
-    "Content-Disposition": `attachment; filename="invoice-${shortId}.pdf"`,
+    "Content-Disposition": `attachment; filename="invoice-${fileSafe}.pdf"`,
     "Content-Length": pdfBuffer.length,
   });
 

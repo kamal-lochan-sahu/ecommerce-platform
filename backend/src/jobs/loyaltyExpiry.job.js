@@ -2,6 +2,7 @@ import cron from "node-cron";
 import User from "../models/user.model.js";
 import { createNotification } from "../services/notification.service.js";
 import sendEmail from "../services/email.service.js";
+import { getBrand } from "../services/brand.service.js";
 
 // ─── Loyalty Points Expiry Job ────────────────────────────────
 // Har din 10 AM IST pe run karta hai
@@ -17,6 +18,7 @@ const loyaltyExpiryJob = cron.createTask(
     );
 
     try {
+      const brand = await getBrand();
       const now = new Date();
       const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
       const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
@@ -49,7 +51,7 @@ const loyaltyExpiryJob = cron.createTask(
         // Email notification
         await sendEmail({
           to: user.email,
-          subject: "Your loyalty points have expired — MyShop",
+          subject: `Your loyalty points have expired — ${brand.name}`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px;">
               <h2 style="color: #e74c3c;">⏰ Loyalty Points Expired</h2>

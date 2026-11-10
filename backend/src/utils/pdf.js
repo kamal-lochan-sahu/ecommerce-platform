@@ -1,9 +1,17 @@
 import PDFDocument from "pdfkit";
+import { formatInvoiceNumber } from "./brandSettings.js";
 
-const generateInvoicePDF = (order, user) => {
+const PAYMENT_LABELS = { cod: "CASH ON DELIVERY", razorpay: "ONLINE (RAZORPAY)", stripe: "ONLINE (CARD)" };
+
+// brand = getBrand() ka jawab (naam, legalName, gstin, address, support, tagline, invoicePrefix).
+// Sab kuch Admin -> Settings se aata hai; koi client ka naam yahan hardcoded nahi.
+const generateInvoicePDF = (order, user = {}, brand = {}) => {
   return new Promise((resolve, reject) => {
     try {
-      const doc = new PDFDocument({ margin: 50, size: "A4" });
+      const storeName = brand.name || process.env.CLIENT_NAME || "Store";
+      const sellerName = brand.legalName || storeName;
+      const invoiceNumber = formatInvoiceNumber(order, brand.invoicePrefix ?? "INV-");
+      const doc = new PDFDocument({ size: "A4", margins: { top: 50, bottom: 20, left: 50, right: 50 } });
       const buffers = [];
 
       doc.on("data", (chunk) => buffers.push(chunk));
@@ -16,7 +24,6 @@ const generateInvoicePDF = (order, user) => {
       const lightGray = "#f3f4f6";
 
       const pricing = order.pricing || {};
-      const shortId = order._id.toString().slice(-8).toUpperCase();
       const pageWidth = doc.page.width - 100; // margins ke baad
 
       // ─── HEADER ───────────────────────────────────────────
@@ -24,16 +31,24 @@ const generateInvoicePDF = (order, user) => {
 
       doc
         .fillColor("white")
-        .fontSize(28)
+        .fontSize(26)
         .font("Helvetica-Bold")
-        .text(process.env.CLIENT_NAME || "MyShop", 50, 35);
+        .text(storeName, 50, 24, { width: 330, height: 32, ellipsis: true });
 
-      doc
-        .fillColor("white")
-        .fontSize(11)
-        .font("Helvetica")
-        .text("Premium E-Commerce Store", 50, 68)
-        .text(process.env.CLIENT_SUPPORT_EMAIL || "support@myshop.com", 50, 85);
+      // Seller block: tagline, legal naam (agar store naam se alag), address, GSTIN, support
+      const support = [brand.supportEmail, brand.supportPhone].filter(Boolean).join("  |  ");
+      const sellerLines = [
+        brand.tagline,
+        sellerName !== storeName ? sellerName : "",
+        brand.address,
+        brand.gstin ? `GSTIN: ${brand.gstin}` : "",
+        support,
+      ].filter(Boolean);
+
+      doc.fillColor("white").fontSize(9).font("Helvetica");
+      sellerLines.forEach((line, i) => {
+        doc.text(line, 50, 58 + i * 12, { width: 330, height: 11, ellipsis: true });
+      });
 
       doc
         .fillColor("white")
@@ -42,7 +57,9 @@ const generateInvoicePDF = (order, user) => {
         .text("INVOICE", 400, 35, { align: "right" })
         .fontSize(11)
         .font("Helvetica")
-        .text(`#${shortId}`, 400, 65, { align: "right" })
+        .fontSize(10)
+        .text(invoiceNumber, 400, 65, { align: "right", width: 145, height: 12, ellipsis: true })
+        .fontSize(11)
         .text(
           new Date(order.createdAt).toLocaleDateString("en-IN", {
             day: "2-digit",
@@ -93,10 +110,13 @@ const generateInvoicePDF = (order, user) => {
           .fillColor(darkColor)
           .fontSize(10)
           .font("Helvetica")
-          .text(addr.name || user.name || "", 325, infoY + 28)
-          .text(addr.street || addr.addressLine1 || "", 325, infoY + 42, {
-            width: 210,
-          })
+          .text(addr.fullName || addr.name || user.name || "", 325, infoY + 28)
+          .text(
+            [addr.addressLine1 || addr.street, addr.addressLine2].filter(Boolean).join(", "),
+            325,
+            infoY + 42,
+            { width: 210, height: 24 }
+          )
           .text(
             `${addr.city || ""}, ${addr.state || ""} - ${addr.pincode || addr.zipCode || ""}`,
             325,
@@ -117,14 +137,14 @@ const generateInvoicePDF = (order, user) => {
         .fillColor(darkColor)
         .fontSize(10)
         .font("Helvetica")
-        .text(order.status?.toUpperCase() || "CONFIRMED", 50, infoY + 130)
+        .text(String(order.orderStatus || "placed").toUpperCase(), 50, infoY + 130)
         .text(
-          order.paymentMethod?.toUpperCase() || "ONLINE",
+          PAYMENT_LABELS[order.paymentMethod] || String(order.paymentMethod || "").toUpperCase(),
           200,
           infoY + 130
         )
         .text(
-          order.paymentStatus?.toUpperCase() || "PAID",
+          String(order.paymentStatus || "pending").toUpperCase(),
           370,
           infoY + 130
         );
@@ -141,8 +161,8 @@ const generateInvoicePDF = (order, user) => {
         .font("Helvetica-Bold")
         .text("ITEM", 65, tableTop + 9)
         .text("QTY", 340, tableTop + 9, { width: 60, align: "center" })
-        .text("PRICE", 410, tableTop + 9, { width: 80, align: "right" })
-        .text("TOTAL", 490, tableTop + 9, { width: 60, align: "right" });
+        .text("PRICE", 395, tableTop + 9, { width: 80, align: "right" })
+        .text("TOTAL", 480, tableTop + 9, { width: 55, align: "right" });
 
       // Table Rows
       let rowY = tableTop + 28;
@@ -151,6 +171,11 @@ const generateInvoicePDF = (order, user) => {
       items.forEach((item, index) => {
         const isEven = index % 2 === 0;
         const rowHeight = 35;
+
+        if (rowY + rowHeight > doc.page.height - 250) {
+          doc.addPage();
+          rowY = 50;
+        }
 
         if (isEven) {
           doc.rect(50, rowY, pageWidth, rowHeight).fill("#fafafa");
@@ -191,12 +216,12 @@ const generateInvoicePDF = (order, user) => {
             width: 60,
             align: "center",
           })
-          .text(`Rs.${price.toLocaleString("en-IN")}`, 410, rowY + 12, {
+          .text(`Rs.${price.toLocaleString("en-IN")}`, 395, rowY + 12, {
             width: 80,
             align: "right",
           })
-          .text(`Rs.${total.toLocaleString("en-IN")}`, 490, rowY + 12, {
-            width: 60,
+          .text(`Rs.${total.toLocaleString("en-IN")}`, 480, rowY + 12, {
+            width: 55,
             align: "right",
           });
 
@@ -259,6 +284,12 @@ const generateInvoicePDF = (order, user) => {
         pricing.shippingCharge === 0 ? "#16a34a" : darkColor
       );
 
+      // GST: total = subtotal - discount + delivery + tax, isliye tax ki line zaroori hai
+      if (pricing.tax > 0) {
+        tY += 20;
+        addTotalRow("Tax (GST):", `Rs.${pricing.tax.toLocaleString("en-IN")}`, tY);
+      }
+
       // Total Box
       tY += 15;
       doc.rect(totalX - 10, tY, totalWidth + 10, 35).fill(primaryColor);
@@ -271,7 +302,7 @@ const generateInvoicePDF = (order, user) => {
           `Rs.${(pricing.total || 0).toLocaleString("en-IN")}`,
           totalX,
           tY + 10,
-          { width: totalWidth, align: "right" }
+          { width: totalWidth - 10, align: "right" }
         );
 
       // ─── FOOTER ───────────────────────────────────────────
@@ -288,22 +319,19 @@ const generateInvoicePDF = (order, user) => {
         .fillColor(grayColor)
         .fontSize(9)
         .font("Helvetica")
-        .text("Thank you for shopping with us!", 50, footerY, {
+        .text("Thank you for shopping with us! This is a computer-generated invoice.", 50, footerY, {
           align: "center",
           width: pageWidth,
-        })
-        .text(
-          `For support: ${process.env.CLIENT_SUPPORT_EMAIL || "support@myshop.com"}`,
-          50,
-          footerY + 14,
-          { align: "center", width: pageWidth }
-        )
-        .text(
-          `© ${new Date().getFullYear()} ${process.env.CLIENT_NAME || "MyShop"}. All rights reserved.`,
-          50,
-          footerY + 28,
-          { align: "center", width: pageWidth }
-        );
+        });
+      if (support) {
+        doc.text(`For support: ${support}`, 50, footerY + 14, { align: "center", width: pageWidth });
+      }
+      doc.text(
+        `© ${new Date().getFullYear()} ${sellerName}. All rights reserved.`,
+        50,
+        footerY + 28,
+        { align: "center", width: pageWidth }
+      );
 
       doc.end();
     } catch (error) {

@@ -113,111 +113,6 @@ const inlineTemplates = {
     </html>
   `,
 
-  orderShipped: (data) => `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; }
-        .container { max-width: 600px; margin: 30px auto; background: white; border-radius: 8px; overflow: hidden; }
-        .header { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 30px; text-align: center; }
-        .body { padding: 30px; }
-        .tracking-box { background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 20px; text-align: center; margin: 24px 0; }
-        .btn { display: inline-block; background: #f5576c; color: white; padding: 12px 30px; border-radius: 6px; text-decoration: none; }
-        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 12px; }
-        .step { display: flex; align-items: center; padding: 10px 0; }
-        .step-dot { width: 12px; height: 12px; border-radius: 50%; background: #ccc; margin-right: 16px; flex-shrink: 0; }
-        .step-dot.active { background: #f5576c; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>🚚 Your Order is On the Way!</h1>
-          <p style="margin:8px 0 0; opacity:0.9">Order #${data.orderId}</p>
-        </div>
-        <div class="body">
-          <p>Hi <strong>${data.customerName}</strong>,</p>
-          <p>Great news! Your order has been shipped and is on its way to you.</p>
-          
-          <div class="tracking-box">
-            <div style="font-size:14px; color:#856404; margin-bottom:8px">Tracking Number</div>
-            <div style="font-size:24px; font-weight:bold; letter-spacing:2px; color:#333">${data.trackingNumber}</div>
-            <div style="font-size:13px; color:#856404; margin-top:8px">via ${data.courierName}</div>
-          </div>
-
-          <div style="margin: 24px 0">
-            <div class="step"><div class="step-dot active"></div><div><strong>Order Placed</strong> — ${data.orderDate}</div></div>
-            <div class="step"><div class="step-dot active"></div><div><strong>Order Confirmed</strong></div></div>
-            <div class="step"><div class="step-dot active"></div><div><strong>Shipped</strong> — ${new Date().toLocaleDateString("en-IN")}</div></div>
-            <div class="step"><div class="step-dot"></div><div style="color:#999">Out for Delivery</div></div>
-            <div class="step"><div class="step-dot"></div><div style="color:#999">Delivered</div></div>
-          </div>
-
-          <p><strong>Expected Delivery:</strong> ${data.estimatedDelivery}</p>
-
-          <div style="text-align:center; margin-top:24px">
-            <a href="${data.trackingUrl || `${process.env.FRONTEND_URL}/orders/${data.orderId}`}" class="btn">Track Package →</a>
-          </div>
-        </div>
-        <div class="footer">© ${new Date().getFullYear()} MyShop | <a href="${process.env.FRONTEND_URL}">Visit Store</a></div>
-      </div>
-    </body>
-    </html>
-  `,
-
-  orderDelivered: (data) => `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <style>
-        body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; }
-        .container { max-width: 600px; margin: 30px auto; background: white; border-radius: 8px; overflow: hidden; }
-        .header { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 30px; text-align: center; }
-        .body { padding: 30px; }
-        .review-box { background: #f8f9fa; border-radius: 8px; padding: 20px; text-align: center; margin: 24px 0; }
-        .star { font-size: 28px; cursor: pointer; }
-        .btn { display: inline-block; background: #11998e; color: white; padding: 12px 30px; border-radius: 6px; text-decoration: none; margin: 8px; }
-        .btn-outline { display: inline-block; border: 2px solid #11998e; color: #11998e; padding: 10px 28px; border-radius: 6px; text-decoration: none; margin: 8px; }
-        .footer { background: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 12px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>🎉 Order Delivered!</h1>
-          <p style="margin:8px 0 0; opacity:0.9">Order #${data.orderId} has been delivered</p>
-        </div>
-        <div class="body">
-          <p>Hi <strong>${data.customerName}</strong>,</p>
-          <p>Your order has been successfully delivered! We hope you love your purchase.</p>
-          
-          <div class="review-box">
-            <p style="font-size:16px; font-weight:bold; margin-bottom:8px">How was your experience?</p>
-            <p style="color:#666; font-size:14px; margin-bottom:16px">Your feedback helps us improve</p>
-            <a href="${process.env.FRONTEND_URL}/orders/${data.orderId}/review" class="btn">⭐ Write a Review</a>
-          </div>
-
-          <p style="text-align:center">
-            <a href="${process.env.FRONTEND_URL}/orders/${data.orderId}/return" class="btn-outline">Return/Exchange</a>
-            <a href="${process.env.FRONTEND_URL}/orders/${data.orderId}/invoice" class="btn">Download Invoice</a>
-          </p>
-
-          ${
-            data.loyaltyPointsEarned
-              ? `<div style="background:#e8f5e9; border-radius:8px; padding:16px; margin-top:16px; text-align:center">
-            <strong>🏆 You earned ${data.loyaltyPointsEarned} loyalty points!</strong><br>
-            <small style="color:#555">Total balance: ${data.totalLoyaltyPoints} points</small>
-          </div>`
-              : ""
-          }
-        </div>
-        <div class="footer">© ${new Date().getFullYear()} MyShop | <a href="${process.env.FRONTEND_URL}">Shop Again</a></div>
-      </div>
-    </body>
-    </html>
-  `,
-
   abandonedCart: (data) => `
     <!DOCTYPE html>
     <html>
@@ -387,7 +282,7 @@ const sendEmail = async ({ to, subject, template, data, html, text }) => {
 
 // ─── Specific Email Senders ───────────────────────────────────
 export const sendOrderConfirmationEmail = async (order, user) => {
-  // Naam aur support email Admin -> Settings se (white-label), nakli myshop.com default nahi
+  // Naam aur support email Admin -> Settings se (white-label), koi nakli default nahi
   const brand = await getBrand();
   const brandName = brand.name;
   const pricing = order.pricing || {};
@@ -431,39 +326,6 @@ export const sendOrderConfirmationEmail = async (order, user) => {
   });
 };
 
-export const sendOrderShippedEmail = async (order, user, trackingInfo) => {
-  return sendEmail({
-    to: user.email,
-    subject: `🚚 Your Order #${order._id.toString().slice(-8).toUpperCase()} has been Shipped!`,
-    template: "orderShipped",
-    data: {
-      customerName: user.name,
-      orderId: order._id.toString().slice(-8).toUpperCase(),
-      orderDate: new Date(order.createdAt).toLocaleDateString("en-IN"),
-      estimatedDelivery: new Date(
-        Date.now() + 3 * 24 * 60 * 60 * 1000
-      ).toLocaleDateString("en-IN"),
-      trackingNumber: trackingInfo?.trackingNumber || "TRK" + Date.now(),
-      courierName: trackingInfo?.courierName || "Shiprocket",
-      trackingUrl: trackingInfo?.trackingUrl,
-    },
-  });
-};
-
-export const sendOrderDeliveredEmail = async (order, user) => {
-  return sendEmail({
-    to: user.email,
-    subject: `🎉 Your Order #${order._id.toString().slice(-8).toUpperCase()} has been Delivered!`,
-    template: "orderDelivered",
-    data: {
-      customerName: user.name,
-      orderId: order._id.toString().slice(-8).toUpperCase(),
-      loyaltyPointsEarned: order.loyaltyPointsEarned,
-      totalLoyaltyPoints: user.loyaltyPoints,
-    },
-  });
-};
-
 export const sendAbandonedCartEmail = async (user, cart) => {
   const brand = await getBrand();
   const base = (process.env.FRONTEND_URL || "").replace(/\/+$/, "");
@@ -497,7 +359,7 @@ export const sendLowStockAlertEmail = async (products) => {
   const criticalProducts = products.filter((p) => p.stock === 0);
   const warningProducts = products.filter((p) => p.stock > 0);
 
-  // Pehle fallback "admin@myshop.com" tha: wo kisi aur ka asli domain hai, stock ki jaankari wahan chali jaati.
+  // Pehle ek nakli fallback address tha: wo kisi aur ka asli domain hai, stock ki jaankari wahan chali jaati.
   const brand = await getBrand();
   const to = process.env.ADMIN_EMAIL || brand.supportEmail;
   if (!to) {

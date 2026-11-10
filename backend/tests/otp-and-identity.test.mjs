@@ -52,6 +52,8 @@ const url = (p) => new URL(p, import.meta.url).href;
 const claims = []; // kis user ke liye guest-order claim chala
 mock.module(url('../src/services/guestOrderClaim.service.js'), { namedExports: { claimGuestOrdersInBackground: (u) => { claims.push(String(u._id)); } } });
 mock.module(url('../src/models/index.js'), { namedExports: { User: FakeUser, Otp: FakeOtp } });
+// OTP SMS/email ka naam Admin -> Settings se aata hai; test mein DB nahi, isliye fixed naam.
+mock.module(url('../src/services/brand.service.js'), { namedExports: { getBrand: async () => ({ name: process.env.CLIENT_NAME || 'Luxora' }) } });
 mock.module(url('../src/services/messaging.service.js'), {
   namedExports: {
     sendSms: async ({ to, body }) => { sentSms.push({ to, body }); return { success: smsOk }; },
