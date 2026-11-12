@@ -1,6 +1,8 @@
 import { WifiOff, RefreshCw, ShoppingBag } from 'lucide-react'
+import useStoreSettings from '../hooks/useStoreSettings'
 
 export default function Offline() {
+  const { settings, brandName } = useStoreSettings()
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-purple-50 flex items-center justify-center p-4">
       <div className="text-center max-w-sm">
@@ -27,7 +29,7 @@ export default function Offline() {
             Go Back
           </button>
         </div>
-        <p className="text-xs text-gray-400 mt-8">Luxora — Premium Shopping</p>
+        <p className="text-xs text-gray-400 mt-8">{settings.tagline ? `${brandName} — ${settings.tagline}` : brandName}</p>
       </div>
     </div>
   )

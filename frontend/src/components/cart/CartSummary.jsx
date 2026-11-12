@@ -4,6 +4,8 @@ import { clsx } from "clsx";
 import toast from "react-hot-toast";
 import cartService from "../../services/cart.service";
 import useCartStore from "../../store/cartStore";
+import useStoreSettings from "../../hooks/useStoreSettings";
+import { formatAmount } from "../../utils/storeBrand";
 
 export default function CartSummary({ subtotal, onCheckout, compact = false }) {
   const { couponCode, couponDiscount, couponScoped, setCoupon, clearCoupon } = useCartStore();
@@ -11,7 +13,10 @@ export default function CartSummary({ subtotal, onCheckout, compact = false }) {
   const [loading, setLoading] = useState(false);
 
   const discount = couponCode ? Math.min(couponDiscount, subtotal) : 0;
-  const delivery = subtotal >= 499 ? 0 : 49;
+  // Delivery fee aur free-delivery limit Admin -> Settings se (checkout aur server bhi wahi use karte hain).
+  // Settings aane tak delivery nahi jodte, taaki galat number na dikhe.
+  const { settings, loaded } = useStoreSettings();
+  const delivery = loaded && subtotal < Number(settings.freeDeliveryAbove) ? Number(settings.deliveryFee) : 0;
   const total    = subtotal - discount + delivery;
 
   const applyCoupon = async () => {
@@ -70,10 +75,10 @@ export default function CartSummary({ subtotal, onCheckout, compact = false }) {
         )}
         <div className="flex justify-between text-gray-600">
           <span>Delivery</span>
-          <span className={delivery === 0 ? "text-green-600 font-medium" : ""}>{delivery === 0 ? "FREE" : `₹${delivery}`}</span>
+          <span className={loaded && delivery === 0 ? "text-green-600 font-medium" : ""}>{!loaded ? "…" : delivery === 0 ? "FREE" : formatAmount(delivery, settings.currency)}</span>
         </div>
-        {delivery === 0 && <p className="text-xs text-green-600">🎉 Free delivery!</p>}
-        {subtotal < 499 && delivery > 0 && <p className="text-xs text-gray-400">Add ₹{(499 - subtotal)} more for free delivery</p>}
+        {loaded && delivery === 0 && <p className="text-xs text-green-600">🎉 Free delivery!</p>}
+        {loaded && delivery > 0 && <p className="text-xs text-gray-400">Add {formatAmount(Number(settings.freeDeliveryAbove) - subtotal, settings.currency)} more for free delivery</p>}
         <p className="text-xs text-gray-400">+ tax, calculated at checkout</p>
         <div className="flex justify-between font-bold text-gray-900 text-base border-t border-gray-100 pt-2.5">
           <span>Total</span><span>₹{total.toLocaleString("en-IN")}</span>

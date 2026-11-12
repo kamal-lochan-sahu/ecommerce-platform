@@ -4,6 +4,7 @@ import { PackageSearch, Truck, MapPin } from "lucide-react";
 import Input from "../../components/ui/Input";
 import OrderTimeline from "../../components/order/OrderTimeline";
 import orderService from "../../services/order.service";
+import usePageTitle from "../../hooks/usePageTitle";
 
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 const when = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "");
@@ -14,6 +15,7 @@ const safeLink = (u) => (/^https?:\/\//i.test(u || "") ? u : null);
 // Guest (ya login ke bina koi bhi) apna order order-number + phone/email se track kar sakta hai.
 // Email/SMS ka link ?order=... se order number pehle se bhar deta hai.
 export default function TrackOrder() {
+  usePageTitle("Track Your Order");
   const [params] = useSearchParams();
   const [orderNumber, setOrderNumber] = useState(params.get("order") || "");
   const [contact, setContact] = useState("");

@@ -21,6 +21,8 @@ app.use(cors({
     ? ['http://localhost:5173', 'http://localhost:3000']
     : (process.env.FRONTEND_URL || process.env.CLIENT_URL),
   credentials: true,
+  // Browser JS ko invoice ka server wala file name (Content-Disposition) padhne do
+  exposedHeaders: ['Content-Disposition'],
 }));
 
 // ===== Rate Limiting =====

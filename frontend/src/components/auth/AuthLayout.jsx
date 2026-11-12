@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
-import { Package } from "lucide-react";
-import { config } from "../../config";
+import BrandLogo from "../common/BrandLogo";
 
 export default function AuthLayout({ children, title, subtitle }) {
   return (
@@ -10,8 +9,7 @@ export default function AuthLayout({ children, title, subtitle }) {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 text-primary font-bold text-2xl">
-            <Package size={28} />
-            <span>{config.clientName}</span>
+            <BrandLogo iconSize={28} imgClass="h-10 w-auto max-w-[200px] object-contain" />
           </Link>
           {title && <h1 className="text-2xl font-bold text-gray-900 mt-4">{title}</h1>}
           {subtitle && <p className="text-gray-500 mt-1 text-sm">{subtitle}</p>}

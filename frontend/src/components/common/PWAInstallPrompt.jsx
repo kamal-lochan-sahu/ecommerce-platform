@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Download, X, Smartphone } from 'lucide-react'
+import useStoreSettings from '../../hooks/useStoreSettings'
 
 // Install banner ye kaam kharab na kare: checkout/cart jaise pages par nahi dikhta (wahan ye
 // "Place Order" jaise buttons ke upar aa kar clicks rok deta tha), 12 second baad khud hat jaata hai,
@@ -27,6 +28,7 @@ const recentlyDismissed = () => {
 }
 
 export default function PWAInstallPrompt() {
+  const { brandName } = useStoreSettings()
   const { pathname } = useLocation()
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showPrompt, setShowPrompt] = useState(false)
@@ -93,7 +95,7 @@ export default function PWAInstallPrompt() {
             <Smartphone size={22} className="text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-gray-900 text-sm">Install Luxora App</h3>
+            <h3 className="font-semibold text-gray-900 text-sm">Install {brandName} App</h3>
             <p className="text-xs text-gray-500 mt-0.5">
               {isIOS
                 ? 'Tap the share button and select "Add to Home Screen"'

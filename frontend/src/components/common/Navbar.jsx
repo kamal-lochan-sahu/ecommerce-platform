@@ -9,7 +9,7 @@ import useCartStore from "../../store/cartStore";
 import useWishlistStore from "../../store/wishlistStore";
 import useUiStore from "../../store/uiStore";
 import SearchBar from "./SearchBar";
-import { config } from "../../config";
+import BrandLogo from "./BrandLogo";
 import authService from "../../services/auth.service";
 import { displayEmail } from "../../utils/identity";
 
@@ -41,8 +41,7 @@ export default function Navbar() {
 
             {/* Logo */}
             <Link to="/" className="flex items-center gap-2 font-bold text-xl text-primary">
-              <Package size={24} />
-              <span>{config.clientName}</span>
+              <BrandLogo iconSize={24} />
             </Link>
 
             {/* Desktop Search */}

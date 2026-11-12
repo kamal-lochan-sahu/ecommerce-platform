@@ -10,6 +10,7 @@ import orderService from '../../services/order.service'
 import OrderTimeline from '../../components/order/OrderTimeline'
 import Skeleton from '../../components/ui/Skeleton'
 import Modal from '../../components/ui/Modal'
+import { filenameFromDisposition } from '../../utils/storeBrand'
 
 // Poori Tailwind class strings (`bg-${color}-100` jaisi bani hui classes tabhi chalti hain jab wahi class
 // kahin aur literal likhi ho - e.g. Returned ka bg-orange-50 build mein tha hi nahi)
@@ -64,7 +65,7 @@ export default function OrderDetail() {
       const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
       const a = document.createElement('a')
       a.href = url
-      a.download = `invoice-${order.orderNumber}.pdf`
+      a.download = filenameFromDisposition(res.headers?.['content-disposition'], `invoice-${order.orderNumber}.pdf`)
       document.body.appendChild(a)
       a.click()
       a.remove()

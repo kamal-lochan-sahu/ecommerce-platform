@@ -5,8 +5,10 @@ import CartSummary from "../../components/cart/CartSummary";
 import EmptyState from "../../components/ui/EmptyState";
 import Breadcrumb from "../../components/common/Breadcrumb";
 import useCartStore from "../../store/cartStore";
+import usePageTitle from "../../hooks/usePageTitle";
 
 export default function Cart() {
+  usePageTitle("Your Cart");
   const navigate = useNavigate();
   const { items, totalAmount, totalItems } = useCartStore();
   return (

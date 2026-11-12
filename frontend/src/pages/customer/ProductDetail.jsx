@@ -19,6 +19,9 @@ import Rating from "../../components/ui/Rating";
 import useCartStore from "../../store/cartStore";
 import useWishlistStore from "../../store/wishlistStore";
 import useAuthStore from "../../store/authStore";
+import usePageTitle from "../../hooks/usePageTitle";
+import useStoreSettings from "../../hooks/useStoreSettings";
+import { getTrustBadges } from "../../utils/storeBrand";
 
 export default function ProductDetail() {
   const { slug }    = useParams();
@@ -44,6 +47,8 @@ export default function ProductDetail() {
   });
   const product  = data?.product || null;
   const variants = data?.variants || [];
+  usePageTitle(product?.name);
+  const { settings: storeSettings } = useStoreSettings();
 
   // Fetch real related products from same category
   const { data: relatedData } = useQuery({
@@ -286,17 +291,18 @@ export default function ProductDetail() {
           </div>
 
           <div className="grid grid-cols-3 gap-3 pt-2">
-            {[
-              { icon: Truck,     label: "Free Delivery", sub: "Above ₹499" },
-              { icon: RefreshCw, label: "7-Day Return",  sub: "Easy returns" },
-              { icon: Shield,    label: "Genuine",       sub: "100% original" },
-            ].map(({ icon: Icon, label, sub }) => (
-              <div key={label} className="flex flex-col items-center text-center p-3 bg-gray-50 rounded-xl">
-                <Icon size={18} className="text-primary mb-1" />
-                <span className="text-xs font-semibold text-gray-800">{label}</span>
-                <span className="text-xs text-gray-500">{sub}</span>
-              </div>
-            ))}
+            {getTrustBadges(storeSettings)
+              .filter((b) => b.key !== "support")
+              .map(({ key, title, sub }) => {
+                const Icon = { delivery: Truck, returns: RefreshCw, payment: Shield }[key];
+                return (
+                  <div key={key} className="flex flex-col items-center text-center p-3 bg-gray-50 rounded-xl">
+                    <Icon size={18} className="text-primary mb-1" />
+                    <span className="text-xs font-semibold text-gray-800">{title}</span>
+                    <span className="text-xs text-gray-500">{sub}</span>
+                  </div>
+                );
+              })}
           </div>
         </div>
       </div>

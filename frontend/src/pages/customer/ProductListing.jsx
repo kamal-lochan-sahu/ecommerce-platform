@@ -13,6 +13,7 @@ import Breadcrumb from "../../components/common/Breadcrumb";
 import Drawer from "../../components/ui/Drawer";
 import Badge from "../../components/ui/Badge";
 import EmptyState from "../../components/ui/EmptyState";
+import usePageTitle from "../../hooks/usePageTitle";
 
 const SORT_OPTIONS = [
   { value: "newest",    label: "Newest First"    },
@@ -38,6 +39,7 @@ const DEFAULT_FILTERS = {
 };
 
 export default function ProductListing() {
+  usePageTitle("Shop");
   const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters]     = useState({
     ...DEFAULT_FILTERS,

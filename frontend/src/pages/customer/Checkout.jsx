@@ -13,6 +13,8 @@ import useAuthStore from "../../store/authStore";
 import orderService from "../../services/order.service";
 import api from "../../services/api";
 import { calculateOrderPricing } from "../../utils/orderPricing";
+import useStoreSettings from "../../hooks/useStoreSettings";
+import usePageTitle from "../../hooks/usePageTitle";
 
 const schema = z.object({
   fullName: z.string().min(2, "Please enter your full name"),
@@ -50,6 +52,8 @@ function loadRazorpayScript() {
 }
 
 export default function Checkout() {
+  const { brandName } = useStoreSettings();
+  usePageTitle("Checkout");
   const navigate = useNavigate();
   const location = useLocation();
   const { items, totalAmount, clearCart, couponCode, couponDiscount, couponScoped, clearCoupon } = useCartStore();
@@ -252,7 +256,7 @@ export default function Checkout() {
           key: rzp.key,
           amount: rzp.amount,
           currency: rzp.currency,
-          name: "Luxora",
+          name: brandName,
           description: `Order ${order?.orderNumber}`,
           order_id: rzp.id,
           handler: async (response) => {

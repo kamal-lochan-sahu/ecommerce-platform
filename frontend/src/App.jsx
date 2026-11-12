@@ -12,6 +12,7 @@ import useWishlistStore from "./store/wishlistStore";
 import useUiStore from "./store/uiStore";
 import Navbar from "./components/common/Navbar";
 import MaintenanceBanner from "./components/common/MaintenanceBanner";
+import BrandHead from "./components/common/BrandHead";
 import Footer from "./components/common/Footer";
 import { ScrollToTopOnRoute, ScrollToTopButton } from "./components/common/ScrollToTop";
 import CartDrawer from "./components/cart/CartDrawer";
@@ -134,6 +135,7 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen flex flex-col">
+      <BrandHead />
       {!isAdmin && !isAuth && <Navbar />}
       {!isAdmin && !isAuth && <MaintenanceBanner />}
       <main className="flex-1">

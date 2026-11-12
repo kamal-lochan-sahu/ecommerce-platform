@@ -1,18 +1,30 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+// Per-client build: naam / description / theme VITE_* env se (Vercel mein set karo). PWA manifest build time par
+// banta hai, isliye ye Admin Settings se nahi badal sakta. Icons: public/icons/ mein client ke apne icons rakho.
+const env = loadEnv(mode, '.', 'VITE_')
+const NAME = env.VITE_CLIENT_NAME || 'Luxora'
+const DESCRIPTION = env.VITE_CLIENT_DESCRIPTION || 'Online store'
+const THEME = env.VITE_PRIMARY_COLOR || '#6366f1'
+
+return {
   plugins: [
     react(),
+    {
+      name: 'brand-html',
+      transformIndexHtml: (html) => html.replace(/<title>[^<]*<\/title>/, `<title>${NAME}</title>`),
+    },
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
-        name: 'Luxora - Premium Shopping',
-        short_name: 'Luxora',
-        description: 'Premium ecommerce shopping experience',
-        theme_color: '#6366f1',
+        name: NAME,
+        short_name: NAME.length > 12 ? NAME.slice(0, 12) : NAME,
+        description: DESCRIPTION,
+        theme_color: THEME,
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
@@ -68,14 +80,14 @@ export default defineConfig({
             sizes: '1280x720',
             type: 'image/png',
             form_factor: 'wide',
-            label: 'Luxora Desktop',
+            label: `${NAME} Desktop`,
           },
           {
             src: '/icons/screenshot-mobile.png',
             sizes: '390x844',
             type: 'image/png',
             form_factor: 'narrow',
-            label: 'Luxora Mobile',
+            label: `${NAME} Mobile`,
           },
         ],
         categories: ['shopping', 'lifestyle'],
@@ -162,4 +174,5 @@ export default defineConfig({
       },
     },
   },
+}
 })

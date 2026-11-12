@@ -29,7 +29,6 @@ export default function Settings() {
     onSuccess: () => {
       setEdits({})
       qc.invalidateQueries({ queryKey: ['admin-settings'] })
-      qc.invalidateQueries({ queryKey: ['public-settings-maintenance'] })
       qc.invalidateQueries({ queryKey: ['public-settings'] })
       toast.success('Settings saved!')
     },
