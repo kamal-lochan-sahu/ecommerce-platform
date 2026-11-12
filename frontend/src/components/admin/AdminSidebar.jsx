@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard, Package, Grid3X3, ShoppingBag, Users,
-  Star, Tag, Image, BarChart2, Settings, LogOut, X, Store
+  Star, Tag, Image, BarChart2, Settings, LogOut, X, Store, FileText
 } from 'lucide-react'
 import useAuthStore from '../../store/authStore'
 import authService from '../../services/auth.service'
@@ -16,6 +16,7 @@ const NAV = [
   { to:'/admin/reviews',      Icon:Star,            label:'Reviews' },
   { to:'/admin/coupons',      Icon:Tag,             label:'Coupons' },
   { to:'/admin/banners',      Icon:Image,           label:'Banners' },
+  { to:'/admin/pages',        Icon:FileText,        label:'Store Pages' },
   { to:'/admin/analytics',    Icon:BarChart2,       label:'Analytics' },
   { to:'/admin/settings',     Icon:Settings,        label:'Settings' },
 ]

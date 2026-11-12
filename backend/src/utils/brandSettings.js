@@ -13,7 +13,12 @@ const URL_FIELDS = { logoUrl: 500, instagramUrl: 300, facebookUrl: 300, xUrl: 30
 export const BRAND_SETTINGS_FIELDS = [
   'legalName', 'gstin', 'tagline', 'logoUrl', 'supportHours', 'returnWindowDays', 'invoicePrefix',
   'instagramUrl', 'facebookUrl', 'xUrl', 'youtubeUrl',
+  'policyTerms', 'policyPrivacy', 'policyShipping', 'policyReturns', 'faqs',
 ];
+
+const POLICY_FIELDS = ['policyTerms', 'policyPrivacy', 'policyShipping', 'policyReturns'];
+export const POLICY_MAX = 30000;
+export const FAQ_MAX_ITEMS = 30;
 
 const isHttpsUrl = (v) => {
   try { return new URL(v).protocol === 'https:'; } catch { return false; }
@@ -48,6 +53,27 @@ export const validateBrandSettings = (updates) => {
       throw new ApiError(400, 'returnWindowDays must be a whole number between 0 and 365');
     }
     updates.returnWindowDays = n;
+  }
+
+  for (const key of POLICY_FIELDS) {
+    if (updates[key] === undefined) continue;
+    const text = String(updates[key]).replace(/\r\n/g, '\n').trim();
+    if (text.length > POLICY_MAX) throw new ApiError(400, `${key} is too long (max ${POLICY_MAX} characters)`);
+    updates[key] = text;
+  }
+
+  if (updates.faqs !== undefined) {
+    if (!Array.isArray(updates.faqs)) throw new ApiError(400, 'faqs must be a list of question/answer pairs');
+    const cleaned = updates.faqs
+      .map((f) => ({ question: String(f?.question ?? '').trim(), answer: String(f?.answer ?? '').trim() }))
+      .filter((f) => f.question || f.answer);
+    if (cleaned.length > FAQ_MAX_ITEMS) throw new ApiError(400, `You can add up to ${FAQ_MAX_ITEMS} FAQs`);
+    for (const f of cleaned) {
+      if (!f.question || !f.answer) throw new ApiError(400, 'Every FAQ needs both a question and an answer');
+      if (f.question.length > 200) throw new ApiError(400, 'A FAQ question can be at most 200 characters');
+      if (f.answer.length > 2000) throw new ApiError(400, 'A FAQ answer can be at most 2000 characters');
+    }
+    updates.faqs = cleaned;
   }
 
   if (updates.invoicePrefix !== undefined) {

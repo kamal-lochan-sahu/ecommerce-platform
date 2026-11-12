@@ -51,6 +51,14 @@ const settingsSchema = new mongoose.Schema({
   facebookUrl: { type: String, default: '' },
   xUrl: { type: String, default: '' },
   youtubeUrl: { type: String, default: '' },
+  // Legal pages ka custom text (khali = settings se bana default text). Format: "## Heading" + paragraphs.
+  policyTerms: { type: String, default: '' },
+  policyPrivacy: { type: String, default: '' },
+  policyShipping: { type: String, default: '' },
+  policyReturns: { type: String, default: '' },
+  // FAQs (khali list = default FAQs)
+  faqs: [{ question: { type: String, required: true }, answer: { type: String, required: true }, _id: false }],
+
   // Guest checkout (bina account ke order). White-label client band kar sakta hai.
   allowGuestCheckout: {
     type: Boolean,

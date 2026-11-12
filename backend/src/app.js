@@ -84,9 +84,11 @@ import couponRoutes from './routes/coupon.routes.js';
 import bannerRoutes from "./routes/banner.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
 import settingsRoutes from "./routes/settings.routes.js";
+import seoRoutes from "./routes/seo.routes.js";
 
 app.use("/api/banners", bannerRoutes);
 app.use("/api/settings", settingsRoutes);
+app.use("/api/seo", seoRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use('/api', reviewRoutes);

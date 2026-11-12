@@ -52,6 +52,7 @@ const AdminCoupons    = lazy(() => import("./pages/admin/Coupons"));
 const AdminBanners    = lazy(() => import("./pages/admin/Banners"));
 const AdminAnalytics  = lazy(() => import("./pages/admin/Analytics"));
 const AdminSettings   = lazy(() => import("./pages/admin/Settings"));
+const AdminStorePages = lazy(() => import("./pages/admin/StorePages"));
 
 // Global default below is a reasonable baseline for most reads (products,
 // categories). Cart is Zustand-managed (useCartStore.fetchCart(), called on
@@ -181,6 +182,7 @@ function AppLayout() {
             <Route path="/admin/banners"            element={<AdminRoute><AdminBanners /></AdminRoute>} />
             <Route path="/admin/analytics"          element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
             <Route path="/admin/settings"           element={<AdminRoute><AdminSettings /></AdminRoute>} />
+            <Route path="/admin/pages"              element={<AdminRoute><AdminStorePages /></AdminRoute>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
