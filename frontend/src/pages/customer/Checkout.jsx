@@ -15,6 +15,7 @@ import api from "../../services/api";
 import { calculateOrderPricing } from "../../utils/orderPricing";
 import useStoreSettings from "../../hooks/useStoreSettings";
 import usePageTitle from "../../hooks/usePageTitle";
+import { onImageError } from "../../utils/imageFallback";
 
 const schema = z.object({
   fullName: z.string().min(2, "Please enter your full name"),
@@ -525,7 +526,7 @@ export default function Checkout() {
                 <div className="space-y-3">
                   {items.map(item => (
                     <div key={`${item._id}-${item.variant}`} className="flex items-center gap-3">
-                      <img src={item.images?.[0] || item.image || "https://placehold.co/400x400?text=Product"} alt={item.name}
+                      <img onError={onImageError} src={item.images?.[0] || item.image || "https://placehold.co/400x400?text=Product"} alt={item.name}
                         className="w-12 h-12 rounded-lg object-cover bg-gray-50" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 line-clamp-1">{item.name}</p>
@@ -548,6 +549,11 @@ export default function Checkout() {
                   )}
                 </button>
               </div>
+              <p className="text-xs text-gray-500 text-center">
+                By placing your order you agree to our{" "}
+                <Link to="/terms" className="underline hover:text-primary">Terms &amp; Conditions</Link> and{" "}
+                <Link to="/privacy" className="underline hover:text-primary">Privacy Policy</Link>.
+              </p>
             </div>
           )}
         </div>
@@ -560,7 +566,7 @@ export default function Checkout() {
               {items.map(item => (
                 <div key={`${item._id}-${item.variant}`} className="flex items-center gap-2.5">
                   <div className="relative">
-                    <img src={item.images?.[0] || item.image || "https://placehold.co/400x400?text=Product"} alt={item.name}
+                    <img onError={onImageError} src={item.images?.[0] || item.image || "https://placehold.co/400x400?text=Product"} alt={item.name}
                       className="w-10 h-10 rounded-lg object-cover bg-gray-50" />
                     <span className="absolute -top-1 -right-1 w-4 h-4 bg-gray-600 text-white text-[9px] rounded-full flex items-center justify-center font-bold">{item.quantity}</span>
                   </div>

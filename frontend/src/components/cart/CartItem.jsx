@@ -2,6 +2,7 @@ import { Trash2, Minus, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import useCartStore from "../../store/cartStore";
 import toast from "react-hot-toast";
+import { onImageError } from "../../utils/imageFallback";
 
 export default function CartItem({ item }) {
   const { updateQty, removeItem } = useCartStore();
@@ -10,7 +11,7 @@ export default function CartItem({ item }) {
     <div className="flex gap-3 py-4 border-b border-gray-100 dark:border-gray-700 last:border-0">
       <Link to={`/products/${item.slug}`} className="flex-shrink-0">
         <div className="w-20 h-20 rounded-xl overflow-hidden bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700">
-          <img src={item.image || item.images?.[0] || "https://placehold.co/400x400?text=Product"} alt={item.name} className="w-full h-full object-cover" />
+          <img onError={onImageError} src={item.image || item.images?.[0] || "https://placehold.co/400x400?text=Product"} alt={item.name} className="w-full h-full object-cover" />
         </div>
       </Link>
       <div className="flex-1 min-w-0">

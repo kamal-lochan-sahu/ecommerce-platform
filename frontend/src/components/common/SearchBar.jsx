@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, X, Loader2, ArrowRight } from "lucide-react";
 import productService from "../../services/product.service";
+import { onImageError } from "../../utils/imageFallback";
 
 export default function SearchBar({ onClose, autoFocus = false }) {
   const [query, setQuery] = useState("");
@@ -116,7 +117,7 @@ export default function SearchBar({ onClose, autoFocus = false }) {
                   onClick={() => handleSuggestionClick(p.slug)}
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group text-left"
                 >
-                  <img src={p.images[0] || "https://placehold.co/400x400?text=Product"} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100" />
+                  <img onError={onImageError} src={p.images[0] || "https://placehold.co/400x400?text=Product"} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900 truncate group-hover:text-primary transition-colors">
                       {p.name}

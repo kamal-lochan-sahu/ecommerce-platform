@@ -1,4 +1,5 @@
 import { Package, ChevronRight, Clock, Truck, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
+import { onImageError } from "../../utils/imageFallback";
 
 const STATUS_CONFIG = {
   placed:          { label: 'Pending',          bg: 'bg-yellow-100', text: 'text-yellow-700', Icon: Clock },
@@ -38,7 +39,7 @@ export default function OrderCard({ order }) {
 
       <div className="flex items-center gap-3 mb-4">
         <div className="flex -space-x-2">
-          <img
+          <img onError={onImageError}
             src={firstImage}
             alt="product"
             className="w-12 h-12 rounded-xl object-cover border-2 border-white shadow-sm"

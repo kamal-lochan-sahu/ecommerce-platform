@@ -7,6 +7,7 @@ import useCartStore from "../../store/cartStore";
 import useWishlistStore from "../../store/wishlistStore";
 import useAuthStore from "../../store/authStore";
 import { buildResponsiveImageProps } from "../../utils/image";
+import { onImageError } from "../../utils/imageFallback";
 
 // ── Star Rating (inline — no import needed) ──
 function Stars({ value = 0, count = 0 }) {
@@ -72,7 +73,7 @@ export default function ProductCard({ product }) {
       <div className="card-hover overflow-hidden">
         {/* Image */}
         <div className="relative aspect-square overflow-hidden bg-gray-50">
-          <img {...buildResponsiveImageProps(imageUrl)} alt={name}
+          <img onError={onImageError} {...buildResponsiveImageProps(imageUrl)} alt={name}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             loading="lazy" decoding="async" width={400} height={400} />
 

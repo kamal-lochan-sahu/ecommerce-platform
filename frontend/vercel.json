@@ -1,0 +1,7 @@
+{
+  "rewrites": [
+    { "source": "/robots.txt", "destination": "https://luxora-backend-2nyx.onrender.com/api/seo/robots.txt" },
+    { "source": "/sitemap.xml", "destination": "https://luxora-backend-2nyx.onrender.com/api/seo/sitemap.xml" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

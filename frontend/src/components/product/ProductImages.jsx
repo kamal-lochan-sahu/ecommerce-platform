@@ -6,6 +6,7 @@ import { Navigation } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/thumbs";
+import { onImageError } from "../../utils/imageFallback";
 
 export default function ProductImages({ images = [], name = "" }) {
   const [active, setActive]   = useState(0);
@@ -44,7 +45,7 @@ export default function ProductImages({ images = [], name = "" }) {
                 : "border-gray-100 hover:border-gray-300"
             )}
           >
-            <img src={img} alt={`${name} ${i+1}`} className="w-full h-full object-cover" />
+            <img onError={onImageError} src={img} alt={`${name} ${i+1}`} className="w-full h-full object-cover" />
           </button>
         ))}
       </div>
@@ -65,7 +66,7 @@ export default function ProductImages({ images = [], name = "" }) {
                 onMouseLeave={() => setZoomed(false)}
                 onMouseMove={handleMouseMove}
               >
-                <img
+                <img onError={onImageError}
                   src={img}
                   alt={name}
                   className={clsx(

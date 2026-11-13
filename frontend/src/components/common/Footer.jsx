@@ -7,7 +7,13 @@ import { telHref } from "../../utils/storeBrand";
 const links = {
   Shop:    [{ label: "All Products", href: "/products" }, { label: "New Arrivals", href: "/products?sort=newest" }],
   Account: [{ label: "My Orders", href: "/orders" }, { label: "Wishlist", href: "/wishlist" }, { label: "Profile", href: "/profile" }],
-  Help:    [{ label: "Track Order", href: "/track-order" }],
+  Help:    [{ label: "Contact Us", href: "/contact" }, { label: "FAQs", href: "/faq" }, { label: "Track Order", href: "/track-order" }],
+  Policies: [
+    { label: "Terms & Conditions", href: "/terms" },
+    { label: "Privacy Policy", href: "/privacy" },
+    { label: "Shipping Policy", href: "/shipping-policy" },
+    { label: "Return & Refund Policy", href: "/returns-policy" },
+  ],
 };
 
 const SOCIAL = [
@@ -26,7 +32,7 @@ export default function Footer() {
   return (
     <footer className="bg-dark text-gray-400 mt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           <div className="col-span-2 md:col-span-1">
             <Link to="/" className="flex items-center gap-2 text-white font-bold text-xl mb-3">
               <BrandLogo iconSize={22} />

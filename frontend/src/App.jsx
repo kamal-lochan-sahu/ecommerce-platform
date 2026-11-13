@@ -29,6 +29,9 @@ const OrderDetail    = lazy(() => import("./pages/customer/OrderDetail"));
 const OrderTracking  = lazy(() => import("./pages/customer/OrderTracking"));
 const TrackOrder     = lazy(() => import("./pages/customer/TrackOrder"));
 const Unsubscribe    = lazy(() => import("./pages/customer/Unsubscribe"));
+const PolicyPage      = lazy(() => import("./pages/customer/PolicyPage"));
+const FAQ             = lazy(() => import("./pages/customer/FAQ"));
+const Contact         = lazy(() => import("./pages/customer/Contact"));
 const Profile        = lazy(() => import("./pages/customer/Profile"));
 const Addresses      = lazy(() => import("./pages/customer/Addresses"));
 const Wishlist       = lazy(() => import("./pages/customer/Wishlist"));
@@ -152,6 +155,12 @@ function AppLayout() {
             <Route path="/forgot-password"     element={<ForgotPassword />} />
             <Route path="/reset-password"      element={<ResetPassword />} />
             <Route path="/verify-otp"          element={<VerifyOTP />} />
+            <Route path="/terms"               element={<PolicyPage kind="terms" />} />
+            <Route path="/privacy"             element={<PolicyPage kind="privacy" />} />
+            <Route path="/shipping-policy"     element={<PolicyPage kind="shipping" />} />
+            <Route path="/returns-policy"      element={<PolicyPage kind="returns" />} />
+            <Route path="/faq"                 element={<FAQ />} />
+            <Route path="/contact"             element={<Contact />} />
 
             {/* Protected customer routes */}
             {/* Cart, checkout aur order-success guest ke liye bhi khule hain (guest checkout) */}

@@ -49,6 +49,7 @@ export default function ProductDetail() {
   const variants = data?.variants || [];
   usePageTitle(product?.name);
   const { settings: storeSettings } = useStoreSettings();
+  const tiles = getTrustBadges(storeSettings).filter((b) => b.key !== "support");
 
   // Fetch real related products from same category
   const { data: relatedData } = useQuery({
@@ -290,9 +291,8 @@ export default function ProductDetail() {
             </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 pt-2">
-            {getTrustBadges(storeSettings)
-              .filter((b) => b.key !== "support")
+          <div className={`grid gap-3 pt-2 ${tiles.length >= 3 ? "grid-cols-3" : "grid-cols-2"}`}>
+            {tiles
               .map(({ key, title, sub }) => {
                 const Icon = { delivery: Truck, returns: RefreshCw, payment: Shield }[key];
                 return (

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import wishlistService from '../../services/wishlist.service'
 import useCartStore from '../../store/cartStore'
 import Skeleton from '../../components/ui/Skeleton'
+import { onImageError } from "../../utils/imageFallback";
 
 export default function Wishlist() {
   const qc = useQueryClient()
@@ -83,7 +84,7 @@ export default function Wishlist() {
               return (
                 <div key={p._id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm hover:shadow-md transition-all group">
                   <Link to={`/products/${p.slug}`} className="block relative overflow-hidden">
-                    <img src={img} alt={p.name} className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy"/>
+                    <img onError={onImageError} src={img} alt={p.name} className="w-full h-44 object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy"/>
                     {discount > 0 && (
                       <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">{discount}% off</span>
                     )}

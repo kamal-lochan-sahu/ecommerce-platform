@@ -4,6 +4,7 @@ import { ProductCardSkeleton } from "../ui/Skeleton";
 import EmptyState from "../ui/EmptyState";
 import Pagination from "../ui/Pagination";
 import { buildResponsiveImageProps } from "../../utils/image";
+import { onImageError } from "../../utils/imageFallback";
 
 export default function ProductGrid({
   products = [],
@@ -63,7 +64,7 @@ function ListProductCard({ product }) {
   return (
     <div className="card-hover flex gap-4 p-3">
       <div className="w-28 h-28 flex-shrink-0 rounded-xl overflow-hidden bg-gray-50">
-        <img
+        <img onError={onImageError}
           {...buildResponsiveImageProps(
             images?.[0] || "https://placehold.co/400x400?text=Product",
             { widths: [112, 224], sizes: "112px" }

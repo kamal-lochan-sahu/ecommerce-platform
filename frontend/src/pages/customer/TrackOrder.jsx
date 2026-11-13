@@ -5,6 +5,7 @@ import Input from "../../components/ui/Input";
 import OrderTimeline from "../../components/order/OrderTimeline";
 import orderService from "../../services/order.service";
 import usePageTitle from "../../hooks/usePageTitle";
+import { onImageError } from "../../utils/imageFallback";
 
 const money = (n) => `₹${Number(n || 0).toLocaleString("en-IN")}`;
 const when = (d) => (d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "");
@@ -77,7 +78,7 @@ export default function TrackOrder() {
           <div className="space-y-3">
             {order.items.map((it, i) => (
               <div key={i} className="flex items-center gap-3">
-                {it.image && <img src={it.image} alt="" className="w-12 h-12 rounded-lg object-cover bg-gray-100" />}
+                {it.image && <img onError={onImageError} src={it.image} alt="" className="w-12 h-12 rounded-lg object-cover bg-gray-100" />}
                 <p className="flex-1 text-sm text-gray-800">{it.name}{it.variantLabel && <span className="text-gray-500"> ({it.variantLabel})</span>} <span className="text-gray-400">× {it.quantity}</span></p>
                 <p className="text-sm font-medium">{money(it.price * it.quantity)}</p>
               </div>

@@ -11,6 +11,7 @@ import OrderTimeline from '../../components/order/OrderTimeline'
 import Skeleton from '../../components/ui/Skeleton'
 import Modal from '../../components/ui/Modal'
 import { filenameFromDisposition } from '../../utils/storeBrand'
+import { onImageError } from "../../utils/imageFallback";
 
 // Poori Tailwind class strings (`bg-${color}-100` jaisi bani hui classes tabhi chalti hain jab wahi class
 // kahin aur literal likhi ho - e.g. Returned ka bg-orange-50 build mein tha hi nahi)
@@ -187,7 +188,7 @@ export default function OrderDetail() {
           <div className="divide-y divide-gray-50">
             {order.items?.map((item, idx) => (
               <div key={idx} className="flex gap-4 py-4 first:pt-0 last:pb-0">
-                <img
+                <img onError={onImageError}
                   src={item.image || item.product?.images?.[0] || 'https://placehold.co/400x400?text=Product'}
                   alt={item.name || item.product?.name}
                   className="w-16 h-16 object-cover rounded-xl border border-gray-100 flex-shrink-0"

@@ -111,6 +111,8 @@ return {
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // robots.txt / sitemap.xml server se aate hain; app ka index.html unki jagah na dikhe
+        navigateFallbackDenylist: [/^\/robots\.txt$/, /^\/sitemap\.xml$/, /^\/api\//],
         runtimeCaching: [
           // Admin data kabhi cache nahi: stock / orders jaisi cheezein turant sahi dikhni chahiye.
           // (Pehle ye /api/products/admin/... bhi pakad leta tha aur ghante bhar purana stock dikhata tha.)

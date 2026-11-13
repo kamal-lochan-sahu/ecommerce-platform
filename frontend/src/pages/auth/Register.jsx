@@ -15,7 +15,8 @@ import useCartStore from "../../store/cartStore";
 const schema = z.object({
   name:     z.string().min(2, "Name must be at least 2 characters"),
   email:    z.string().email("Please enter a valid email"),
-  phone:    z.string().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit mobile number"),
+  // Phone optional: email se account bann jaata hai, phone baad mein verify ho sakta hai
+  phone:    z.string().regex(/^[6-9]\d{9}$/, "Please enter a valid 10-digit mobile number").optional().or(z.literal("")),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string(),
 }).refine((d) => d.password === d.confirmPassword, {
@@ -36,6 +37,7 @@ export default function Register() {
     try {
       const payload = { ...data };
       delete payload.confirmPassword;
+      if (!payload.phone) delete payload.phone;
       const res = await authService.register(payload);
       // The backend always returns tokens on register (user is unverified).
       // Log in FIRST: /auth/verify-email is a protected route, so the verify
@@ -71,7 +73,7 @@ export default function Register() {
         />
 
         <Input
-          label="Phone Number"
+          label="Phone Number (optional)"
           type="tel"
           placeholder="9876543210"
           prefix={<Phone size={16} />}
@@ -106,6 +108,12 @@ export default function Register() {
         <Button type="submit" fullWidth loading={isSubmitting} size="lg" className="mt-2">
           Create Account
         </Button>
+
+        <p className="text-center text-xs text-gray-500">
+          By creating an account you agree to our{" "}
+          <Link to="/terms" className="underline hover:text-primary">Terms &amp; Conditions</Link> and{" "}
+          <Link to="/privacy" className="underline hover:text-primary">Privacy Policy</Link>.
+        </p>
 
         <p className="text-center text-sm text-gray-600">
           Already have an account?{" "}
